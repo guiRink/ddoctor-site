@@ -10,7 +10,7 @@ Abra http://localhost:8765/. O painel (botão **Entrar**) está em `site/painel/
 
 ## Estrutura
 
-- `site/index.html` — página única (HTML, CSS e JS). O filme é uma sequência de 240 quadros WebP desenhada num `<canvas>` com crossfade entre quadros vizinhos. O scroll anda por **takes**: uma rolada normal (roda do mouse, flick no trackpad, swipe no celular, setas/PageDown) leva ao próximo ponto de parada e roda o trecho do filme até lá; uma rolada bem lenta "esfrega" o filme e, ao soltar, encaixa no ponto mais próximo. Pontos de parada em `STOPS` (0, 0.30, 0.467, 0.633, 0.80, 1) e os capítulos (`data-center`) ficam alinhados a eles. Depois do último take o scroll volta a ser nativo.
+- `site/index.html` — página única (HTML, CSS e JS). O filme é uma sequência de 240 quadros WebP desenhada num `<canvas>` com crossfade entre quadros vizinhos. O scroll é fluido e 1:1 (roda, trackpad, toque): enquanto o visitante rola, o filme anda junto; quando ele solta, a página vai sozinha até o **próximo take na direção do movimento** (para baixo → próxima parada; para cima → parada anterior). Setas/PageDown pulam de take em take. Pontos de parada em `STOPS` (0, 0.30, 0.467, 0.633, 0.80, 1) e os capítulos (`data-center`) ficam alinhados a eles. Depois do último take o scroll volta a ser nativo.
 - `site/frames/desktop` (1280×720, ~11 MB) e `site/frames/mobile` (480×852 em retrato, recorte 9:16 do filme que acompanha o push-in da fachada, ~8 MB). 240 quadros cada.
 - `site/assets/fotos/*.webp` — as 10 fotos reais da oficina, otimizadas.
 - `site/assets/logo-mark.svg` — o "D" amarelo reconstruído em vetor.

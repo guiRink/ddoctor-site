@@ -837,11 +837,10 @@
       // Pontos de parada do filme (fração do scroll da sequência). Cada "take" termina num deles.
       const STOPS = [0, 0.30, 0.467, 0.633, 0.80, 1];
       const SEGMENT = 1 / 6;
-      const FOLLOW = 0.22;            // quão rápido o quadro desenhado segue o alvo
-      const FLICK_DELTA = 40;         // |deltaY| a partir do qual uma rolada vira "próximo take"
-      const SCRUB_GAIN = 0.55;        // px de scroll por px de roda em modo lento
-      const SCRUB_IDLE_MS = 170;      // sem eventos por este tempo → encaixa num ponto de parada
-      const COOLDOWN_MS = 420;        // ignora inércia do trackpad logo após uma transição
+      const FOLLOW = 0.35;            // quão rápido o quadro desenhado segue o scroll
+      const SCRUB_GAIN = 1;           // px de scroll por px de roda (1:1, como scroll nativo)
+      const SCRUB_IDLE_MS = 150;      // sem eventos por este tempo → encaixa no próximo take
+      const COOLDOWN_MS = 350;        // engole o rabo de inércia do trackpad logo após encaixar
 
       const sequence = document.getElementById("sequence");
       const stage = document.getElementById("stage");
@@ -878,8 +877,6 @@
       let cooldownUntil = 0;
       let scrubTimer = 0;
       let settleTimer = 0;
-      let queuedDirection = 0;
-      let animationStart = 0;
 
       document.getElementById("ano").textContent = String(new Date().getFullYear());
 
@@ -1009,12 +1006,6 @@
         return window.scrollY >= sequenceTop - margin && window.scrollY <= sequenceTop + sequenceDistance + margin;
       }
 
-      // Se o scroll nativo (barra, link, voltar da seção de baixo) deixou a página fora de um ponto de parada,
-      // realinha o take atual antes de interpretar o gesto.
-      function syncStop() {
-        if (!animating && Math.abs(window.scrollY - stopScroll(currentStop)) > 3) currentStop = nearestStop(rawScrollProgress());
-      }
-
       function nearestStop(progress) {
         let best = 0;
         for (let i = 1; i < STOPS.length; i += 1) {
@@ -1083,8 +1074,9 @@
         });
       }
 
-      // ---------- Navegação por takes ----------
-      const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+      // ---------- Navegação: scroll fluido 1:1, e ao soltar encaixa no próximo take ----------
+      const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+      let snapToken = 0;
 
       function framesBetween(fromProgress, toProgress) {
         const lo = Math.floor(Math.min(fromProgress, toProgress) * (FRAME_COUNT - 1));
@@ -1094,150 +1086,154 @@
         return list;
       }
 
-      async function goToStop(index) {
+      function cancelSnap() {
+        if (!animating) return;
+        snapToken += 1;
+        animating = false;
+      }
+
+      // Próxima parada na direção do movimento; parado em cima de uma, fica nela.
+      function stopInDirection(progress, direction) {
+        const eps = 0.004;
+        for (let i = 0; i < STOPS.length; i += 1) if (Math.abs(STOPS[i] - progress) <= eps) return i;
+        if (direction > 0) {
+          for (let i = 0; i < STOPS.length; i += 1) if (STOPS[i] > progress + eps) return i;
+          return STOPS.length - 1;
+        }
+        if (direction < 0) {
+          for (let i = STOPS.length - 1; i >= 0; i -= 1) if (STOPS[i] < progress - eps) return i;
+          return 0;
+        }
+        return nearestStop(progress);
+      }
+
+      async function snapTo(index) {
         const target = Math.max(0, Math.min(STOPS.length - 1, index));
-        if (animating) return;
+        cancelSnap();
+        const token = ++snapToken;
         animating = true;
         programmatic = true;
         window.clearTimeout(scrubTimer);
         const from = window.scrollY;
         const to = stopScroll(target);
         const fromProgress = rawScrollProgress();
-        // Garante que os quadros do trecho existam antes de rodar o take.
         const missing = framesBetween(fromProgress, STOPS[target]);
         if (missing.length) {
           telemetryChapter.textContent = "Carregando o take…";
           await loadInBatches(missing, 8);
+          if (token !== snapToken) return;
         }
         const span = Math.abs(STOPS[target] - fromProgress);
-        const duration = Math.max(420, Math.min(1800, 300 + (span / SEGMENT) * 850));
+        const duration = Math.max(320, Math.min(1100, 250 + (span / SEGMENT) * 700));
         const start = performance.now();
-        animationStart = start;
         await new Promise((resolve) => {
           const step = (now) => {
+            if (token !== snapToken) return resolve();
             const t = Math.min(1, (now - start) / duration);
-            window.scrollTo(0, from + (to - from) * easeInOut(t));
+            window.scrollTo(0, from + (to - from) * easeOut(t));
             if (t < 1) requestAnimationFrame(step);
             else resolve();
           };
           requestAnimationFrame(step);
         });
+        if (token !== snapToken) return;
         window.scrollTo(0, to);
         currentStop = target;
         animating = false;
         cooldownUntil = performance.now() + COOLDOWN_MS;
-        window.setTimeout(() => { programmatic = false; }, 60);
-        // Um gesto claro feito durante a animação emenda o próximo take.
-        if (queuedDirection) {
-          const next = queuedDirection;
-          queuedDirection = 0;
-          const bounded = Math.max(0, Math.min(STOPS.length - 1, currentStop + next));
-          if (bounded !== currentStop) { cooldownUntil = 0; goToStop(bounded); }
-        }
+        window.setTimeout(() => { if (!animating) programmatic = false; }, 60);
       }
 
-      function settleAfterScrub() {
-        const progress = rawScrollProgress();
-        const origin = STOPS[currentStop];
-        const moved = progress - origin;
-        if (Math.abs(moved) >= SEGMENT * 0.22) {
-          goToStop(currentStop + Math.sign(moved));
-        } else {
-          goToStop(currentStop);
-        }
+      let lastDirection = 1;
+
+      function settle() {
+        if (!inSequence(0)) return;
+        snapTo(stopInDirection(rawScrollProgress(), lastDirection));
       }
 
+      // Move o scroll junto com o gesto (1:1) dentro da sequência.
       function scrubBy(deltaPx) {
+        cancelSnap();
         programmatic = true;
-        const lo = stopScroll(Math.max(0, currentStop - 1));
-        const hi = stopScroll(Math.min(STOPS.length - 1, currentStop + 1));
-        const next = Math.max(lo, Math.min(hi, window.scrollY + deltaPx));
-        window.scrollTo(0, next);
+        if (deltaPx !== 0) lastDirection = Math.sign(deltaPx);
+        const lo = sequenceTop;
+        const hi = sequenceTop + sequenceDistance;
+        window.scrollTo(0, Math.max(lo, Math.min(hi, window.scrollY + deltaPx)));
         window.clearTimeout(scrubTimer);
-        scrubTimer = window.setTimeout(settleAfterScrub, SCRUB_IDLE_MS);
+        scrubTimer = window.setTimeout(settle, SCRUB_IDLE_MS);
+      }
+
+      function atBoundary(direction) {
+        const atEnd = direction > 0 && window.scrollY >= sequenceTop + sequenceDistance - 1;
+        const atStart = direction < 0 && window.scrollY <= sequenceTop + 1;
+        return atEnd || atStart;
       }
 
       function onWheel(event) {
         if (reducedMotion || !inSequence()) return;
-        syncStop();
         const direction = Math.sign(event.deltaY);
         if (direction === 0) return;
-        const atEnd = currentStop === STOPS.length - 1 && direction > 0 && !animating && window.scrollY >= stopScroll(STOPS.length - 1) - 2;
-        const atStart = currentStop === 0 && direction < 0 && window.scrollY <= sequenceTop + 2;
-        if (atEnd || atStart) return; // devolve o scroll à página
+        if (!animating && atBoundary(direction)) return; // devolve o scroll à página
         event.preventDefault();
         const delta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY;
-        if (animating) {
-          // Depois de 600 ms de animação, uma rolada firme conta como "quero o próximo" (inércia do trackpad já decaiu).
-          if (Math.abs(delta) >= FLICK_DELTA && performance.now() - animationStart > 600) queuedDirection = direction;
-          return;
-        }
-        if (performance.now() < cooldownUntil) return;
-        if (Math.abs(delta) >= FLICK_DELTA) {
-          window.clearTimeout(scrubTimer);
-          goToStop(currentStop + direction);
-        } else {
-          scrubBy(delta * SCRUB_GAIN);
-        }
+        // Logo depois de encaixar, engole o rabo de inércia do trackpad; um gesto firme passa.
+        if (performance.now() < cooldownUntil && Math.abs(delta) < 30) return;
+        scrubBy(delta * SCRUB_GAIN);
       }
 
       let touchY = 0;
-      let touchMoved = 0;
       let touchActive = false;
       function onTouchStart(event) {
-        if (reducedMotion || !inSequence()) { touchActive = false; return; }
-        touchActive = true;
-        syncStop();
+        touchActive = !reducedMotion && inSequence();
+        if (!touchActive) return;
+        cancelSnap();
         touchY = event.touches[0].clientY;
-        touchMoved = 0;
       }
       function onTouchMove(event) {
-        if (!touchActive || animating) return;
+        if (!touchActive) return;
         const y = event.touches[0].clientY;
         const delta = touchY - y;
         touchY = y;
-        const direction = Math.sign(delta);
-        const atEnd = currentStop === STOPS.length - 1 && direction > 0 && window.scrollY >= stopScroll(STOPS.length - 1) - 2;
-        const atStart = currentStop === 0 && direction < 0 && window.scrollY <= sequenceTop + 2;
-        if (atEnd || atStart) { touchActive = false; return; }
+        if (delta === 0) return;
+        if (atBoundary(Math.sign(delta))) { touchActive = false; return; }
         event.preventDefault();
-        touchMoved += delta;
+        cancelSnap();
         programmatic = true;
+        lastDirection = Math.sign(delta);
+        window.scrollTo(0, Math.max(sequenceTop, Math.min(sequenceTop + sequenceDistance, window.scrollY + delta)));
         window.clearTimeout(scrubTimer);
-        const lo = stopScroll(Math.max(0, currentStop - 1));
-        const hi = stopScroll(Math.min(STOPS.length - 1, currentStop + 1));
-        window.scrollTo(0, Math.max(lo, Math.min(hi, window.scrollY + delta * 0.9)));
       }
       function onTouchEnd() {
         if (!touchActive) return;
         touchActive = false;
-        if (animating) return;
-        if (Math.abs(touchMoved) >= 36) goToStop(currentStop + Math.sign(touchMoved));
-        else goToStop(currentStop);
+        settle();
       }
 
       function onKey(event) {
-        if (reducedMotion || !inSequence() || animating) return;
-        syncStop();
+        if (reducedMotion || !inSequence()) return;
         if (event.target && /^(input|textarea|select|button|a)$/i.test(event.target.tagName) && event.key === " ") return;
         const next = ["ArrowDown", "PageDown", " "].includes(event.key) ? 1 : ["ArrowUp", "PageUp"].includes(event.key) ? -1 : 0;
         if (!next) return;
-        if (next > 0 && currentStop === STOPS.length - 1) return;
-        if (next < 0 && currentStop === 0) return;
+        if (atBoundary(next)) return;
         event.preventDefault();
-        goToStop(currentStop + next);
+        lastDirection = next;
+        snapTo(stopInDirection(rawScrollProgress(), next));
       }
 
-      // Scroll nativo (barra de rolagem, voltar da seção de baixo): encaixa no ponto mais próximo.
+      // Scroll nativo (barra de rolagem, âncora, voltar da seção de baixo): encaixa na direção do movimento.
+      let lastNativeY = 0;
       function onNativeScroll() {
         updateHeader();
+        const y = window.scrollY;
+        if (!programmatic && !animating && y !== lastNativeY) lastDirection = Math.sign(y - lastNativeY) || lastDirection;
+        lastNativeY = y;
         if (reducedMotion || programmatic || animating) return;
         window.clearTimeout(settleTimer);
         if (!inSequence(0)) return;
         settleTimer = window.setTimeout(() => {
           if (programmatic || animating || !inSequence(0)) return;
-          const target = nearestStop(rawScrollProgress());
-          if (Math.abs(stopScroll(target) - window.scrollY) > 1) goToStop(target);
+          const target = stopInDirection(rawScrollProgress(), lastDirection);
+          if (Math.abs(stopScroll(target) - window.scrollY) > 1) snapTo(target);
           else currentStop = target;
         }, 140);
       }
