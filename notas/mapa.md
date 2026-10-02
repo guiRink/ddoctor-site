@@ -1,8 +1,9 @@
 # GusPainel (D doctor) — mapa
 
 ## Estado atual (sempre atualizado, sempre curto)
-- Onde está: landing page publicada e aprovada em https://guirink.github.io/ddoctor-site/. Painel iniciado hoje (Sprint 0: estrutura, stack e esqueleto).
-- Próximo passo: fechar o Sprint 0 (shell do painel com dados demo publicado em `/painel/`) e mandar o link ao irmão; em paralelo, pedir a ele os prints do portal Maxpar e a planilha atual (`docs/painel-plano.md` §6).
+- Onde está: landing publicada e aprovada. Painel com Sprint 0 fechado e publicado em https://guirink.github.io/ddoctor-site/painel/ (PIN 3316). O dono entregou a especificação V1 (`docs/espec-dono-v1.md`) e a arquitetura técnica derivada está em `docs/painel-arquitetura.md` (12 seções: componentes, origens, destinos, superfícies, modelo v2, máquinas de estado, integrações, segurança, sprints 1–8 com portões G1–G4, decisões e riscos).
+- Próximo passo (sessão no VS Code): 1) quitar a dívida da QA do Sprint 0 em `docs/qa-sprint0.md` (B1 overflow mobile, B2 placa, B3 recusa no mesmo dia primeiro); 2) iniciar o Sprint 1 da arquitetura (domínio v2 em `codigo/compartilhado/`, migrations Supabase locais, Repositorio v2, hooks via Repositorio, login). Em paralelo, agendar com o dono o portão G1 (inspeção da conta Maxpar) e as decisões 2–6 da seção 11 da arquitetura.
+- Atenção: `docs/painel-plano.md` ficou desatualizado nos sprints (a arquitetura substitui a seção 5 dele); stack e modelo v1 continuam válidos como histórico.
 - Bloqueios em aberto: conta Supabase (necessária só no Sprint 4); endereço completo e horário da oficina para a landing; confirmar se Porto/Azul chegam via Carglass e não via Maxpar.
 
 ---
