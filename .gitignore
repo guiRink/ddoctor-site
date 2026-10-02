@@ -3,3 +3,6 @@ media/
 .impeccable/review/
 .impeccable/mocks/
 *.log
+codigo/site/painel/
+codigo/painel/node_modules/
+codigo/painel/dist/

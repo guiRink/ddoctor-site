@@ -2,7 +2,7 @@ name: Publicar landing no GitHub Pages
 on:
   push:
     branches: [main]
-    paths: ["site/**", ".github/workflows/pages.yml"]
+    paths: ["codigo/site/**", "codigo/painel/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -19,9 +19,19 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: codigo/painel/package-lock.json
+      - name: Build do painel (Vite → codigo/site/painel)
+        working-directory: codigo/painel
+        run: |
+          npm ci
+          npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: codigo/site
       - id: deployment
         uses: actions/deploy-pages@v4

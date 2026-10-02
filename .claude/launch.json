@@ -4,8 +4,15 @@
     {
       "name": "site",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["tools/serve.mjs", "site", "8765"],
+      "runtimeArgs": ["codigo/tools/serve.mjs", "codigo/site", "8765"],
       "port": 8765
+    },
+    {
+      "name": "painel",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "codigo/painel", "run", "dev", "--", "--port", "5173", "--strictPort"],
+      "port": 5173,
+      "url": "http://localhost:5173"
     }
   ]
 }

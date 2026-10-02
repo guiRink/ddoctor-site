@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+/* Fontes self-hosted (mesmas da landing) */
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-weight: 300 900;
+  font-stretch: 62% 125%;
+  font-display: swap;
+  src: url("/fonts/archivo-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-weight: 300 900;
+  font-stretch: 62% 125%;
+  font-display: swap;
+  src: url("/fonts/archivo-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* Tokens do DESIGN.md */
+@theme {
+  --color-amarelo: #f2c200;
+  --color-amarelo-escuro: #d9a800;
+  --color-preto: #0a0a0a;
+  --color-grafite: #15161a;
+  --color-grafite-2: #1e2025;
+  --color-papel: #f4f3ee;
+  --color-papel-suave: rgba(244, 243, 238, 0.7);
+  --color-tinta: #0a0a0a;
+  --color-tinta-suave: rgba(10, 10, 10, 0.66);
+  --color-linha: rgba(10, 10, 10, 0.14);
+  --color-linha-clara: rgba(244, 243, 238, 0.14);
+  --color-alerta: #c8321e;
+  --color-ok: #1f7a3a;
+
+  --font-sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
+
+  --radius-*: initial;
+  --radius-none: 0;
+
+  --ease-saida: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html {
+    background: var(--color-papel);
+    color: var(--color-tinta);
+    font-family: var(--font-sans);
+    -webkit-text-size-adjust: 100%;
+  }
+  body { margin: 0; min-width: 320px; }
+  ::selection { background: var(--color-amarelo); color: var(--color-preto); }
+  :focus-visible { outline: 2px solid var(--color-amarelo); outline-offset: 3px; }
+  input, select, textarea, button { font: inherit; }
+  html { scrollbar-color: var(--color-amarelo) var(--color-preto); }
+}
+
+@utility titulo-condensado {
+  font-weight: 800;
+  font-variation-settings: "wdth" 84;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+}
+
+@utility rotulo {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+@utility faixa-zebrada {
+  background: repeating-linear-gradient(-45deg, var(--color-amarelo) 0 10px, var(--color-preto) 10px 20px);
+}

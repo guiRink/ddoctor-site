@@ -3,20 +3,20 @@
 ## Rodar localmente
 
 ```bash
-node tools/serve.mjs site 8765
+node codigo/tools/serve.mjs codigo/site 8765
 ```
 
-Abra http://localhost:8765/. O painel (botão **Entrar**) está em `site/painel/` como placeholder.
+Abra http://localhost:8765/. O painel (botão **Entrar**) está em `codigo/site/painel/` como placeholder.
 
 ## Estrutura
 
-- `site/index.html` — página única (HTML, CSS e JS). O filme é uma sequência de 240 quadros WebP desenhada num `<canvas>` com crossfade entre quadros vizinhos. O scroll da sequência é um único movimento contínuo com inércia: enquanto o visitante rola (roda, trackpad, toque) o alvo anda com o gesto e a posição desliza atrás; quando ele solta, o alvo vira o **próximo take na direção do movimento** e a mesma inércia segue na velocidade em que vinha e desacelera até encaixar (sem pausa nem segunda animação). Setas/PageDown pulam de take em take. Paradas nos quadros `STOP_FRAMES` (1, 67, 118, 155, 186, 240 — os mais nítidos de cada take, escolhidos por análise de bordas); os capítulos (`data-center`) ficam alinhados a eles e em repouso o canvas desenha o quadro inteiro, sem crossfade. Um toque pequeno (menos de 12% de um take) volta ao take atual; rolagem de verdade segue para o próximo. Depois do último take o scroll volta a ser nativo.
-- `site/frames/desktop` (1120×630, ~13 MB) e `site/frames/mobile` (480×852 em retrato, recorte 9:16 do filme que acompanha o push-in da fachada, ~8 MB). 240 quadros cada.
-- `site/assets/fotos/*.webp` — as 10 fotos reais da oficina, otimizadas.
-- `site/assets/logo-mark.svg` — o "D" amarelo reconstruído em vetor.
-- `site/assets/fonts/` — Archivo variável (títulos e texto) e Quicksand 700 (palavra "doctor" da marca), self-hosted.
+- `codigo/site/index.html` — página única (HTML, CSS e JS). O filme é uma sequência de 240 quadros WebP desenhada num `<canvas>` com crossfade entre quadros vizinhos. O scroll da sequência é um único movimento contínuo com inércia: enquanto o visitante rola (roda, trackpad, toque) o alvo anda com o gesto e a posição desliza atrás; quando ele solta, o alvo vira o **próximo take na direção do movimento** e a mesma inércia segue na velocidade em que vinha e desacelera até encaixar (sem pausa nem segunda animação). Setas/PageDown pulam de take em take. Paradas nos quadros `STOP_FRAMES` (1, 67, 118, 155, 186, 240 — os mais nítidos de cada take, escolhidos por análise de bordas); os capítulos (`data-center`) ficam alinhados a eles e em repouso o canvas desenha o quadro inteiro, sem crossfade. Um toque pequeno (menos de 12% de um take) volta ao take atual; rolagem de verdade segue para o próximo. Depois do último take o scroll volta a ser nativo.
+- `codigo/site/frames/desktop` (1120×630, ~13 MB) e `codigo/site/frames/mobile` (480×852 em retrato, recorte 9:16 do filme que acompanha o push-in da fachada, ~8 MB). 240 quadros cada.
+- `codigo/site/assets/fotos/*.webp` — as 10 fotos reais da oficina, otimizadas.
+- `codigo/site/assets/logo-mark.svg` — o "D" amarelo reconstruído em vetor.
+- `codigo/site/assets/fonts/` — Archivo variável (títulos e texto) e Quicksand 700 (palavra "doctor" da marca), self-hosted.
 - `media/filme-oficina.mp4` — filme-fonte (30 s, 1920×1080, 24 fps), 6 clipes de 5 s gerados no Higgsfield (Kling 3.0 pro, image-to-video) a partir das fotos recortadas em 16:9. Ordem: fachada → recepção → funilaria → polimento/espelhamento → higienização → pátio.
-- `tools/shot.mjs` — captura de tela headless via Chrome DevTools Protocol (`node tools/shot.mjs out.png URL 1440 900 9000`).
+- `codigo/tools/shot.mjs` — captura de tela headless via Chrome DevTools Protocol (`node tools/shot.mjs out.png URL 1440 900 9000`).
 - `?p=0.585` na URL posiciona o filme nessa fração do scroll (atalho de revisão).
 
 ## Regenerar os quadros
@@ -24,16 +24,16 @@ Abra http://localhost:8765/. O painel (botão **Entrar**) está em `site/painel/
 Desktop (16:9):
 
 ```bash
-python3 "<skill animated-website>/scripts/extract_frames.py" --input media/filme-oficina.mp4 --output site/frames --frames 240 --quality 46 --desktop-res 1120x630 --desktop-only
+python3 "<skill animated-website>/scripts/extract_frames.py" --input media/filme-oficina.mp4 --output codigo/site/frames --frames 240 --quality 46 --desktop-res 1120x630 --desktop-only
 ```
 
 Mobile (retrato 9:16, recorte central; o ffmpeg daqui não tem libwebp, por isso passa por PNG + cwebp):
 
 ```bash
-ffmpeg -y -i media/filme-oficina.mp4 -vf "fps=240/30.25,crop=608:1080:'if(lt(t\,5.04)\,280-110*t/5.04\,656)':0,scale=480:852:flags=lanczos" -frames:v 240 /tmp/mframes/frame-%04d.png && for f in /tmp/mframes/*.png; do cwebp -q 48 "$f" -o "site/frames/mobile/$(basename "${f%.png}").webp"; done
+ffmpeg -y -i media/filme-oficina.mp4 -vf "fps=240/30.25,crop=608:1080:'if(lt(t\,5.04)\,280-110*t/5.04\,656)':0,scale=480:852:flags=lanczos" -frames:v 240 /tmp/mframes/frame-%04d.png && for f in /tmp/mframes/*.png; do cwebp -q 48 "$f" -o "codigo/site/frames/mobile/$(basename "${f%.png}").webp"; done
 ```
 
-Se mudar a contagem, atualize `FRAME_COUNT` e o texto `Q 001 / 240` em `site/index.html`.
+Se mudar a contagem, atualize `FRAME_COUNT` e o texto `Q 001 / 240` em `codigo/site/index.html`.
 
 ## Conteúdo a confirmar com a oficina
 
