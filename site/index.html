@@ -1105,7 +1105,10 @@
         const fromProgress = rawScrollProgress();
         // Garante que os quadros do trecho existam antes de rodar o take.
         const missing = framesBetween(fromProgress, STOPS[target]);
-        if (missing.length) await loadInBatches(missing, 12);
+        if (missing.length) {
+          telemetryChapter.textContent = "Carregando o take…";
+          await loadInBatches(missing, 8);
+        }
         const span = Math.abs(STOPS[target] - fromProgress);
         const duration = Math.max(420, Math.min(1800, 300 + (span / SEGMENT) * 850));
         const start = performance.now();
@@ -1267,13 +1270,17 @@
         const firstFrame = await loadFrame(0);
         if (firstFrame) { drawFrame(0); setLoaderProgress(0.2); }
 
-        // Carrega o primeiro take inteiro (até a primeira parada) antes de liberar a página.
-        const firstTake = Array.from({ length: Math.ceil(STOPS[1] * (FRAME_COUNT - 1)) + 1 }, (_, i) => i);
+        // Libera a página assim que o início do filme e os quadros de cada parada existirem;
+        // o resto carrega em ordem de exibição e cada take espera seus quadros antes de rodar.
+        const critical = Array.from(new Set([
+          ...Array.from({ length: 10 }, (_, i) => i),
+          ...STOPS.map((stop) => Math.round(stop * (FRAME_COUNT - 1)))
+        ])).sort((a, b) => a - b);
         let prepared = 0;
-        await Promise.all(firstTake.map(async (index) => {
+        await Promise.all(critical.map(async (index) => {
           const image = await loadFrame(index);
           prepared += 1;
-          setLoaderProgress(0.2 + 0.76 * (prepared / firstTake.length));
+          setLoaderProgress(0.2 + 0.76 * (prepared / critical.length));
           return image;
         }));
 
@@ -1297,7 +1304,7 @@
         tick();
 
         const remaining = Array.from({ length: FRAME_COUNT }, (_, index) => index).filter((index) => !activeStore.loaded[index]);
-        loadInBatches(remaining);
+        loadInBatches(remaining, 6);
       }
 
       async function swapFrameSet(event) {

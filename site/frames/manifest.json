@@ -10,16 +10,16 @@
   "frames": {
     "target_count": 240,
     "format": "webp",
-    "quality": 50,
+    "quality": 46,
     "naming_pattern": "frame-{NNNN}.webp"
   },
   "recommended_scroll_height": "800vh",
-  "created": "2026-10-02T15:29:14",
+  "created": "2026-10-02T15:44:04",
   "desktop": {
-    "resolution": "1440x810",
+    "resolution": "1280x720",
     "actual_count": 240,
-    "total_bytes": 18923688,
-    "avg_frame_bytes": 78848,
-    "total_mb": 18.05
+    "total_bytes": 15783854,
+    "avg_frame_bytes": 65766,
+    "total_mb": 15.05
   }
 }
