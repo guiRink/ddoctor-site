@@ -1,0 +1,5 @@
+.DS_Store
+media/
+.impeccable/review/
+.impeccable/mocks/
+*.log
