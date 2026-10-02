@@ -1184,6 +1184,19 @@
         window.scrollTo(0, scrollPos);
       }
 
+      // Entrega o scroll de volta à página: encerra o motor exatamente na borda da sequência.
+      function handOver(edgeY, stopIndex) {
+        controlling = false;
+        released = false;
+        scrollPos = edgeY;
+        scrollTarget = edgeY;
+        currentStop = stopIndex;
+        dragSpeed = 0;
+        programmatic = true;
+        window.scrollTo(0, edgeY);
+        window.setTimeout(() => { if (!controlling) programmatic = false; }, 80);
+      }
+
       function atBoundary(direction) {
         const y = controlling ? scrollTarget : window.scrollY;
         const atEnd = direction > 0 && y >= sequenceTop + sequenceDistance - 1;
@@ -1196,7 +1209,11 @@
         const direction = Math.sign(event.deltaY);
         if (direction === 0) return;
         if (!controlling && atBoundary(direction)) return; // devolve o scroll à página
-        if (controlling && released && atBoundary(direction) && Math.abs(scrollTarget - scrollPos) < 2) return;
+        if (controlling && atBoundary(direction)) {
+          // O alvo já está na borda e o gesto continua: entrega agora, sem esperar o deslize terminar.
+          handOver(direction > 0 ? sequenceTop + sequenceDistance : sequenceTop, direction > 0 ? STOPS.length - 1 : 0);
+          return;
+        }
         event.preventDefault();
         const delta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY;
         // Logo depois de encaixar, engole o rabo de inércia do trackpad; um gesto firme passa.
@@ -1227,6 +1244,11 @@
         touchY = y;
         if (delta === 0) return;
         if (!controlling && atBoundary(Math.sign(delta))) { touchActive = false; return; }
+        if (controlling && atBoundary(Math.sign(delta))) {
+          handOver(delta > 0 ? sequenceTop + sequenceDistance : sequenceTop, delta > 0 ? STOPS.length - 1 : 0);
+          touchActive = false;
+          return;
+        }
         event.preventDefault();
         const now = performance.now();
         const dt = Math.max(1, now - touchLastTime);
@@ -1261,17 +1283,25 @@
 
       // Scroll nativo (barra de rolagem, âncora, voltar da seção de baixo): encaixa na direção do movimento.
       let lastNativeY = 0;
+      let enteredFromBelow = false;
       function onNativeScroll() {
         updateHeader();
         const y = window.scrollY;
         if (!programmatic && !controlling && y !== lastNativeY) lastDirection = Math.sign(y - lastNativeY) || lastDirection;
+        if (!programmatic && !controlling && lastNativeY > sequenceTop + sequenceDistance && y <= sequenceTop + sequenceDistance) enteredFromBelow = true;
         lastNativeY = y;
         if (reducedMotion || programmatic || controlling) return;
         window.clearTimeout(settleTimer);
         if (!inSequence(0)) return;
         settleTimer = window.setTimeout(() => {
-          if (programmatic || controlling || !inSequence(0)) return;
-          const target = stopInDirection(rawScrollProgress(), lastDirection);
+          if (programmatic || controlling || !inSequence(0)) { enteredFromBelow = false; return; }
+          const progress = rawScrollProgress();
+          const near = nearestStop(progress);
+          let target;
+          if (enteredFromBelow) target = STOPS.length - 1;                       // voltando de baixo: primeiro a última imagem
+          else if (Math.abs(progress - STOPS[near]) < NUDGE) target = near;      // quase em cima de um take: fica nele
+          else target = stopInDirection(progress, lastDirection);
+          enteredFromBelow = false;
           if (Math.abs(stopScroll(target) - window.scrollY) > 1) {
             engage();
             released = true;
