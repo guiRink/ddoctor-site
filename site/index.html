@@ -669,7 +669,7 @@
             </div>
           </article>
 
-          <article class="chapter chapter--left" data-center="0.30" data-window="0.09" data-label="Recepção">
+          <article class="chapter chapter--left" data-center="0.2762" data-window="0.09" data-label="Recepção">
             <div class="chapter__copy">
               <div class="chapter__rule" aria-hidden="true"></div>
               <h2 class="chapter__title reveal"><span>Orçamento? <em>Pare aqui.</em></span></h2>
@@ -678,7 +678,7 @@
             </div>
           </article>
 
-          <article class="chapter chapter--left" data-center="0.467" data-window="0.09" data-label="Funilaria">
+          <article class="chapter chapter--left" data-center="0.4895" data-window="0.09" data-label="Funilaria">
             <div class="chapter__copy">
               <div class="chapter__rule" aria-hidden="true"></div>
               <h2 class="chapter__title reveal"><span>Funilaria <em>express.</em></span></h2>
@@ -686,7 +686,7 @@
             </div>
           </article>
 
-          <article class="chapter chapter--right chapter--mid" data-side="right" data-center="0.633" data-window="0.09" data-label="Espelhamento">
+          <article class="chapter chapter--right chapter--mid" data-side="right" data-center="0.6444" data-window="0.09" data-label="Espelhamento">
             <div class="chapter__copy">
               <div class="chapter__rule" aria-hidden="true"></div>
               <h2 class="chapter__title reveal"><span>Polimento e <em>espelhamento.</em></span></h2>
@@ -694,7 +694,7 @@
             </div>
           </article>
 
-          <article class="chapter chapter--right chapter--top" data-side="right" data-center="0.80" data-window="0.09" data-label="Higienização">
+          <article class="chapter chapter--right chapter--top" data-side="right" data-center="0.7741" data-window="0.09" data-label="Higienização">
             <div class="chapter__copy">
               <div class="chapter__rule" aria-hidden="true"></div>
               <h2 class="chapter__title reveal"><span><em>Higienização</em> completa.</span></h2>
@@ -834,10 +834,13 @@
       const FRAME_PAD = 4;
       const MOBILE_QUERY = "(max-width: 780px)";
       const REDUCED_QUERY = "(prefers-reduced-motion: reduce)";
-      // Pontos de parada do filme (fração do scroll da sequência). Cada "take" termina num deles.
-      const STOPS = [0, 0.30, 0.467, 0.633, 0.80, 1];
+      // Quadros de parada (os mais nítidos de cada take, escolhidos por análise de nitidez). As paradas
+      // caem exatamente nesses quadros, sem mistura entre vizinhos.
+      const STOP_FRAMES = [0, 66, 117, 154, 185, 239];
+      const STOPS = STOP_FRAMES.map((frame) => frame / (FRAME_COUNT - 1));
       const SEGMENT = 1 / 6;
-      const FOLLOW = 0.35;            // quão rápido o quadro desenhado segue o scroll
+      const NUDGE = SEGMENT * 0.12;   // movimento menor que isto volta ao take atual em vez de avançar
+      const FOLLOW = 0.5;             // quão rápido o quadro desenhado segue o scroll
       const SCRUB_GAIN = 1;           // px de scroll por px de roda (1:1, como scroll nativo)
       const SCRUB_IDLE_MS = 150;      // sem eventos por este tempo → encaixa no próximo take
       const COOLDOWN_MS = 350;        // engole o rabo de inércia do trackpad logo após encaixar
@@ -974,12 +977,14 @@
 
       // Desenha o quadro fracionário com crossfade entre os dois vizinhos carregados.
       function drawFrame(position) {
-        const clamped = Math.max(0, Math.min(FRAME_COUNT - 1, position));
+        let clamped = Math.max(0, Math.min(FRAME_COUNT - 1, position));
+        const whole = Math.round(clamped);
+        if (Math.abs(clamped - whole) < 0.03) clamped = whole; // em repouso, quadro inteiro e nítido
         const a = nearestLoaded(Math.floor(clamped));
         if (a < 0) return;
         const bIndex = Math.min(FRAME_COUNT - 1, Math.floor(clamped) + 1);
         const b = activeStore.loaded[bIndex] ? bIndex : -1;
-        const mix = b >= 0 && b !== a ? Math.round((clamped - Math.floor(clamped)) * 24) / 24 : 0;
+        const mix = b >= 0 && b !== a ? Math.round((clamped - Math.floor(clamped)) * 32) / 32 : 0;
         const key = `${a}:${b}:${mix}:${useMobileFrames}`;
         if (key === lastDrawnKey) return;
         const imageA = activeStore.images[a];
@@ -1148,7 +1153,10 @@
 
       function settle() {
         if (!inSequence(0)) return;
-        snapTo(stopInDirection(rawScrollProgress(), lastDirection));
+        const progress = rawScrollProgress();
+        // Um toque pequeno não muda de take: volta para onde estava. Rolagem de verdade segue para o próximo.
+        if (Math.abs(progress - STOPS[currentStop]) < NUDGE) { snapTo(currentStop); return; }
+        snapTo(stopInDirection(progress, lastDirection));
       }
 
       // Move o scroll junto com o gesto (1:1) dentro da sequência.
