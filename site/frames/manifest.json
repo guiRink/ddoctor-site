@@ -14,12 +14,12 @@
     "naming_pattern": "frame-{NNNN}.webp"
   },
   "recommended_scroll_height": "800vh",
-  "created": "2026-10-02T15:44:04",
+  "created": "2026-10-02T16:12:55",
   "desktop": {
-    "resolution": "1280x720",
+    "resolution": "1120x630",
     "actual_count": 240,
-    "total_bytes": 15783854,
-    "avg_frame_bytes": 65766,
-    "total_mb": 15.05
+    "total_bytes": 13623566,
+    "avg_frame_bytes": 56764,
+    "total_mb": 12.99
   }
 }

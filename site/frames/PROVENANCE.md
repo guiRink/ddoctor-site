@@ -1,6 +1,6 @@
 # Proveniência dos quadros
 
-Todos os arquivos `desktop/frame-0001..0240.webp` (1280×720) e `mobile/frame-0001..0240.webp` (480×852, recorte 9:16) são extraídos de `media/filme-oficina.mp4`, um filme de 30,25 s montado em 2026-10-02 a partir de seis clipes de 5 s gerados no Higgsfield (modelo Kling v3.0, modo pro, sem áudio, 16:9), cada um em image-to-video a partir de uma foto real da oficina recortada em 16:9:
+Todos os arquivos `desktop/frame-0001..0240.webp` (1120×630) e `mobile/frame-0001..0240.webp` (480×852, recorte 9:16) são extraídos de `media/filme-oficina.mp4`, um filme de 30,25 s montado em 2026-10-02 a partir de seis clipes de 5 s gerados no Higgsfield (modelo Kling v3.0, modo pro, sem áudio, 16:9), cada um em image-to-video a partir de uma foto real da oficina recortada em 16:9:
 
 1. Fachada — prompt: "Slow cinematic dolly-in toward the entrance of this car body shop at golden hour… No people, no new text, no changes to the sign."
 2. Recepção — "Slow forward dolly down the reception bay between the dark grey BMW and the white Volvo toward the yellow PARE AQUI sign…"

@@ -10,8 +10,8 @@ Abra http://localhost:8765/. O painel (botão **Entrar**) está em `site/painel/
 
 ## Estrutura
 
-- `site/index.html` — página única (HTML, CSS e JS). O filme é uma sequência de 240 quadros WebP desenhada num `<canvas>` com crossfade entre quadros vizinhos. O scroll é fluido e 1:1 (roda, trackpad, toque): enquanto o visitante rola, o filme anda junto; quando ele solta, a página vai sozinha até o **próximo take na direção do movimento** (para baixo → próxima parada; para cima → parada anterior). Setas/PageDown pulam de take em take. Paradas nos quadros `STOP_FRAMES` (1, 67, 118, 155, 186, 240 — os mais nítidos de cada take, escolhidos por análise de bordas); os capítulos (`data-center`) ficam alinhados a eles e em repouso o canvas desenha o quadro inteiro, sem crossfade. Um toque pequeno (menos de 12% de um take) volta ao take atual; rolagem de verdade segue para o próximo. Depois do último take o scroll volta a ser nativo.
-- `site/frames/desktop` (1280×720, ~11 MB) e `site/frames/mobile` (480×852 em retrato, recorte 9:16 do filme que acompanha o push-in da fachada, ~8 MB). 240 quadros cada.
+- `site/index.html` — página única (HTML, CSS e JS). O filme é uma sequência de 240 quadros WebP desenhada num `<canvas>` com crossfade entre quadros vizinhos. O scroll da sequência é um único movimento contínuo com inércia: enquanto o visitante rola (roda, trackpad, toque) o alvo anda com o gesto e a posição desliza atrás; quando ele solta, o alvo vira o **próximo take na direção do movimento** e a mesma inércia segue na velocidade em que vinha e desacelera até encaixar (sem pausa nem segunda animação). Setas/PageDown pulam de take em take. Paradas nos quadros `STOP_FRAMES` (1, 67, 118, 155, 186, 240 — os mais nítidos de cada take, escolhidos por análise de bordas); os capítulos (`data-center`) ficam alinhados a eles e em repouso o canvas desenha o quadro inteiro, sem crossfade. Um toque pequeno (menos de 12% de um take) volta ao take atual; rolagem de verdade segue para o próximo. Depois do último take o scroll volta a ser nativo.
+- `site/frames/desktop` (1120×630, ~13 MB) e `site/frames/mobile` (480×852 em retrato, recorte 9:16 do filme que acompanha o push-in da fachada, ~8 MB). 240 quadros cada.
 - `site/assets/fotos/*.webp` — as 10 fotos reais da oficina, otimizadas.
 - `site/assets/logo-mark.svg` — o "D" amarelo reconstruído em vetor.
 - `site/assets/fonts/` — Archivo variável (títulos e texto) e Quicksand 700 (palavra "doctor" da marca), self-hosted.
@@ -24,7 +24,7 @@ Abra http://localhost:8765/. O painel (botão **Entrar**) está em `site/painel/
 Desktop (16:9):
 
 ```bash
-python3 "<skill animated-website>/scripts/extract_frames.py" --input media/filme-oficina.mp4 --output site/frames --frames 240 --quality 46 --desktop-res 1280x720 --desktop-only
+python3 "<skill animated-website>/scripts/extract_frames.py" --input media/filme-oficina.mp4 --output site/frames --frames 240 --quality 46 --desktop-res 1120x630 --desktop-only
 ```
 
 Mobile (retrato 9:16, recorte central; o ffmpeg daqui não tem libwebp, por isso passa por PNG + cwebp):
