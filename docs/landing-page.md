@@ -10,8 +10,8 @@ Abra http://localhost:8765/. O painel (botão **Entrar**) está em `site/painel/
 
 ## Estrutura
 
-- `site/index.html` — página única (HTML, CSS e JS). O filme é uma sequência de 160 quadros WebP desenhada num `<canvas>` e controlada pelo scroll (motor do skill *animated-website*: carga progressiva, fallback para o quadro mais próximo, remapeamento com "dwell" nos centros dos capítulos, LERP).
-- `site/frames/desktop` (1600×900, ~14 MB) e `site/frames/mobile` (540×960 em retrato, recorte central 9:16 do filme, ~6 MB).
+- `site/index.html` — página única (HTML, CSS e JS). O filme é uma sequência de 240 quadros WebP desenhada num `<canvas>` com crossfade entre quadros vizinhos. O scroll anda por **takes**: uma rolada normal (roda do mouse, flick no trackpad, swipe no celular, setas/PageDown) leva ao próximo ponto de parada e roda o trecho do filme até lá; uma rolada bem lenta "esfrega" o filme e, ao soltar, encaixa no ponto mais próximo. Pontos de parada em `STOPS` (0, 0.30, 0.467, 0.633, 0.80, 1) e os capítulos (`data-center`) ficam alinhados a eles. Depois do último take o scroll volta a ser nativo.
+- `site/frames/desktop` (1440×810, ~18 MB) e `site/frames/mobile` (540×960 em retrato, recorte 9:16 do filme que acompanha o push-in da fachada, ~8 MB). 240 quadros cada.
 - `site/assets/fotos/*.webp` — as 10 fotos reais da oficina, otimizadas.
 - `site/assets/logo-mark.svg` — o "D" amarelo reconstruído em vetor.
 - `site/assets/fonts/` — Archivo variável (títulos e texto) e Quicksand 700 (palavra "doctor" da marca), self-hosted.
@@ -24,16 +24,16 @@ Abra http://localhost:8765/. O painel (botão **Entrar**) está em `site/painel/
 Desktop (16:9):
 
 ```bash
-python3 "<skill animated-website>/scripts/extract_frames.py" --input media/filme-oficina.mp4 --output site/frames --frames 160 --quality 55 --desktop-res 1600x900 --desktop-only
+python3 "<skill animated-website>/scripts/extract_frames.py" --input media/filme-oficina.mp4 --output site/frames --frames 240 --quality 50 --desktop-res 1440x810 --desktop-only
 ```
 
 Mobile (retrato 9:16, recorte central; o ffmpeg daqui não tem libwebp, por isso passa por PNG + cwebp):
 
 ```bash
-ffmpeg -y -i media/filme-oficina.mp4 -vf "fps=160/30.25,crop=608:1080:'if(lt(t\,5.04)\,280-110*t/5.04\,656)':0,scale=540:960:flags=lanczos" -frames:v 160 /tmp/mframes/frame-%04d.png && for f in /tmp/mframes/*.png; do cwebp -q 58 "$f" -o "site/frames/mobile/$(basename "${f%.png}").webp"; done
+ffmpeg -y -i media/filme-oficina.mp4 -vf "fps=240/30.25,crop=608:1080:'if(lt(t\,5.04)\,280-110*t/5.04\,656)':0,scale=540:960:flags=lanczos" -frames:v 240 /tmp/mframes/frame-%04d.png && for f in /tmp/mframes/*.png; do cwebp -q 52 "$f" -o "site/frames/mobile/$(basename "${f%.png}").webp"; done
 ```
 
-Se mudar a contagem, atualize `FRAME_COUNT` e o texto `Q 001 / 160` em `site/index.html`.
+Se mudar a contagem, atualize `FRAME_COUNT` e o texto `Q 001 / 240` em `site/index.html`.
 
 ## Conteúdo a confirmar com a oficina
 

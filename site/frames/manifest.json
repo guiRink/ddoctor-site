@@ -8,25 +8,18 @@
     "total_source_frames": 726
   },
   "frames": {
-    "target_count": 160,
+    "target_count": 240,
     "format": "webp",
-    "quality": 55,
+    "quality": 50,
     "naming_pattern": "frame-{NNNN}.webp"
   },
-  "recommended_scroll_height": "550vh",
-  "created": "2026-10-02T14:40:41",
+  "recommended_scroll_height": "800vh",
+  "created": "2026-10-02T15:29:14",
   "desktop": {
-    "resolution": "1600x900",
-    "actual_count": 160,
-    "total_bytes": 14914834,
-    "avg_frame_bytes": 93217,
-    "total_mb": 14.22
-  },
-  "mobile": {
-    "resolution": "800x450",
-    "actual_count": 160,
-    "total_bytes": 6446724,
-    "avg_frame_bytes": 40292,
-    "total_mb": 6.15
+    "resolution": "1440x810",
+    "actual_count": 240,
+    "total_bytes": 18923688,
+    "avg_frame_bytes": 78848,
+    "total_mb": 18.05
   }
 }

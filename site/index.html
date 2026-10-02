@@ -210,7 +210,7 @@
     .btn svg { width: 18px; height: 18px; flex: none; }
 
     /* ---------- Sequence / stage ---------- */
-    .sequence { position: relative; height: 900vh; background: var(--black); }
+    .sequence { position: relative; height: 700vh; background: var(--black); }
 
     .stage {
       position: sticky;
@@ -542,7 +542,7 @@
       .brand__text small { display: none; }
       .brand__text b { font-size: 17px; }
 
-      .sequence { height: 760vh; }
+      .sequence { height: 600vh; }
       .stage__scrim, .stage__scrim--right {
         background:
           linear-gradient(180deg, rgba(10, 10, 10, .66), transparent 26%),
@@ -661,7 +661,7 @@
         <div class="stage__scrim stage__scrim--right" aria-hidden="true"></div>
 
         <div class="chapters" aria-live="off">
-          <article class="chapter chapter--hero" data-center="0.055" data-window="0.095" data-label="Fachada">
+          <article class="chapter chapter--hero" data-center="0" data-window="0.11" data-label="Fachada">
             <div class="chapter__copy">
               <div class="chapter__rule" aria-hidden="true"></div>
               <h1 class="chapter__title reveal"><span>Martelinho <em>de ouro.</em></span></h1>
@@ -669,7 +669,7 @@
             </div>
           </article>
 
-          <article class="chapter chapter--left" data-center="0.25" data-window="0.066" data-label="Recepção">
+          <article class="chapter chapter--left" data-center="0.30" data-window="0.09" data-label="Recepção">
             <div class="chapter__copy">
               <div class="chapter__rule" aria-hidden="true"></div>
               <h2 class="chapter__title reveal"><span>Orçamento? <em>Pare aqui.</em></span></h2>
@@ -678,7 +678,7 @@
             </div>
           </article>
 
-          <article class="chapter chapter--left" data-center="0.417" data-window="0.066" data-label="Funilaria">
+          <article class="chapter chapter--left" data-center="0.467" data-window="0.09" data-label="Funilaria">
             <div class="chapter__copy">
               <div class="chapter__rule" aria-hidden="true"></div>
               <h2 class="chapter__title reveal"><span>Funilaria <em>express.</em></span></h2>
@@ -686,7 +686,7 @@
             </div>
           </article>
 
-          <article class="chapter chapter--right chapter--mid" data-side="right" data-center="0.583" data-window="0.066" data-label="Espelhamento">
+          <article class="chapter chapter--right chapter--mid" data-side="right" data-center="0.633" data-window="0.09" data-label="Espelhamento">
             <div class="chapter__copy">
               <div class="chapter__rule" aria-hidden="true"></div>
               <h2 class="chapter__title reveal"><span>Polimento e <em>espelhamento.</em></span></h2>
@@ -694,7 +694,7 @@
             </div>
           </article>
 
-          <article class="chapter chapter--right chapter--top" data-side="right" data-center="0.75" data-window="0.066" data-label="Higienização">
+          <article class="chapter chapter--right chapter--top" data-side="right" data-center="0.80" data-window="0.09" data-label="Higienização">
             <div class="chapter__copy">
               <div class="chapter__rule" aria-hidden="true"></div>
               <h2 class="chapter__title reveal"><span><em>Higienização</em> completa.</span></h2>
@@ -702,7 +702,7 @@
             </div>
           </article>
 
-          <article class="chapter chapter--final" data-center="0.93" data-window="0.075" data-label="Pátio">
+          <article class="chapter chapter--final" data-center="1" data-window="0.11" data-label="Pátio">
             <div class="chapter__copy">
               <div>
                 <div class="chapter__rule" aria-hidden="true"></div>
@@ -722,8 +722,8 @@
         <div class="telemetry" aria-hidden="true">
           <span class="telemetry__chapter micro" id="telemetry-chapter">Fachada</span>
           <div class="telemetry__track"><span class="telemetry__fill"></span></div>
-          <span class="telemetry__frame micro" id="telemetry-frame">Q 001 / 160</span>
-          <span class="scroll-cue micro">Role a página</span>
+          <span class="telemetry__frame micro" id="telemetry-frame">Q 001 / 240</span>
+          <span class="scroll-cue micro">Role para o próximo take</span>
         </div>
       </div>
     </section>
@@ -830,15 +830,18 @@
     (() => {
       "use strict";
 
-      const FRAME_COUNT = 160;
+      const FRAME_COUNT = 240;
       const FRAME_PAD = 4;
-      const LERP_FACTOR = 0.115;
-      const DWELL_WIDTH = 0.036;
-      const DWELL_PEAK = 2.4;
-      const LUT_SIZE = 2400;
       const MOBILE_QUERY = "(max-width: 780px)";
       const REDUCED_QUERY = "(prefers-reduced-motion: reduce)";
-      const DWELL_CENTERS = [0.055, 0.25, 0.417, 0.583, 0.75, 0.93];
+      // Pontos de parada do filme (fração do scroll da sequência). Cada "take" termina num deles.
+      const STOPS = [0, 0.30, 0.467, 0.633, 0.80, 1];
+      const SEGMENT = 1 / 6;
+      const FOLLOW = 0.22;            // quão rápido o quadro desenhado segue o alvo
+      const FLICK_DELTA = 40;         // |deltaY| a partir do qual uma rolada vira "próximo take"
+      const SCRUB_GAIN = 0.55;        // px de scroll por px de roda em modo lento
+      const SCRUB_IDLE_MS = 170;      // sem eventos por este tempo → encaixa num ponto de parada
+      const COOLDOWN_MS = 420;        // ignora inércia do trackpad logo após uma transição
 
       const sequence = document.getElementById("sequence");
       const stage = document.getElementById("stage");
@@ -850,6 +853,7 @@
       const loaderLabel = document.getElementById("loader-label");
       const telemetryChapter = document.getElementById("telemetry-chapter");
       const telemetryFrame = document.getElementById("telemetry-frame");
+      const header = document.querySelector(".site-header");
       const chapters = Array.from(document.querySelectorAll(".chapter"));
       const reducedMotion = window.matchMedia(REDUCED_QUERY).matches;
       const mobileMedia = window.matchMedia(MOBILE_QUERY);
@@ -861,12 +865,21 @@
       let useMobileFrames = mobileMedia.matches;
       let activeStore = useMobileFrames ? frameStores.mobile : frameStores.desktop;
       let currentFrame = 0;
-      let targetFrame = 0;
-      let lastDrawn = -1;
+      let lastDrawnKey = "";
       let pageVisible = true;
       let rafId = 0;
       let sequenceTop = 0;
       let sequenceDistance = 1;
+
+      // Estado da navegação por takes
+      let currentStop = 0;
+      let animating = false;
+      let programmatic = false;
+      let cooldownUntil = 0;
+      let scrubTimer = 0;
+      let settleTimer = 0;
+      let queuedDirection = 0;
+      let animationStart = 0;
 
       document.getElementById("ano").textContent = String(new Date().getFullYear());
 
@@ -892,7 +905,6 @@
       function loadFrame(index, store = activeStore, retries = 1) {
         if (store.loaded[index]) return Promise.resolve(store.images[index]);
         if (store.promises[index]) return store.promises[index];
-
         store.promises[index] = new Promise((resolve) => {
           const attempt = (remaining) => {
             const image = new Image();
@@ -915,7 +927,7 @@
         return store.promises[index];
       }
 
-      async function loadInBatches(indices, size = 8, store = activeStore) {
+      async function loadInBatches(indices, size = 10, store = activeStore) {
         for (let start = 0; start < indices.length; start += size) {
           const batch = indices.slice(start, start + size);
           await Promise.all(batch.map((index) => loadFrame(index, store)));
@@ -940,7 +952,7 @@
         if (canvas.width !== width || canvas.height !== height) {
           canvas.width = width;
           canvas.height = height;
-          lastDrawn = -1;
+          lastDrawnKey = "";
         }
       }
 
@@ -950,73 +962,74 @@
         sequenceDistance = Math.max(1, rect.height - window.innerHeight);
       }
 
-      function drawFrame(index) {
-        const resolved = nearestLoaded(Math.max(0, Math.min(FRAME_COUNT - 1, index)));
-        if (resolved < 0 || resolved === lastDrawn) return;
-        const image = activeStore.images[resolved];
-        if (!image || !image.naturalWidth) return;
-
+      function paint(image, alpha) {
         const width = canvas.width;
         const height = canvas.height;
-        ctx.fillStyle = "#0a0a0a";
-        ctx.fillRect(0, 0, width, height);
-
-        // Cover-fit nos dois conjuntos; o mobile usa quadros em retrato (9:16) com foco um pouco acima do centro.
         const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
         const drawWidth = image.naturalWidth * scale;
         const drawHeight = image.naturalHeight * scale;
         const x = (width - drawWidth) / 2;
         const y = useMobileFrames ? (height - drawHeight) * 0.35 : (height - drawHeight) / 2;
+        ctx.globalAlpha = alpha;
         ctx.drawImage(image, x, y, drawWidth, drawHeight);
-        lastDrawn = resolved;
+        ctx.globalAlpha = 1;
       }
 
-      const rawAtEffective = new Float64Array(LUT_SIZE + 1);
-
-      function buildDwellLut() {
-        let total = 0;
-        const density = new Float64Array(LUT_SIZE + 1);
-        for (let i = 0; i <= LUT_SIZE; i += 1) {
-          const effective = i / LUT_SIZE;
-          let value = 1;
-          for (const center of DWELL_CENTERS) {
-            const delta = (effective - center) / DWELL_WIDTH;
-            value += DWELL_PEAK * Math.exp(-0.5 * delta * delta);
-          }
-          density[i] = value;
-          if (i > 0) total += (density[i - 1] + value) * 0.5;
-          rawAtEffective[i] = total;
+      // Desenha o quadro fracionário com crossfade entre os dois vizinhos carregados.
+      function drawFrame(position) {
+        const clamped = Math.max(0, Math.min(FRAME_COUNT - 1, position));
+        const a = nearestLoaded(Math.floor(clamped));
+        if (a < 0) return;
+        const bIndex = Math.min(FRAME_COUNT - 1, Math.floor(clamped) + 1);
+        const b = activeStore.loaded[bIndex] ? bIndex : -1;
+        const mix = b >= 0 && b !== a ? Math.round((clamped - Math.floor(clamped)) * 24) / 24 : 0;
+        const key = `${a}:${b}:${mix}:${useMobileFrames}`;
+        if (key === lastDrawnKey) return;
+        const imageA = activeStore.images[a];
+        if (!imageA || !imageA.naturalWidth) return;
+        ctx.fillStyle = "#0a0a0a";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        paint(imageA, 1);
+        if (mix > 0) {
+          const imageB = activeStore.images[b];
+          if (imageB && imageB.naturalWidth) paint(imageB, mix);
         }
-        for (let i = 0; i <= LUT_SIZE; i += 1) rawAtEffective[i] /= total;
-      }
-
-      function remapProgress(raw) {
-        let low = 0;
-        let high = LUT_SIZE;
-        while (low < high) {
-          const mid = (low + high) >> 1;
-          if (rawAtEffective[mid] < raw) low = mid + 1;
-          else high = mid;
-        }
-        const index = Math.max(1, low);
-        const leftRaw = rawAtEffective[index - 1];
-        const rightRaw = rawAtEffective[index];
-        const span = rightRaw - leftRaw || 1;
-        const mix = (raw - leftRaw) / span;
-        return Math.max(0, Math.min(1, (index - 1 + mix) / LUT_SIZE));
+        lastDrawnKey = key;
       }
 
       function rawScrollProgress() {
         return Math.max(0, Math.min(1, (window.scrollY - sequenceTop) / sequenceDistance));
       }
 
-      function updateChapters(effective) {
+      function stopScroll(index) {
+        return sequenceTop + STOPS[index] * sequenceDistance;
+      }
+
+      function inSequence(margin = 2) {
+        return window.scrollY >= sequenceTop - margin && window.scrollY <= sequenceTop + sequenceDistance + margin;
+      }
+
+      // Se o scroll nativo (barra, link, voltar da seção de baixo) deixou a página fora de um ponto de parada,
+      // realinha o take atual antes de interpretar o gesto.
+      function syncStop() {
+        if (!animating && Math.abs(window.scrollY - stopScroll(currentStop)) > 3) currentStop = nearestStop(rawScrollProgress());
+      }
+
+      function nearestStop(progress) {
+        let best = 0;
+        for (let i = 1; i < STOPS.length; i += 1) {
+          if (Math.abs(STOPS[i] - progress) < Math.abs(STOPS[best] - progress)) best = i;
+        }
+        return best;
+      }
+
+      function updateChapters(progress) {
         let active = chapters[0];
         let nearest = Infinity;
         for (const chapter of chapters) {
           const center = Number(chapter.dataset.center);
           const windowSize = Number(chapter.dataset.window);
-          const distance = Math.abs(effective - center);
+          const distance = Math.abs(progress - center);
           const visible = distance <= windowSize;
           if (chapterVisibility.get(chapter) !== visible) {
             chapterVisibility.set(chapter, visible);
@@ -1032,18 +1045,17 @@
         if (stage.dataset.side !== side) stage.dataset.side = side;
       }
 
-      const header = document.querySelector(".site-header");
       function updateHeader() {
         const solid = window.scrollY > sequenceTop + sequenceDistance - 40;
         if (header.classList.contains("is-solid") !== solid) header.classList.toggle("is-solid", solid);
       }
-      window.addEventListener("scroll", updateHeader, { passive: true });
 
-      function updateInterface(raw, effective, frame) {
-        document.documentElement.style.setProperty("--frame-progress", raw.toFixed(4));
-        document.documentElement.style.setProperty("--title-wdth", String(Math.round(76 + effective * 22)));
-        telemetryFrame.textContent = `Q ${String(frame + 1).padStart(3, "0")} / ${String(FRAME_COUNT).padStart(3, "0")}`;
-        const edge = Math.min(effective, 1 - effective) / 0.08;
+      function updateInterface(progress, frame) {
+        document.documentElement.style.setProperty("--frame-progress", progress.toFixed(4));
+        document.documentElement.style.setProperty("--title-wdth", String(Math.round(76 + progress * 22)));
+        const label = `Q ${String(Math.round(frame) + 1).padStart(3, "0")} / ${String(FRAME_COUNT).padStart(3, "0")}`;
+        if (telemetryFrame.textContent !== label) telemetryFrame.textContent = label;
+        const edge = Math.min(progress, 1 - progress) / 0.08;
         stage.style.setProperty("--scrim-opacity", String(Math.min(0.9, 0.9 - edge * 0.12)));
       }
 
@@ -1062,7 +1074,6 @@
 
       function renderReducedPoster(frame) {
         currentFrame = frame;
-        targetFrame = frame;
         drawFrame(frame);
         chapters.forEach((chapter, index) => {
           const visible = index === 0;
@@ -1072,87 +1083,250 @@
         });
       }
 
+      // ---------- Navegação por takes ----------
+      const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+      function framesBetween(fromProgress, toProgress) {
+        const lo = Math.floor(Math.min(fromProgress, toProgress) * (FRAME_COUNT - 1));
+        const hi = Math.ceil(Math.max(fromProgress, toProgress) * (FRAME_COUNT - 1));
+        const list = [];
+        for (let i = lo; i <= hi; i += 1) if (!activeStore.loaded[i]) list.push(i);
+        return list;
+      }
+
+      async function goToStop(index) {
+        const target = Math.max(0, Math.min(STOPS.length - 1, index));
+        if (animating) return;
+        animating = true;
+        programmatic = true;
+        window.clearTimeout(scrubTimer);
+        const from = window.scrollY;
+        const to = stopScroll(target);
+        const fromProgress = rawScrollProgress();
+        // Garante que os quadros do trecho existam antes de rodar o take.
+        const missing = framesBetween(fromProgress, STOPS[target]);
+        if (missing.length) await loadInBatches(missing, 12);
+        const span = Math.abs(STOPS[target] - fromProgress);
+        const duration = Math.max(420, Math.min(1800, 300 + (span / SEGMENT) * 850));
+        const start = performance.now();
+        animationStart = start;
+        await new Promise((resolve) => {
+          const step = (now) => {
+            const t = Math.min(1, (now - start) / duration);
+            window.scrollTo(0, from + (to - from) * easeInOut(t));
+            if (t < 1) requestAnimationFrame(step);
+            else resolve();
+          };
+          requestAnimationFrame(step);
+        });
+        window.scrollTo(0, to);
+        currentStop = target;
+        animating = false;
+        cooldownUntil = performance.now() + COOLDOWN_MS;
+        window.setTimeout(() => { programmatic = false; }, 60);
+        // Um gesto claro feito durante a animação emenda o próximo take.
+        if (queuedDirection) {
+          const next = queuedDirection;
+          queuedDirection = 0;
+          const bounded = Math.max(0, Math.min(STOPS.length - 1, currentStop + next));
+          if (bounded !== currentStop) { cooldownUntil = 0; goToStop(bounded); }
+        }
+      }
+
+      function settleAfterScrub() {
+        const progress = rawScrollProgress();
+        const origin = STOPS[currentStop];
+        const moved = progress - origin;
+        if (Math.abs(moved) >= SEGMENT * 0.22) {
+          goToStop(currentStop + Math.sign(moved));
+        } else {
+          goToStop(currentStop);
+        }
+      }
+
+      function scrubBy(deltaPx) {
+        programmatic = true;
+        const lo = stopScroll(Math.max(0, currentStop - 1));
+        const hi = stopScroll(Math.min(STOPS.length - 1, currentStop + 1));
+        const next = Math.max(lo, Math.min(hi, window.scrollY + deltaPx));
+        window.scrollTo(0, next);
+        window.clearTimeout(scrubTimer);
+        scrubTimer = window.setTimeout(settleAfterScrub, SCRUB_IDLE_MS);
+      }
+
+      function onWheel(event) {
+        if (reducedMotion || !inSequence()) return;
+        syncStop();
+        const direction = Math.sign(event.deltaY);
+        if (direction === 0) return;
+        const atEnd = currentStop === STOPS.length - 1 && direction > 0 && !animating && window.scrollY >= stopScroll(STOPS.length - 1) - 2;
+        const atStart = currentStop === 0 && direction < 0 && window.scrollY <= sequenceTop + 2;
+        if (atEnd || atStart) return; // devolve o scroll à página
+        event.preventDefault();
+        const delta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY;
+        if (animating) {
+          // Depois de 600 ms de animação, uma rolada firme conta como "quero o próximo" (inércia do trackpad já decaiu).
+          if (Math.abs(delta) >= FLICK_DELTA && performance.now() - animationStart > 600) queuedDirection = direction;
+          return;
+        }
+        if (performance.now() < cooldownUntil) return;
+        if (Math.abs(delta) >= FLICK_DELTA) {
+          window.clearTimeout(scrubTimer);
+          goToStop(currentStop + direction);
+        } else {
+          scrubBy(delta * SCRUB_GAIN);
+        }
+      }
+
+      let touchY = 0;
+      let touchMoved = 0;
+      let touchActive = false;
+      function onTouchStart(event) {
+        if (reducedMotion || !inSequence()) { touchActive = false; return; }
+        touchActive = true;
+        syncStop();
+        touchY = event.touches[0].clientY;
+        touchMoved = 0;
+      }
+      function onTouchMove(event) {
+        if (!touchActive || animating) return;
+        const y = event.touches[0].clientY;
+        const delta = touchY - y;
+        touchY = y;
+        const direction = Math.sign(delta);
+        const atEnd = currentStop === STOPS.length - 1 && direction > 0 && window.scrollY >= stopScroll(STOPS.length - 1) - 2;
+        const atStart = currentStop === 0 && direction < 0 && window.scrollY <= sequenceTop + 2;
+        if (atEnd || atStart) { touchActive = false; return; }
+        event.preventDefault();
+        touchMoved += delta;
+        programmatic = true;
+        window.clearTimeout(scrubTimer);
+        const lo = stopScroll(Math.max(0, currentStop - 1));
+        const hi = stopScroll(Math.min(STOPS.length - 1, currentStop + 1));
+        window.scrollTo(0, Math.max(lo, Math.min(hi, window.scrollY + delta * 0.9)));
+      }
+      function onTouchEnd() {
+        if (!touchActive) return;
+        touchActive = false;
+        if (animating) return;
+        if (Math.abs(touchMoved) >= 36) goToStop(currentStop + Math.sign(touchMoved));
+        else goToStop(currentStop);
+      }
+
+      function onKey(event) {
+        if (reducedMotion || !inSequence() || animating) return;
+        syncStop();
+        if (event.target && /^(input|textarea|select|button|a)$/i.test(event.target.tagName) && event.key === " ") return;
+        const next = ["ArrowDown", "PageDown", " "].includes(event.key) ? 1 : ["ArrowUp", "PageUp"].includes(event.key) ? -1 : 0;
+        if (!next) return;
+        if (next > 0 && currentStop === STOPS.length - 1) return;
+        if (next < 0 && currentStop === 0) return;
+        event.preventDefault();
+        goToStop(currentStop + next);
+      }
+
+      // Scroll nativo (barra de rolagem, voltar da seção de baixo): encaixa no ponto mais próximo.
+      function onNativeScroll() {
+        updateHeader();
+        if (reducedMotion || programmatic || animating) return;
+        window.clearTimeout(settleTimer);
+        if (!inSequence(0)) return;
+        settleTimer = window.setTimeout(() => {
+          if (programmatic || animating || !inSequence(0)) return;
+          const target = nearestStop(rawScrollProgress());
+          if (Math.abs(stopScroll(target) - window.scrollY) > 1) goToStop(target);
+          else currentStop = target;
+        }, 140);
+      }
+
       function tick() {
         if (!pageVisible || reducedMotion) return;
-        const raw = rawScrollProgress();
-        const effective = remapProgress(raw);
-        targetFrame = Math.round(effective * (FRAME_COUNT - 1));
-        currentFrame += (targetFrame - currentFrame) * LERP_FACTOR;
-        const frame = Math.round(currentFrame);
-        drawFrame(frame);
-        updateChapters(effective);
-        updateInterface(raw, effective, frame);
+        const progress = rawScrollProgress();
+        const targetFrame = progress * (FRAME_COUNT - 1);
+        currentFrame += (targetFrame - currentFrame) * FOLLOW;
+        if (Math.abs(targetFrame - currentFrame) < 0.01) currentFrame = targetFrame;
+        drawFrame(currentFrame);
+        updateChapters(progress);
+        updateInterface(progress, currentFrame);
         rafId = requestAnimationFrame(tick);
       }
 
       async function init() {
-        buildDwellLut();
         resizeCanvas();
         updateSequenceMetrics();
         setLoaderProgress(0.06);
 
         if (reducedMotion) {
-          const posterFrame = 0;
-          const poster = await loadFrame(posterFrame);
+          const poster = await loadFrame(0);
           if (!poster) { showLoadError(); return; }
-          renderReducedPoster(posterFrame);
+          renderReducedPoster(0);
           dismissLoader();
           return;
         }
 
-        const critical = Array.from(new Set([
-          0,
-          ...DWELL_CENTERS.map((center) => Math.round(center * (FRAME_COUNT - 1))),
-          FRAME_COUNT - 1
-        ])).sort((a, b) => a - b);
-
         const firstFrame = await loadFrame(0);
-        if (firstFrame) { drawFrame(0); setLoaderProgress(0.28); }
+        if (firstFrame) { drawFrame(0); setLoaderProgress(0.2); }
 
-        const criticalTail = critical.filter((index) => index !== 0);
+        // Carrega o primeiro take inteiro (até a primeira parada) antes de liberar a página.
+        const firstTake = Array.from({ length: Math.ceil(STOPS[1] * (FRAME_COUNT - 1)) + 1 }, (_, i) => i);
         let prepared = 0;
-        await Promise.all(criticalTail.map(async (index) => {
+        await Promise.all(firstTake.map(async (index) => {
           const image = await loadFrame(index);
           prepared += 1;
-          setLoaderProgress(0.28 + 0.68 * (prepared / criticalTail.length));
+          setLoaderProgress(0.2 + 0.76 * (prepared / firstTake.length));
           return image;
         }));
 
-        const readyFrame = nearestLoaded(0);
-        if (readyFrame < 0) { showLoadError(); return; }
-        drawFrame(readyFrame);
+        if (nearestLoaded(0) < 0) { showLoadError(); return; }
+
+        // Atalho de revisão: ?p=0.5 posiciona o filme nessa fração do scroll.
+        const preset = Number(new URLSearchParams(location.search).get("p"));
+        if (location.search.includes("p=") && preset >= 0 && preset <= 1) {
+          programmatic = true;
+          window.scrollTo(0, sequenceTop + preset * sequenceDistance);
+          currentFrame = preset * (FRAME_COUNT - 1);
+          currentStop = nearestStop(preset);
+          window.setTimeout(() => { programmatic = false; }, 60);
+        } else {
+          currentStop = nearestStop(rawScrollProgress());
+        }
+
+        drawFrame(currentFrame);
         dismissLoader();
         updateHeader();
         tick();
 
-        // Atalho de revisão: ?p=0.5 posiciona o filme nessa fração do scroll.
-        const preset = Number(new URLSearchParams(location.search).get("p"));
-        if (preset >= 0 && preset <= 1 && location.search.includes("p=")) {
-          window.scrollTo(0, sequenceTop + preset * sequenceDistance);
-          currentFrame = Math.round(remapProgress(preset) * (FRAME_COUNT - 1));
-        }
-
-        const remaining = Array.from({ length: FRAME_COUNT }, (_, index) => index)
-          .filter((index) => !critical.includes(index));
+        const remaining = Array.from({ length: FRAME_COUNT }, (_, index) => index).filter((index) => !activeStore.loaded[index]);
         loadInBatches(remaining);
       }
 
       async function swapFrameSet(event) {
         useMobileFrames = event.matches;
         activeStore = useMobileFrames ? frameStores.mobile : frameStores.desktop;
-        lastDrawn = -1;
+        lastDrawnKey = "";
         resizeCanvas();
         updateSequenceMetrics();
         const frame = Math.max(0, Math.min(FRAME_COUNT - 1, Math.round(currentFrame)));
         const image = await loadFrame(frame, activeStore);
         if (!image) return;
-        drawFrame(frame);
+        drawFrame(currentFrame);
         const byDistance = Array.from({ length: FRAME_COUNT }, (_, index) => index)
           .sort((a, b) => Math.abs(a - frame) - Math.abs(b - frame));
-        loadInBatches(byDistance, 8, activeStore);
+        loadInBatches(byDistance, 10, activeStore);
       }
 
-      window.addEventListener("resize", () => { resizeCanvas(); updateSequenceMetrics(); }, { passive: true });
+      window.addEventListener("resize", () => {
+        resizeCanvas();
+        updateSequenceMetrics();
+        if (!animating && inSequence(0)) { programmatic = true; window.scrollTo(0, stopScroll(currentStop)); window.setTimeout(() => { programmatic = false; }, 60); }
+      }, { passive: true });
+      window.addEventListener("wheel", onWheel, { passive: false });
+      window.addEventListener("touchstart", onTouchStart, { passive: true });
+      window.addEventListener("touchmove", onTouchMove, { passive: false });
+      window.addEventListener("touchend", onTouchEnd, { passive: true });
+      window.addEventListener("touchcancel", onTouchEnd, { passive: true });
+      window.addEventListener("keydown", onKey);
+      window.addEventListener("scroll", onNativeScroll, { passive: true });
       mobileMedia.addEventListener("change", swapFrameSet);
       document.addEventListener("visibilitychange", () => {
         pageVisible = !document.hidden;
