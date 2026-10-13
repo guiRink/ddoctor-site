@@ -1,3 +1,5 @@
+> **Histórico (12/10/2026).** Este plano descreve o Sprint 0 (Dexie, PIN, modelo v1). Sprints, stack de dados e método atuais estão em `docs/painel-execucao.md`; contratos técnicos em `docs/painel-arquitetura.md`. Não use este arquivo para decidir.
+
 # Painel D doctor — plano do projeto
 
 Data: 02/10/2026. Base: `docs/maxpar-estudo.md` (o que a Maxpar é de fato e o que a oficina controla em planilha) e `PRODUCT.md`.
