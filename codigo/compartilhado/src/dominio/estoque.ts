@@ -28,6 +28,14 @@ export function statusEstoque(
 /** Tipos que tiram material do estoque (retirada para OS e consumo interno). */
 export const TIPOS_SAIDA: ReadonlySet<TipoMovimentoEstoque> = new Set(["saida_os", "consumo_interno"]);
 
+/**
+ * Devolução de insumo de uma OS: ajuste "mais" ligado à OS (gravado quando o custo de insumo é removido).
+ * A saída original fica no extrato; relatórios de consumo descontam a devolução.
+ */
+export function ehDevolucaoOS(mov: Pick<MovimentoEstoque, "tipo" | "sentido" | "osId">): boolean {
+  return mov.tipo === "ajuste" && mov.sentido === "mais" && !!mov.osId;
+}
+
 /** Sinal do movimento no saldo: +1 entrada, −1 saída; ajuste conforme `sentido` (null se faltar). */
 export function sinalMovimento(mov: Pick<MovimentoEstoque, "tipo" | "sentido">): 1 | -1 | null {
   if (mov.tipo === "entrada_compra") return 1;
@@ -149,7 +157,10 @@ export interface ConsumoFuncionario {
   itens: Array<{ materialId: Id; nome: string; unidade: string; quantidade: number; custo: Centavos }>;
 }
 
-/** Saídas (para OS e consumo interno) agrupadas por funcionário e material, do maior custo para o menor. */
+/**
+ * Saídas (para OS e consumo interno) agrupadas por funcionário e material, do maior custo para o menor.
+ * Devoluções de OS (ehDevolucaoOS) descontam; item que zera sai da lista.
+ */
 export function consumoPorFuncionario(
   movimentos: readonly MovimentoEstoque[],
   materiais: readonly Material[],
@@ -157,7 +168,8 @@ export function consumoPorFuncionario(
   const porId = new Map(materiais.map((m) => [m.id, m]));
   const grupos = new Map<Id | null, Map<Id, ConsumoFuncionario["itens"][number]>>();
   for (const mov of movimentos) {
-    if (!TIPOS_SAIDA.has(mov.tipo)) continue;
+    const sinal = TIPOS_SAIDA.has(mov.tipo) ? 1 : ehDevolucaoOS(mov) ? -1 : 0;
+    if (sinal === 0) continue;
     const mat = porId.get(mov.materialId);
     const chave = mov.perfilId ?? null;
     const itens = grupos.get(chave) ?? new Map();
@@ -168,16 +180,17 @@ export function consumoPorFuncionario(
       quantidade: 0,
       custo: 0,
     };
-    item.quantidade = qtd(item.quantidade + mov.quantidade);
-    item.custo += custoDoMovimento(mov, mat);
+    item.quantidade = qtd(item.quantidade + sinal * mov.quantidade);
+    item.custo += sinal * custoDoMovimento(mov, mat);
     itens.set(mov.materialId, item);
     grupos.set(chave, itens);
   }
   return [...grupos]
     .map(([perfilId, itens]) => {
-      const lista = [...itens.values()].sort((a, b) => b.custo - a.custo || a.nome.localeCompare(b.nome, "pt-BR"));
+      const lista = [...itens.values()].filter((i) => i.quantidade > 0).sort((a, b) => b.custo - a.custo || a.nome.localeCompare(b.nome, "pt-BR"));
       return { perfilId, custo: lista.reduce((s, i) => s + i.custo, 0), itens: lista };
     })
+    .filter((g) => g.itens.length > 0)
     .sort((a, b) => b.custo - a.custo);
 }
 

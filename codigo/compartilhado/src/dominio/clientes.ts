@@ -22,3 +22,11 @@ export function clienteCorresponde(cliente: Cliente, termo: string): boolean {
   }
   return false;
 }
+
+/**
+ * Telefone/WhatsApp do cliente pode virar link (wa.me, tel:)? Cliente de demonstração não: os números são
+ * inventados mas têm formato real e podem cair numa pessoa de verdade. Sem número, também não.
+ */
+export function contatoClicavel(cliente: Pick<Cliente, "demo">, numero: string | undefined): boolean {
+  return !cliente.demo && !!numero?.replace(/\D/g, "");
+}

@@ -4,17 +4,17 @@ import { normalizarPlaca, placaValida } from "@compartilhado/dominio/placa";
 import { bloquearEtapa, concluirEtapa, dispensarEtapa, gerarEtapas, iniciarEtapa, previsaoEntregaSugerida, retomarEtapa, transicaoOS, type ContextoTransicaoOS } from "@compartilhado/dominio/os";
 import { janelaDoDia } from "@compartilhado/dominio/expediente";
 import { podeConfirmar, reagendar as reagendarDominio } from "@compartilhado/dominio/agenda";
-import { aplicarBaixa as aplicarBaixaDominio, saldoTitulo, valorAprovado } from "@compartilhado/dominio/financeiro";
-import { dataNoFuso, somarDias } from "@compartilhado/dominio/fuso";
+import { aplicarBaixa as aplicarBaixaDominio, saldoTitulo, validarDataPrevista, validarDataRealizada } from "@compartilhado/dominio/financeiro";
+import { compararMarcos, dataISOValida, dataNoFuso, formatarMarco, paraMs, somarDias } from "@compartilhado/dominio/fuso";
 import { formatarReais } from "@compartilhado/dominio/dinheiro";
 import { normalizarCEP, normalizarDocumento, tipoPorDocumento, validarDocumento } from "@compartilhado/dominio/documento";
-import { validarAvaria } from "@compartilhado/dominio/recepcao";
-import { custoMaoDeObra, totalCusto } from "@compartilhado/dominio/custos";
+import { carimbarRecepcao, recepcaoEditavel, validarAvaria } from "@compartilhado/dominio/recepcao";
+import { totalCusto, validarMaoDeObra } from "@compartilhado/dominio/custos";
 import { aplicarMovimento } from "@compartilhado/dominio/estoque";
-import { calcularFechamento } from "@compartilhado/dominio/caixa";
-import { resumoPagamentosOS } from "@compartilhado/dominio/pagamentos";
+import { calcularFechamento, checarCaixaAberto } from "@compartilhado/dominio/caixa";
+import { resumoPagamentosCliente, saldoACobrarCliente } from "@compartilhado/dominio/pagamentos";
 import { gerarDemo, type EstadoDemo } from "./demo";
-import type { ClienteFicha, ClienteResumo, NovoAtendimentoRapido, OSVisao, Repositorio, Resultado } from "./repositorio";
+import { LIMITE_AUDITORIA, type ClienteFicha, type ClienteResumo, type NovoAtendimentoRapido, type OSVisao, type Repositorio, type Resultado } from "./repositorio";
 
 /**
  * Repositório de demonstração: guarda tudo na memória do navegador (com cópia em localStorage para
@@ -25,8 +25,12 @@ const CHAVE = "ddoctor.demo.v3";
 /** Mesma chave do seletor "Ver como" (sessao.tsx): quem fez a ação, para a auditoria. No S1 vem do login. */
 const CHAVE_PERFIL = "ddoctor.perfil";
 
+/** Todo marco gravado sai no MESMO formato do demo: "2026-10-12T14:30:00-03:00" (fuso da oficina). */
 function agora(): string {
-  return new Date().toISOString();
+  return formatarMarco(Date.now());
+}
+function hoje(): string {
+  return dataNoFuso(Date.now());
 }
 function novoId(prefixo: string): string {
   return `${prefixo}-${Math.random().toString(36).slice(2, 9)}`;
@@ -75,7 +79,7 @@ function visao(os: OS): OSVisao {
     pendencias: estado.pendencias.filter((p) => p.osId === os.id),
     titulos: estado.titulos.filter((t) => t.osId === os.id),
     fotos: estado.fotos.filter((f) => f.osId === os.id),
-    custos: estado.custos.filter((c) => c.osId === os.id).sort((a, b) => a.lancadoEm.localeCompare(b.lancadoEm)),
+    custos: estado.custos.filter((c) => c.osId === os.id).sort((a, b) => compararMarcos(a.lancadoEm, b.lancadoEm)),
   };
 }
 
@@ -88,8 +92,6 @@ function perfilAtual(): Id | undefined {
     return undefined;
   }
 }
-
-const LIMITE_AUDITORIA = 500;
 
 /** Toda escrita deixa uma linha legível (Ajustes → Auditoria). No S1, trigger no banco. */
 function auditar(acao: string, entidade: string, entidadeId: Id | undefined, resumo: string) {
@@ -144,22 +146,19 @@ function prepararCliente(entrada: Omit<Cliente, "id">, id?: Id): { ok: true; cli
   return { ok: true, cliente: { ...entrada, nome, documento, tipoPessoa, telefone, whatsapp, email, endereco } };
 }
 
-function prepararRecepcao(recepcao: RecepcaoVeiculo): { ok: true; recepcao: RecepcaoVeiculo } | { ok: false; codigo: string } {
+/** Valida a recepção e carimba: registradaEm/Por da primeira gravação ficam; regravação vira atualizadaEm/Por. */
+function prepararRecepcao(recepcao: RecepcaoVeiculo, anterior?: RecepcaoVeiculo): { ok: true; recepcao: RecepcaoVeiculo } | { ok: false; codigo: string } {
   if (recepcao.km !== undefined && (!Number.isFinite(recepcao.km) || recepcao.km < 0)) return { ok: false, codigo: "km_invalido" };
   for (const a of recepcao.avarias ?? []) {
     const r = validarAvaria(a);
     if (!r.ok) return r;
   }
-  return {
-    ok: true,
-    recepcao: {
-      ...recepcao,
-      checklist: recepcao.checklist ?? {},
-      avarias: (recepcao.avarias ?? []).map((a) => ({ ...a, id: a.id || novoId("av") })),
-      registradaEm: agora(),
-      registradaPor: perfilAtual(),
-    },
+  const limpa: RecepcaoVeiculo = {
+    ...recepcao,
+    checklist: recepcao.checklist ?? {},
+    avarias: (recepcao.avarias ?? []).map((a) => ({ ...a, id: a.id || novoId("av") })),
   };
+  return { ok: true, recepcao: carimbarRecepcao(limpa, anterior, agora(), perfilAtual()) };
 }
 
 /** Grava o material e o movimento já validados pelo domínio. */
@@ -168,17 +167,27 @@ function gravarMovimento(material: Material, mov: MovimentoEstoque) {
   estado.movimentos = [mov, ...estado.movimentos];
 }
 
+/** Títulos das OS do cliente (todos os pagadores); os totais do cliente filtram só o pagador "cliente". */
+function titulosDasOS(clienteId: Id): TituloReceber[] {
+  const ids = new Set(estado.oss.filter((o) => o.clienteId === clienteId).map((o) => o.id));
+  return estado.titulos.filter((t) => ids.has(t.osId));
+}
+
 function resumoCliente(cliente: Cliente): ClienteResumo {
   const oss = estado.oss.filter((o) => o.clienteId === cliente.id);
-  const ids = new Set(oss.map((o) => o.id));
-  const titulos = estado.titulos.filter((t) => ids.has(t.osId));
   return {
     cliente,
     veiculos: estado.veiculos.filter((v) => v.clienteId === cliente.id),
     quantidadeOS: oss.length,
-    ultimaOSEm: oss.map((o) => o.criadoEm).sort().at(-1),
-    totalPago: resumoPagamentosOS(titulos).recebido,
+    ultimaOSEm: oss.map((o) => o.criadoEm).sort(compararMarcos).at(-1),
+    // só o que o CLIENTE pagou (franquia, complemento, particular); o que a seguradora/Maxpar paga fica fora
+    totalPago: resumoPagamentosCliente(titulosDasOS(cliente.id), estado.pagadores).recebido,
   };
+}
+
+/** Dinheiro lançado com a data de um dia cujo caixa já foi fechado → caixa_ja_fechado. */
+function caixaAberto(forma: string | undefined, data: string | undefined): Resultado {
+  return checarCaixaAberto(estado.fechamentos, forma, data);
 }
 
 function atualizarOS(id: Id, mudanca: Partial<OS>) {
@@ -204,7 +213,7 @@ function conflitosAbertos(os: OS): number {
 /** Proposta da Calia vencida não ocupa vaga nem conta como ativa. */
 function agendamentoAtivo(a: Agendamento, momento = agora()): boolean {
   if (a.estado === "confirmado") return true;
-  if (a.estado === "proposto") return !a.expiraEm || a.expiraEm > momento;
+  if (a.estado === "proposto") return !a.expiraEm || paraMs(a.expiraEm) > paraMs(momento);
   return false;
 }
 
@@ -295,9 +304,8 @@ export const repositorioMemoria: Repositorio = {
     await pausa();
     const cliente = estado.clientes.find((c) => c.id === id);
     if (!cliente) return null;
-    const oss = estado.oss.filter((o) => o.clienteId === id).map(visao).sort((a, b) => b.os.criadoEm.localeCompare(a.os.criadoEm));
-    const titulos = oss.flatMap((v) => v.titulos);
-    return { ...resumoCliente(cliente), oss, saldoEmAberto: resumoPagamentosOS(titulos).saldo };
+    const oss = estado.oss.filter((o) => o.clienteId === id).map(visao).sort((a, b) => compararMarcos(b.os.criadoEm, a.os.criadoEm));
+    return { ...resumoCliente(cliente), oss, saldoEmAberto: resumoPagamentosCliente(titulosDasOS(id), estado.pagadores).saldo };
   },
   async listarVeiculos() {
     await pausa();
@@ -305,11 +313,11 @@ export const repositorioMemoria: Repositorio = {
   },
   async listarCustosOS(osId) {
     await pausa();
-    return estado.custos.filter((c) => c.osId === osId).sort((a, b) => a.lancadoEm.localeCompare(b.lancadoEm));
+    return estado.custos.filter((c) => c.osId === osId).sort((a, b) => compararMarcos(a.lancadoEm, b.lancadoEm));
   },
   async listarMovimentos() {
     await pausa();
-    return [...estado.movimentos].sort((a, b) => b.em.localeCompare(a.em));
+    return [...estado.movimentos].sort((a, b) => compararMarcos(b.em, a.em));
   },
   async listarFornecedores() {
     await pausa();
@@ -325,7 +333,7 @@ export const repositorioMemoria: Repositorio = {
   },
   async listarAuditoria() {
     await pausa();
-    return [...estado.auditoria].sort((a, b) => b.em.localeCompare(a.em));
+    return [...estado.auditoria].sort((a, b) => compararMarcos(b.em, a.em));
   },
 
   // ------------------------------------------------------------ produção
@@ -493,7 +501,7 @@ export const repositorioMemoria: Repositorio = {
     if (!checagem.ok) return { ok: false, codigo: checagem.codigo };
     let rec: RecepcaoVeiculo | undefined = os.recepcao;
     if (recepcao) {
-      const r = prepararRecepcao(recepcao);
+      const r = prepararRecepcao(recepcao, os.recepcao);
       if (!r.ok) return r;
       rec = r.recepcao;
     }
@@ -614,6 +622,10 @@ export const repositorioMemoria: Repositorio = {
     await pausa();
     const titulo = estado.titulos.find((t) => t.id === tituloId);
     if (!titulo) return { ok: false, codigo: "transicao_invalida" };
+    const data = validarDataRealizada(baixa.recebidoEm, hoje());
+    if (!data.ok) return data;
+    const caixa = caixaAberto(baixa.forma, baixa.recebidoEm);
+    if (!caixa.ok) return caixa;
     const r = aplicarBaixaDominio(titulo, { ...baixa, id: novoId("b") });
     if (!r.ok) return r;
     estado.titulos = estado.titulos.map((t) => (t.id === tituloId ? r.titulo : t));
@@ -627,6 +639,15 @@ export const repositorioMemoria: Repositorio = {
     if (!desp) return { ok: false, codigo: "despesa_nao_encontrada" };
     if (!Number.isInteger(valor) || valor <= 0) return { ok: false, codigo: "valor_invalido" };
     if (forma && !FORMAS_PAGAMENTO.includes(forma)) return { ok: false, codigo: "forma_invalida" };
+    const data = validarDataRealizada(pagoEm, hoje());
+    if (!data.ok) return data;
+    const caixa = caixaAberto(forma ?? desp.formaPagamento, pagoEm);
+    if (!caixa.ok) return caixa;
+    // a despesa já paga em dinheiro num dia fechado também não muda (a saída já foi conferida na gaveta)
+    if (desp.pagoEm && desp.pagoEm !== pagoEm) {
+      const antes = caixaAberto(desp.formaPagamento, desp.pagoEm);
+      if (!antes.ok) return antes;
+    }
     estado.despesas = estado.despesas.map((d) => (d.id === despesaId ? { ...d, pagoEm, valorPago: valor, formaPagamento: forma ?? d.formaPagamento } : d));
     auditar("pagar", "despesa", despesaId, `Despesa paga: ${desp.descricao}, ${formatarReais(valor)}`);
     salvar();
@@ -681,11 +702,17 @@ export const repositorioMemoria: Repositorio = {
     await pausa();
     const os = estado.oss.find((o) => o.id === osId);
     if (!os) return { ok: false, codigo: "os_nao_encontrada" };
-    if (os.estado === "cancelada") return { ok: false, codigo: "transicao_invalida" };
-    const r = prepararRecepcao(recepcao);
+    const editavel = recepcaoEditavel(os.estado);
+    if (!editavel.ok) return editavel;
+    const r = prepararRecepcao(recepcao, os.recepcao);
     if (!r.ok) return r;
     atualizarOS(osId, { recepcao: r.recepcao });
-    auditar("recepcao", "os", osId, `Recepção do veículo registrada na OS #${os.numero} (${r.recepcao.avarias.length} avaria(s))`);
+    auditar(
+      "recepcao",
+      "os",
+      osId,
+      `Recepção do veículo ${os.recepcao?.registradaEm ? "atualizada" : "registrada"} na OS #${os.numero} (${r.recepcao.avarias.length} avaria(s))`,
+    );
     salvar();
     return { ok: true };
   },
@@ -731,13 +758,10 @@ export const repositorioMemoria: Repositorio = {
       };
     } else if (novo.tipo === "mao_de_obra") {
       if (!novo.descricao?.trim()) return { ok: false, codigo: "descricao_obrigatoria" };
-      let total: number;
-      try {
-        total = custoMaoDeObra({ modo: novo.modo, minutos: novo.minutos, valorUnitario: novo.valorUnitario });
-      } catch (e) {
-        return { ok: false, codigo: String(e).includes("minutos") ? "minutos_invalidos" : "valor_invalido" };
-      }
-      if (!Number.isInteger(novo.valorUnitario)) return { ok: false, codigo: "valor_invalido" };
+      // R$ 0,00, valor quebrado ou sem minutos é recusado pelo domínio
+      const mo = validarMaoDeObra({ modo: novo.modo, minutos: novo.minutos, valorUnitario: novo.valorUnitario });
+      if (!mo.ok) return mo;
+      const total = mo.total;
       const quantidade = novo.modo === "hora" ? Math.round((novo.minutos / 60) * 100) / 100 : novo.modo === "minuto" ? novo.minutos : 1;
       custo = {
         id,
@@ -792,22 +816,27 @@ export const repositorioMemoria: Repositorio = {
     const custo = estado.custos.find((c) => c.id === custoId);
     if (!custo) return { ok: false, codigo: "custo_nao_encontrado" };
     if (custo.tipo === "insumo" && custo.materialId) {
-      // devolve ao estoque: apaga a retirada ligada ao custo e soma a quantidade de volta (custo médio não muda)
+      // devolve ao estoque com um movimento NOVO (ajuste "mais" ligado à OS): a retirada original fica no
+      // extrato, que continua fechando com o saldo; relatórios de consumo descontam a devolução (ehDevolucaoOS)
       const material = estado.materiais.find((m) => m.id === custo.materialId);
       if (material) {
-        const devolucao = aplicarMovimento(material, {
-          id: "devolucao",
+        const os = estado.oss.find((o) => o.id === custo.osId);
+        const mov: MovimentoEstoque = {
+          id: `mv-dev-${custo.id}`,
           materialId: material.id,
           tipo: "ajuste",
           sentido: "mais",
           quantidade: custo.quantidade,
-          obs: "Devolução de insumo",
+          custoUnitario: custo.custoUnitario,
+          osId: custo.osId,
+          perfilId: custo.perfilId,
+          obs: `Devolução do insumo da OS nº ${os?.numero ?? "?"}`,
           em: agora(),
-        });
+        };
+        const devolucao = aplicarMovimento(material, mov);
         if (!devolucao.ok) return devolucao;
-        estado.materiais = estado.materiais.map((m) => (m.id === material.id ? devolucao.material : m));
+        gravarMovimento(devolucao.material, mov);
       }
-      estado.movimentos = estado.movimentos.filter((m) => m.id !== `mv-${custo.id}`);
     }
     estado.custos = estado.custos.filter((c) => c.id !== custoId);
     atualizarOS(custo.osId, {});
@@ -832,6 +861,10 @@ export const repositorioMemoria: Repositorio = {
     if (!FORMAS_PAGAMENTO.includes(pagamento.forma)) return { ok: false, codigo: "forma_invalida" };
     if (pagamento.parcelas !== undefined && (!Number.isInteger(pagamento.parcelas) || pagamento.parcelas < 1))
       return { ok: false, codigo: "parcelas_invalidas" };
+    const data = validarDataRealizada(pagamento.recebidoEm, hoje());
+    if (!data.ok) return data;
+    const caixa = caixaAberto(pagamento.forma, pagamento.recebidoEm);
+    if (!caixa.ok) return caixa;
     const pagadorCliente = estado.pagadores.find((p) => p.tipo === "cliente");
     if (!pagadorCliente) return { ok: false, codigo: "sem_pagador" };
     // título do cliente em aberto (o de vencimento mais antigo); sem nenhum, cria "Particular/franquia"
@@ -841,20 +874,16 @@ export const repositorioMemoria: Repositorio = {
       .sort((a, b) => a.vencimento.localeCompare(b.vencimento))[0];
     let criado: TituloReceber | undefined;
     if (!titulo) {
-      // valor esperado do cliente: particular = orçamento aprovado; com seguradora = franquia + complemento
-      const versao = versaoVigente(osId);
-      const esperado = !versao
-        ? 0
-        : os.origem === "particular"
-          ? valorAprovado(versao)
-          : (versao.franquia ?? 0) + (versao.complementoParticular ?? 0);
-      const jaCobrado = doCliente.filter((t) => t.estado !== "cancelado").reduce((s, t) => s + t.valor, 0);
+      // saldo ainda não cobrado do cliente (particular = orçamento aprovado; com seguradora = franquia + complemento)
+      const aCobrar = saldoACobrarCliente({ origem: os.origem, versao: versaoVigente(osId), titulosCliente: doCliente });
+      if (aCobrar <= 0) return { ok: false, codigo: "os_quitada" };
+      // o título nasce com o saldo a cobrar; pagamento acima dele cai em baixa_maior_que_saldo
       criado = {
         id: novoId("t"),
         osId,
         pagadorId: pagadorCliente.id,
         descricao: "Particular/franquia",
-        valor: Math.max(pagamento.valor, esperado - jaCobrado),
+        valor: aCobrar,
         vencimento: pagamento.recebidoEm,
         estado: "emitido",
         baixas: [],
@@ -980,6 +1009,14 @@ export const repositorioMemoria: Repositorio = {
     }
     if (!categoria) return { ok: false, codigo: "categoria_invalida" };
     if (entrada.formaPagamento && !FORMAS_PAGAMENTO.includes(entrada.formaPagamento)) return { ok: false, codigo: "forma_invalida" };
+    const venc = validarDataPrevista(entrada.vencimento);
+    if (!venc.ok) return venc;
+    if (entrada.pagoEm !== undefined) {
+      const pago = validarDataRealizada(entrada.pagoEm, hoje());
+      if (!pago.ok) return pago;
+      const caixa = caixaAberto(entrada.formaPagamento, entrada.pagoEm);
+      if (!caixa.ok) return caixa;
+    }
     const valorPago = entrada.pagoEm ? (entrada.valorPago ?? entrada.valorPrevisto) : undefined;
     if (valorPago !== undefined && (!Number.isInteger(valorPago) || valorPago <= 0)) return { ok: false, codigo: "valor_invalido" };
     const id = novoId("d");
@@ -1016,8 +1053,8 @@ export const repositorioMemoria: Repositorio = {
 
   async fecharCaixa(dados) {
     await pausa();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dados.data)) return { ok: false, codigo: "data_invalida" };
-    if (dados.data > dataNoFuso(agora())) return { ok: false, codigo: "data_futura" };
+    if (!dataISOValida(dados.data)) return { ok: false, codigo: "data_invalida" };
+    if (dados.data > hoje()) return { ok: false, codigo: "data_futura" };
     if (!Number.isInteger(dados.contado) || dados.contado < 0) return { ok: false, codigo: "valor_invalido" };
     if (estado.fechamentos.some((f) => f.data === dados.data)) return { ok: false, codigo: "caixa_ja_fechado" };
     const anterior = estado.fechamentos.filter((f) => f.data < dados.data).sort((a, b) => b.data.localeCompare(a.data))[0];
@@ -1026,7 +1063,7 @@ export const repositorioMemoria: Repositorio = {
     const calculo = calcularFechamento({
       saldoInicial,
       contado: dados.contado,
-      baixas: estado.titulos.flatMap((t) => t.baixas),
+      titulos: estado.titulos, // baixas de títulos cancelados ficam fora
       despesas: estado.despesas,
       data: dados.data,
     });
@@ -1059,6 +1096,7 @@ export const repositorioMemoria: Repositorio = {
 
   async restaurarDemo() {
     estado = gerarDemo();
+    auditar("restaurar", "demo", undefined, "Demonstração restaurada: dados de exemplo gerados de novo");
     salvar();
   },
 };

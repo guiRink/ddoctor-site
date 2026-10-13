@@ -1,7 +1,8 @@
 // Fechamento de caixa diário (só dinheiro em espécie) e resumo da competência mensal.
 import type { Baixa, Centavos, DataISO, Despesa, FechamentoCaixa, TituloReceber } from "../tipos";
 import { somaCentavos } from "./dinheiro";
-import { saldoTitulo } from "./financeiro";
+import { baixasValidas, saldoTitulo } from "./financeiro";
+import { falha, type Resultado } from "./resultado";
 import { mesDe } from "./fuso";
 import { normalizarFormaPagamento } from "./pagamentos";
 
@@ -16,18 +17,36 @@ export type CalculoFechamento = Pick<
 >;
 
 /**
+ * Dinheiro em espécie com data de um dia cujo caixa já foi fechado mudaria a gaveta conferida:
+ * recusa com "caixa_ja_fechado" (lance com a data de hoje ou reabra o caixa). Outras formas passam.
+ * `forma` aceita o texto livre antigo ("Dinheiro", "espécie").
+ */
+export function checarCaixaAberto(
+  fechamentos: ReadonlyArray<Pick<FechamentoCaixa, "data">>,
+  forma: string | undefined | null,
+  data: DataISO | undefined,
+): Resultado<"caixa_ja_fechado"> {
+  if (!data || normalizarFormaPagamento(forma) !== "dinheiro") return { ok: true };
+  return fechamentos.some((f) => f.data === data) ? falha("caixa_ja_fechado") : { ok: true };
+}
+
+/**
  * Fechamento do dia: entradas = baixas em dinheiro recebidas na data; saídas = despesas pagas em dinheiro
  * na data. esperado = saldoInicial + entradas − saídas; diferenca = contado − esperado (negativa = falta).
  * Pix, cartão, boleto etc. não passam pela gaveta e ficam fora.
+ * Prefira passar `titulos`: as baixas de títulos cancelados ficam fora. `baixas` (lista solta) é
+ * aceito por compatibilidade e é ignorado quando `titulos` vem.
  */
 export function calcularFechamento(entrada: {
   saldoInicial: Centavos;
   contado: Centavos;
-  baixas: readonly Baixa[];
+  titulos?: readonly TituloReceber[];
+  baixas?: readonly Baixa[];
   despesas: readonly Despesa[];
   data: DataISO;
 }): CalculoFechamento {
-  const { saldoInicial, contado, baixas, despesas, data } = entrada;
+  const { saldoInicial, contado, despesas, data } = entrada;
+  const baixas = entrada.titulos ? baixasValidas(entrada.titulos) : (entrada.baixas ?? []);
   const entradasDinheiro = somaCentavos(
     baixas.filter((b) => b.recebidoEm === data && normalizarFormaPagamento(b.forma) === "dinheiro").map((b) => b.valor),
   );
@@ -40,7 +59,7 @@ export function calcularFechamento(entrada: {
 
 export interface ResumoCompetencia {
   mes: string; // AAAA-MM
-  entradas: Centavos; // Σ baixas recebidas no mês
+  entradas: Centavos; // Σ baixas recebidas no mês (títulos cancelados fora)
   saidas: Centavos; // Σ despesas pagas no mês
   resultado: Centavos; // entradas − saídas
   aPagarEmAberto: Centavos; // despesas com vencimento no mês ainda não pagas
@@ -53,7 +72,7 @@ export function resumoCompetencia(
   titulos: readonly TituloReceber[],
   despesas: readonly Despesa[],
 ): ResumoCompetencia {
-  const entradas = somaCentavos(titulos.flatMap((t) => t.baixas.filter((b) => mesDe(b.recebidoEm) === mes).map((b) => b.valor)));
+  const entradas = somaCentavos(baixasValidas(titulos).filter((b) => mesDe(b.recebidoEm) === mes).map((b) => b.valor));
   const saidas = somaCentavos(despesas.filter((d) => d.pagoEm && mesDe(d.pagoEm) === mes).map(valorPagoDespesa));
   const aPagarEmAberto = somaCentavos(despesas.filter((d) => !d.pagoEm && mesDe(d.vencimento) === mes).map((d) => d.valorPrevisto));
   const aReceberEmAberto = somaCentavos(

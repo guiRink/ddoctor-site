@@ -16,7 +16,8 @@ import {
   type TituloReceber,
 } from "../tipos";
 import { valorPagoDespesa } from "./caixa";
-import { custoDoMovimento, TIPOS_SAIDA } from "./estoque";
+import { baixasValidas } from "./financeiro";
+import { custoDoMovimento, ehDevolucaoOS, TIPOS_SAIDA } from "./estoque";
 import { diasDoMes, mesDe } from "./fuso";
 import { normalizarFormaPagamento } from "./pagamentos";
 
@@ -34,8 +35,8 @@ export interface OSRelatorio {
 
 const entregueNoMes = (o: OSRelatorio, mes: string) => o.estado !== "cancelada" && !!o.entregueEm && mesDe(o.entregueEm) === mes;
 
-const baixasDoMes = (titulos: readonly TituloReceber[], mes: string) =>
-  titulos.flatMap((t) => t.baixas.filter((b) => mesDe(b.recebidoEm) === mes));
+/** Baixas do mês de títulos não cancelados (baixa de título cancelado não é dinheiro que ficou). */
+const baixasDoMes = (titulos: readonly TituloReceber[], mes: string) => baixasValidas(titulos).filter((b) => mesDe(b.recebidoEm) === mes);
 
 /** Recebido no mês por forma de pagamento (texto desconhecido vira "outra"), do maior para o menor. */
 export function faturamentoPorForma(
@@ -126,7 +127,10 @@ export function topClientes(
     .slice(0, Math.max(0, n));
 }
 
-/** Material que saiu no mês (para OS e consumo interno), do maior custo para o menor. */
+/**
+ * Material que saiu no mês (para OS e consumo interno), do maior custo para o menor.
+ * Devolução de insumo de OS no mês desconta; material que zera no mês sai da lista.
+ */
 export function pecasConsumidas(
   movimentos: readonly MovimentoEstoque[],
   materiais: readonly Material[],
@@ -135,14 +139,15 @@ export function pecasConsumidas(
   const porId = new Map(materiais.map((m) => [m.id, m]));
   const mapa = new Map<Id, { materialId: Id; nome: string; unidade: string; quantidade: number; custo: number }>();
   for (const mov of movimentos) {
-    if (!TIPOS_SAIDA.has(mov.tipo) || mesDe(mov.em) !== mes) continue;
+    const sinal = TIPOS_SAIDA.has(mov.tipo) ? 1 : ehDevolucaoOS(mov) ? -1 : 0;
+    if (sinal === 0 || mesDe(mov.em) !== mes) continue;
     const mat = porId.get(mov.materialId);
     const g = mapa.get(mov.materialId) ?? { materialId: mov.materialId, nome: mat?.nome ?? mov.materialId, unidade: mat?.unidade ?? "", quantidade: 0, custo: 0 };
-    g.quantidade = Math.round((g.quantidade + mov.quantidade) * 1000) / 1000;
-    g.custo += custoDoMovimento(mov, mat);
+    g.quantidade = Math.round((g.quantidade + sinal * mov.quantidade) * 1000) / 1000;
+    g.custo += sinal * custoDoMovimento(mov, mat);
     mapa.set(mov.materialId, g);
   }
-  return [...mapa.values()].sort((a, b) => b.custo - a.custo || a.nome.localeCompare(b.nome, "pt-BR"));
+  return [...mapa.values()].filter((g) => g.quantidade > 0).sort((a, b) => b.custo - a.custo || a.nome.localeCompare(b.nome, "pt-BR"));
 }
 
 /**

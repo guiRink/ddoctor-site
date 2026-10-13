@@ -3,6 +3,7 @@ import { repositorioMemoria as repo } from "./repositorioMemoria";
 import { validarDocumento } from "@compartilhado/dominio/documento";
 import { calcularFechamento } from "@compartilhado/dominio/caixa";
 import { normalizarFormaPagamento } from "@compartilhado/dominio/pagamentos";
+import { LIMITE_AUDITORIA } from "./repositorio";
 
 // Sequências que a revisão QA do sprint SD apontou (docs/qa-sprintSD.md).
 const hoje = () => new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
@@ -118,7 +119,12 @@ describe("repositório em memória", () => {
     expect((await repo.listarMovimentos()).some((m) => m.id === `mv-${r.id}` && m.osId === v.os.id)).toBe(true);
     expect((await repo.removerCusto(r.id!)).ok).toBe(true);
     expect((await repo.listarMateriais()).find((m) => m.id === "m-2")!.saldoEstimado).toBeCloseTo(antes.saldoEstimado, 3);
-    expect((await repo.listarMovimentos()).some((m) => m.id === `mv-${r.id}`)).toBe(false);
+    // a retirada continua no extrato e a devolução entra como ajuste "mais" ligado à OS (QA #6)
+    const movs = await repo.listarMovimentos();
+    expect(movs.some((m) => m.id === `mv-${r.id}` && m.tipo === "saida_os")).toBe(true);
+    const dev = movs.find((m) => m.tipo === "ajuste" && m.sentido === "mais" && m.osId === v.os.id && m.materialId === "m-2");
+    expect(dev).toMatchObject({ quantidade: 1.5, custoUnitario: antes.custoMedio, obs: `Devolução do insumo da OS nº ${v.os.numero}` });
+    expect(movs[0].id).toBe(dev!.id); // mais recente primeiro
     expect((await repo.listarCustosOS(v.os.id)).some((c) => c.id === r.id)).toBe(false);
   });
 
@@ -155,6 +161,10 @@ describe("repositório em memória", () => {
     const r2 = await repo.registrarPagamentoOS(v.os.id, { valor: 6000, forma: "credito", parcelas: 2, recebidoEm: hoje() });
     expect(r2.id).toBe(r.id);
     expect((await repo.obterOS(v.os.id))!.titulos.find((x) => x.id === r.id)!.estado).toBe("recebido");
+    // nada mais a cobrar do cliente: pagamento a mais é recusado e nenhum título novo nasce (QA #7)
+    const nTitulos = (await repo.listarTitulos()).length;
+    expect((await repo.registrarPagamentoOS(v.os.id, { valor: 100, forma: "pix", recebidoEm: hoje() })).codigo).toBe("os_quitada");
+    expect((await repo.listarTitulos()).length).toBe(nTitulos);
   });
 
   it("documento e placa duplicados são recusados; documento inválido também", async () => {
@@ -177,7 +187,7 @@ describe("repositório em memória", () => {
     const baixas = titulos.flatMap((t) => t.baixas).filter((b) => b.recebidoEm === dia);
     expect(baixas.some((b) => normalizarFormaPagamento(b.forma) === "dinheiro")).toBe(true);
     const anterior = (await repo.listarFechamentos())[0];
-    const esperado = calcularFechamento({ saldoInicial: anterior.contado, contado: 0, baixas: titulos.flatMap((t) => t.baixas), despesas, data: dia });
+    const esperado = calcularFechamento({ saldoInicial: anterior.contado, contado: 0, titulos, despesas, data: dia });
     // pagamento em pix hoje não entra na gaveta
     const v = await osPorPlaca("RAV3K61");
     await repo.registrarPagamentoOS(v.os.id, { valor: 5000, forma: "pix", recebidoEm: dia });
@@ -214,5 +224,137 @@ describe("repositório em memória", () => {
     expect(salva.km).toBe(42000);
     expect(salva.avarias[0].id).toBeTruthy();
     expect(salva.registradaEm).toBeTruthy();
+  });
+
+  // ------------------------------------------------------------ correções da revisão QA do SE
+  it("primeiro pagamento acima do saldo a cobrar não infla o título", async () => {
+    const v = await osPorPlaca("RAV3K61"); // franquia R$ 160,00
+    expect((await repo.registrarPagamentoOS(v.os.id, { valor: 20000, forma: "pix", recebidoEm: hoje() })).codigo).toBe("baixa_maior_que_saldo");
+    expect((await repo.obterOS(v.os.id))!.titulos.filter((t) => t.pagadorId === "pg-cliente")).toHaveLength(0);
+  });
+
+  it("caixa fechado trava dinheiro com a data do dia fechado (pagamento, baixa, despesa)", async () => {
+    const fechado = (await repo.listarFechamentos())[0].data; // o demo tem dois dias fechados
+    const v = await osPorPlaca("RAV3K61");
+    expect((await repo.registrarPagamentoOS(v.os.id, { valor: 1000, forma: "dinheiro", recebidoEm: fechado })).codigo).toBe("caixa_ja_fechado");
+    // pix no mesmo dia não passa pela gaveta: aceito
+    expect((await repo.registrarPagamentoOS(v.os.id, { valor: 1000, forma: "pix", recebidoEm: fechado })).ok).toBe(true);
+    const aberto = (await repo.listarTitulos()).find((t) => t.estado !== "recebido" && t.estado !== "cancelado")!;
+    expect((await repo.aplicarBaixa(aberto.id, { valor: 100, forma: "Dinheiro", recebidoEm: fechado })).codigo).toBe("caixa_ja_fechado");
+    const nova = { categoriaId: "desp_outras", descricao: "Café", valorPrevisto: 500, vencimento: fechado };
+    expect((await repo.criarDespesa({ ...nova, pagoEm: fechado, formaPagamento: "dinheiro" })).codigo).toBe("caixa_ja_fechado");
+    const d = await repo.criarDespesa(nova);
+    expect(d.ok).toBe(true);
+    expect((await repo.pagarDespesa(d.id!, 500, fechado, "dinheiro")).codigo).toBe("caixa_ja_fechado");
+    expect((await repo.pagarDespesa(d.id!, 500, hoje(), "dinheiro")).ok).toBe(true);
+  });
+
+  it("datas de recebimento e pagamento: dia real e não futuro; vencimento só formato", async () => {
+    const v = await osPorPlaca("RAV3K61");
+    const amanha = new Date(Date.now() + 86_400_000).toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+    expect((await repo.registrarPagamentoOS(v.os.id, { valor: 1000, forma: "pix", recebidoEm: amanha })).codigo).toBe("data_futura");
+    expect((await repo.registrarPagamentoOS(v.os.id, { valor: 1000, forma: "pix", recebidoEm: "2026-02-30" })).codigo).toBe("data_invalida");
+    const aberto = (await repo.listarTitulos()).find((t) => t.estado !== "recebido" && t.estado !== "cancelado")!;
+    expect((await repo.aplicarBaixa(aberto.id, { valor: 100, forma: "pix", recebidoEm: amanha })).codigo).toBe("data_futura");
+    const base = { categoriaId: "desp_outras", descricao: "Luz", valorPrevisto: 500 };
+    expect((await repo.criarDespesa({ ...base, vencimento: "31/10/2026" })).codigo).toBe("data_invalida");
+    expect((await repo.criarDespesa({ ...base, vencimento: amanha, pagoEm: amanha, formaPagamento: "pix" })).codigo).toBe("data_futura");
+    const d = await repo.criarDespesa({ ...base, vencimento: amanha }); // vencimento futuro é normal
+    expect(d.ok).toBe(true);
+    expect((await repo.pagarDespesa(d.id!, 500, amanha, "pix")).codigo).toBe("data_futura");
+    expect((await repo.pagarDespesa(d.id!, 500, "2026-13-01", "pix")).codigo).toBe("data_invalida");
+  });
+
+  it("baixas de título cancelado não entram no fechamento", async () => {
+    const dia = hoje();
+    const estado = JSON.parse(localStorage.getItem("ddoctor.demo.v3")!);
+    estado.titulos.push({ id: "t-cancelado", osId: "os-1", pagadorId: "pg-cliente", descricao: "Cancelado", valor: 99900, vencimento: dia, estado: "cancelado", baixas: [{ id: "bx", valor: 99900, recebidoEm: dia, forma: "dinheiro" }] });
+    localStorage.setItem("ddoctor.demo.v3", JSON.stringify(estado));
+    vi.resetModules();
+    const { repositorioMemoria: novo } = await import("./repositorioMemoria");
+    const titulos = await novo.listarTitulos();
+    const semCancelado = calcularFechamento({ saldoInicial: 0, contado: 0, titulos: titulos.filter((t) => t.id !== "t-cancelado"), despesas: await novo.listarDespesas(), data: dia });
+    const r = await novo.fecharCaixa({ data: dia, contado: 0, saldoInicial: 0 });
+    expect((await novo.listarFechamentos()).find((f) => f.id === r.id)!.entradasDinheiro).toBe(semCancelado.entradasDinheiro);
+  });
+
+  it("total pago e saldo do cliente só contam títulos do pagador cliente", async () => {
+    const v = await osPorPlaca("RAV3K61");
+    const pagadores = await repo.listarPagadores();
+    const tipo = new Map(pagadores.map((p) => [p.id, p.tipo]));
+    const ficha = (await repo.obterCliente(v.cliente.id))!;
+    const doCliente = ficha.oss.flatMap((o) => o.titulos).filter((t) => tipo.get(t.pagadorId) === "cliente" && t.estado !== "cancelado");
+    expect(ficha.totalPago).toBe(doCliente.flatMap((t) => t.baixas).reduce((s, b) => s + b.valor, 0));
+    // há cliente com título da Maxpar recebido: ele não entra no total pago do cliente
+    const clientes = await repo.listarClientes();
+    const titulos = await repo.listarTitulos();
+    const oss = await repo.listarOS();
+    const comMaxpar = clientes.find((c) =>
+      titulos.some((t) => tipo.get(t.pagadorId) !== "cliente" && t.baixas.length > 0 && oss.find((o) => o.os.id === t.osId)?.cliente.id === c.cliente.id),
+    )!;
+    expect(comMaxpar).toBeTruthy();
+    const idsOS = new Set(oss.filter((o) => o.cliente.id === comMaxpar.cliente.id).map((o) => o.os.id));
+    const soCliente = titulos
+      .filter((t) => idsOS.has(t.osId) && tipo.get(t.pagadorId) === "cliente" && t.estado !== "cancelado")
+      .flatMap((t) => t.baixas)
+      .reduce((s, b) => s + b.valor, 0);
+    expect(comMaxpar.totalPago).toBe(soCliente);
+  });
+
+  it("marcos gravados no formato do fuso e listas ordenadas pelo instante real", async () => {
+    const v = await osPorPlaca("RAV3K61");
+    const r = await repo.lancarCusto(v.os.id, { tipo: "outro", descricao: "Frete", custoUnitario: 1000 });
+    const custo = (await repo.listarCustosOS(v.os.id)).find((c) => c.id === r.id)!;
+    expect(custo.lancadoEm).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-03:00$/);
+    expect((await repo.listarAuditoria())[0].em).toMatch(/-03:00$/);
+    // um movimento antigo gravado em UTC ("Z") não pode furar a ordem por ser texto "maior"
+    const estado = JSON.parse(localStorage.getItem("ddoctor.demo.v3")!);
+    const antigo = { id: "mv-utc", materialId: "m-1", tipo: "ajuste", sentido: "mais", quantidade: 1, obs: "teste", em: "2000-01-01T23:00:00Z" };
+    estado.movimentos.push(antigo);
+    estado.materiais = estado.materiais.map((m: { id: string; saldoEstimado: number }) => (m.id === "m-1" ? { ...m, saldoEstimado: m.saldoEstimado + 1 } : m));
+    localStorage.setItem("ddoctor.demo.v3", JSON.stringify(estado));
+    vi.resetModules();
+    const { repositorioMemoria: novo } = await import("./repositorioMemoria");
+    const movs = await novo.listarMovimentos();
+    expect(movs.at(-1)!.id).toBe("mv-utc");
+    const ms = movs.map((m) => Date.parse(m.em));
+    expect(ms.every((x, i) => i === 0 || ms[i - 1] >= x)).toBe(true);
+  });
+
+  it("recepção preserva o primeiro registro e não edita OS entregue", async () => {
+    const v = await osPorPlaca("SAE5P73");
+    expect((await repo.salvarRecepcao(v.os.id, { checklist: {}, avarias: [], km: 100 })).ok).toBe(true);
+    const primeira = (await repo.obterOS(v.os.id))!.os.recepcao!;
+    localStorage.setItem("ddoctor.perfil", "p-dono");
+    expect((await repo.salvarRecepcao(v.os.id, { ...primeira, km: 200, registradaEm: "2000-01-01T00:00:00-03:00" })).ok).toBe(true);
+    const segunda = (await repo.obterOS(v.os.id))!.os.recepcao!;
+    expect(segunda.km).toBe(200);
+    expect(segunda.registradaEm).toBe(primeira.registradaEm);
+    expect(segunda.registradaPor).toBe(primeira.registradaPor);
+    expect(segunda.atualizadaEm).toBeTruthy();
+    expect(segunda.atualizadaPor).toBe("p-dono");
+    const entregue = (await repo.listarOS()).find((o) => o.os.estado === "entregue")!;
+    expect((await repo.salvarRecepcao(entregue.os.id, { checklist: {}, avarias: [] })).codigo).toBe("os_fechada");
+  });
+
+  it("mão de obra de R$ 0,00 é recusada", async () => {
+    const v = await osPorPlaca("RAV3K61");
+    expect((await repo.lancarCusto(v.os.id, { tipo: "mao_de_obra", descricao: "Ajuste", modo: "fixo", minutos: 0, valorUnitario: 0 })).codigo).toBe("valor_invalido");
+    expect((await repo.lancarCusto(v.os.id, { tipo: "mao_de_obra", descricao: "Ajuste", modo: "hora", minutos: 0, valorUnitario: 4000 })).codigo).toBe("minutos_invalidos");
+  });
+
+  it("restaurar a demonstração deixa linha na auditoria; limite exposto", async () => {
+    localStorage.setItem("ddoctor.perfil", "p-dono");
+    await repo.restaurarDemo();
+    const [ultima] = await repo.listarAuditoria();
+    expect(ultima).toMatchObject({ acao: "restaurar", entidade: "demo", perfilId: "p-dono" });
+    expect(LIMITE_AUDITORIA).toBe(500);
+  });
+
+  it("clientes do demo vêm marcados (a UI não gera wa.me/tel: para eles)", async () => {
+    const clientes = await repo.listarClientes();
+    expect(clientes.every((c) => c.cliente.demo === true)).toBe(true);
+    const novo = await repo.salvarCliente({ nome: "Cliente digitado" });
+    expect((await repo.obterCliente(novo.id!))!.cliente.demo).toBeUndefined();
   });
 });

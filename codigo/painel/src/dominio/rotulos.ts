@@ -248,9 +248,11 @@ export const ERRO: Record<string, string> = {
   despesa_nao_encontrada: "Despesa não encontrada. Atualize a tela.",
   categoria_invalida: "Escolha uma categoria de despesa válida.",
   categoria_duplicada: "Já existe uma categoria com esse nome.",
-  caixa_ja_fechado: "O caixa desse dia já foi fechado.",
-  data_invalida: "Data inválida.",
-  data_futura: "Não dá para fechar o caixa de um dia que ainda não chegou.",
+  caixa_ja_fechado: "O caixa deste dia já foi fechado. Lance com a data de hoje ou reabra o caixa.",
+  data_invalida: "Data inválida. Confira dia, mês e ano.",
+  data_futura: "Essa data ainda não chegou. Use hoje ou um dia que já passou.",
+  os_quitada: "Esta OS já está quitada.",
+  os_fechada: "Esta OS já foi entregue, encerrada ou cancelada; a recepção não pode mais ser alterada.",
 };
 
 export const MENU: { modulo: Modulo; rota: string; nome: string; icone: NomeIcone; grupo: "operacao" | "gestao" | "sistema" }[] = [

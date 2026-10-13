@@ -1,7 +1,7 @@
 // Formas de pagamento e resumo dos pagamentos de uma OS (títulos + baixas).
-import { FORMAS_PAGAMENTO, type Centavos, type FormaPagamento, type TituloReceber } from "../tipos";
+import { FORMAS_PAGAMENTO, type Centavos, type FormaPagamento, type OrcamentoVersao, type OrigemOS, type Pagador, type TituloReceber } from "../tipos";
 import { somaCentavos } from "./dinheiro";
-import { saldoTitulo } from "./financeiro";
+import { saldoTitulo, valorAprovado } from "./financeiro";
 
 const SINONIMOS: Record<string, FormaPagamento> = {
   pix: "pix",
@@ -40,4 +40,38 @@ export function resumoPagamentosOS(titulos: readonly TituloReceber[]): ResumoPag
     recebido: somaCentavos(validos.flatMap((t) => t.baixas.map((b) => b.valor))),
     saldo: somaCentavos(validos.map(saldoTitulo)),
   };
+}
+
+/** Títulos cujo pagador é do tipo "cliente" (franquia, complemento, particular); seguradora/Maxpar ficam fora. */
+export function titulosDoCliente(titulos: readonly TituloReceber[], pagadores: readonly Pagador[]): TituloReceber[] {
+  const ids = new Set(pagadores.filter((p) => p.tipo === "cliente").map((p) => p.id));
+  return titulos.filter((t) => ids.has(t.pagadorId));
+}
+
+/** Total pago e saldo do CLIENTE (ficha e lista de clientes): só títulos de pagador tipo "cliente". */
+export function resumoPagamentosCliente(titulos: readonly TituloReceber[], pagadores: readonly Pagador[]): ResumoPagamentos {
+  return resumoPagamentosOS(titulosDoCliente(titulos, pagadores));
+}
+
+/**
+ * Quanto o cliente deve pagar na OS: particular = valor aprovado da versão vigente; com seguradora/Maxpar =
+ * franquia + complemento particular. Sem versão, 0.
+ */
+export function valorEsperadoCliente(origem: OrigemOS, versao: OrcamentoVersao | undefined): Centavos {
+  if (!versao) return 0;
+  if (origem === "particular") return valorAprovado(versao);
+  return Math.max(0, versao.franquia ?? 0) + Math.max(0, versao.complementoParticular ?? 0);
+}
+
+/**
+ * Saldo ainda NÃO cobrado do cliente = esperado − Σ valor dos títulos do cliente não cancelados.
+ * ≤ 0 = nada a cobrar (a OS está quitada para o cliente; um pagamento novo é recusado com "os_quitada").
+ */
+export function saldoACobrarCliente(entrada: {
+  origem: OrigemOS;
+  versao: OrcamentoVersao | undefined;
+  titulosCliente: readonly TituloReceber[];
+}): Centavos {
+  const jaCobrado = somaCentavos(entrada.titulosCliente.filter((t) => t.estado !== "cancelado").map((t) => t.valor));
+  return valorEsperadoCliente(entrada.origem, entrada.versao) - jaCobrado;
 }

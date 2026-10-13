@@ -67,6 +67,11 @@ export interface Cliente {
   endereco?: Endereco;
   observacoes?: string;
   proveniencia?: Record<string, ProvenienciaCampo>;
+  /**
+   * Cadastro de DEMONSTRAÇÃO (seed/repositório em memória). Os telefones têm formato real mas são
+   * inventados: a UI não gera link wa.me/tel: para cliente demo (pode cair num número de verdade).
+   */
+  demo?: boolean;
 }
 
 export interface Veiculo {
@@ -191,8 +196,12 @@ export interface RecepcaoVeiculo {
   obsInternas?: string; // não sai na impressão para o cliente
   checklist: Record<string, boolean>; // id do ChecklistItem → marcado
   avarias: Avaria[];
+  /** Primeira gravação da recepção; não muda depois (carimbarRecepcao). */
   registradaEm?: MarcoISO;
   registradaPor?: Id;
+  /** Última regravação (ausente se nunca foi editada). */
+  atualizadaEm?: MarcoISO;
+  atualizadaPor?: Id;
 }
 
 // ---------------------------------------------------------------- custos da OS

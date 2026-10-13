@@ -89,6 +89,19 @@ export function formatarMarco(ms: number): MarcoISO {
   );
 }
 
+/** Ordena marcos pelo instante real (formatos misturados: "Z", "-03:00" ou sem fuso). Para .sort(). */
+export function compararMarcos(a: MarcoISO, b: MarcoISO): number {
+  return paraMs(a) - paraMs(b);
+}
+
+/** AAAA-MM-DD de um dia que existe no calendário (recusa 2026-02-30, 2026-13-01, "12/10/2026"). */
+export function dataISOValida(data: unknown): data is DataISO {
+  if (typeof data !== "string" || !SO_DATA.test(data)) return false;
+  const [a, m, d] = data.split("-").map(Number);
+  const r = new Date(Date.UTC(a, m - 1, d));
+  return r.getUTCFullYear() === a && r.getUTCMonth() === m - 1 && r.getUTCDate() === d;
+}
+
 /** Data de negócio (AAAA-MM-DD) do instante, no fuso da oficina. */
 export function dataNoFuso(marco: MarcoISO | number): DataISO {
   const p = partes(typeof marco === "number" ? marco : paraMs(marco));

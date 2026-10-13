@@ -51,7 +51,12 @@ export interface OSVisao {
   pendencias: PendenciaExterna[];
   titulos: TituloReceber[];
   fotos: Foto[];
-  /** Custos lançados (insumos, mão de obra, terceiros, outros). Só dono, gestor e financeiro veem (veCustosOS). */
+  /**
+   * Custos lançados (insumos, mão de obra, terceiros, outros). Só dono, gestor e financeiro veem (veCustosOS).
+   * TODO(S1): sair da OSVisao. No Supabase a RLS não deixa recepção/produção lerem custo_os, então a visão
+   * geral não pode trazê-los; as telas devem migrar para listarCustosOS (hook próprio, só para quem veCustosOS).
+   * Mantido aqui até as telas migrarem (QA #5).
+   */
   custos: CustoOS[];
 }
 
@@ -75,6 +80,12 @@ export interface NovoAtendimentoRapido {
   recepcao?: RecepcaoVeiculo;
 }
 
+/**
+ * Quantas linhas de auditoria a demonstração guarda (as mais antigas saem). A tela de Auditoria cita o
+ * limite ("mostrando as últimas N ações"). No S1 a auditoria fica no banco, sem esse corte.
+ */
+export const LIMITE_AUDITORIA = 500;
+
 export interface Resultado {
   ok: boolean;
   codigo?: string;
@@ -86,13 +97,13 @@ export interface ClienteResumo {
   veiculos: Veiculo[];
   quantidadeOS: number;
   ultimaOSEm?: MarcoISO; // criadoEm da OS mais recente
-  totalPago: Centavos; // Σ baixas dos títulos das OS do cliente
+  totalPago: Centavos; // Σ baixas dos títulos do CLIENTE (pagador tipo "cliente") nas OS dele; seguradora/Maxpar fora
 }
 
 /** Ficha do cliente: veículos, histórico de OS e totais. */
 export interface ClienteFicha extends ClienteResumo {
   oss: OSVisao[]; // da mais recente para a mais antiga
-  saldoEmAberto: Centavos; // Σ saldo dos títulos não cancelados das OS do cliente
+  saldoEmAberto: Centavos; // Σ saldo dos títulos do CLIENTE (pagador tipo "cliente") não cancelados
 }
 
 /** Cliente para criar (sem id) ou editar (com id). Documento e telefones entram com ou sem máscara. */
@@ -230,6 +241,6 @@ export interface Repositorio {
   aplicarBaixa(tituloId: Id, baixa: Omit<Baixa, "id">): Promise<Resultado>;
   pagarDespesa(despesaId: Id, valor: number, pagoEm: DataISO, forma?: FormaPagamento): Promise<Resultado>;
 
-  // demonstração
+  // demonstração (grava uma linha de auditoria "restaurar")
   restaurarDemo(): Promise<void>;
 }

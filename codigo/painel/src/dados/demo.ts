@@ -33,7 +33,7 @@ import { CATEGORIAS_PADRAO, CHECKLIST_PADRAO } from "@compartilhado/dominio/conf
 import { custoMaoDeObra, totalCusto } from "@compartilhado/dominio/custos";
 import { aplicarMovimento } from "@compartilhado/dominio/estoque";
 import { calcularFechamento } from "@compartilhado/dominio/caixa";
-import { diaSemana } from "@compartilhado/dominio/fuso";
+import { compararMarcos, dataNoFuso, diaSemana, formatarMarco } from "@compartilhado/dominio/fuso";
 
 /**
  * Oficina de DEMONSTRAÇÃO. Tudo aqui é fictício: nomes, placas, telefones, protocolos e valores.
@@ -76,12 +76,13 @@ export interface EstadoDemo {
 const HORA = 3_600_000;
 const DIA = 24 * HORA;
 
+/** Marco no formato único do painel: "2026-10-12T14:30:00-03:00" (fuso da oficina, não o da máquina). */
 function iso(d: Date): string {
-  return d.toISOString();
+  return formatarMarco(d.getTime());
 }
+/** Data de negócio AAAA-MM-DD no fuso da oficina. */
 function dataISO(d: Date): string {
-  const z = new Date(d.getTime() - d.getTimezoneOffset() * 60_000);
-  return z.toISOString().slice(0, 10);
+  return dataNoFuso(d.getTime());
 }
 
 // ---------------------------------------------------------------- documentos de demonstração
@@ -477,6 +478,8 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
               },
         observacoes: pj ? `Contato: ${c.cliente}. Cliente de demonstração.` : undefined,
         proveniencia: prov ? { nome: prov, telefone: prov } : undefined,
+        // telefones inventados, mas no formato real: a UI não gera link wa.me/tel: para cliente demo
+        demo: true,
       });
     }
     veiculos.push({
@@ -972,12 +975,11 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
   });
 
   // ---------------------------------------------------------------- caixa: dois fechamentos anteriores (só dinheiro)
-  const todasBaixas: Baixa[] = titulos.flatMap((t) => t.baixas);
   const fechamentos: FechamentoCaixa[] = [];
   const diaAnterior = d(-3) < ontemUtil ? d(-3) : d(-4);
-  const f1 = calcularFechamento({ saldoInicial: 20000, contado: 0, baixas: todasBaixas, despesas, data: diaAnterior });
+  const f1 = calcularFechamento({ saldoInicial: 20000, contado: 0, titulos, despesas, data: diaAnterior });
   fechamentos.push({ id: "fc-1", ...f1, contado: f1.esperado, diferenca: 0, fechadoPor: "p-recepcao", fechadoEm: `${diaAnterior}T18:05:00-03:00` });
-  const f2 = calcularFechamento({ saldoInicial: f1.esperado, contado: 0, baixas: todasBaixas, despesas, data: ontemUtil });
+  const f2 = calcularFechamento({ saldoInicial: f1.esperado, contado: 0, titulos, despesas, data: ontemUtil });
   fechamentos.push({
     id: "fc-2",
     ...f2,
@@ -996,7 +998,7 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
     { id: "au-4", em: h(-3), perfilId: "p-recepcao", acao: "baixa", entidade: "titulo_receber", entidadeId: "t-7-f", resumo: "Franquia de R$ 160,00 recebida em dinheiro (OS #1047)" },
     { id: "au-5", em: h(-2), perfilId: "p-recepcao", acao: "baixa", entidade: "titulo_receber", entidadeId: "t-sch-particular", resumo: "Sinal de R$ 400,00 recebido em dinheiro (OS #1046)" },
     { id: "au-6", em: h(-1), perfilId: "p-paula", acao: "pagar", entidade: "despesa", entidadeId: "d-9", resumo: "Despesa paga: Café e material de limpeza, R$ 85,00 em dinheiro" },
-  ].sort((a, b) => b.em.localeCompare(a.em));
+  ].sort((a, b) => compararMarcos(b.em, a.em));
 
   return {
     versao: 3,
@@ -1019,8 +1021,8 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
     despesas,
     materiais,
     config,
-    custos: custos.sort((a, b) => a.lancadoEm.localeCompare(b.lancadoEm)),
-    movimentos: movimentos.sort((a, b) => b.em.localeCompare(a.em)),
+    custos: custos.sort((a, b) => compararMarcos(a.lancadoEm, b.lancadoEm)),
+    movimentos: movimentos.sort((a, b) => compararMarcos(b.em, a.em)),
     fornecedores,
     categorias,
     fechamentos: fechamentos.sort((a, b) => b.data.localeCompare(a.data)),
