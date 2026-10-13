@@ -14,7 +14,8 @@ import { Placa } from "../componentes/ui/Placa";
 import { Proveniencia } from "../componentes/ui/Proveniencia";
 import { CLASSE_LINHA, CLASSE_TH } from "../componentes/ui/Tabela";
 import { Icone } from "../componentes/Icone";
-import { AvatarCliente, BotaoWhatsApp } from "../componentes/clientes/Comuns";
+import { AvatarCliente, BotaoWhatsApp, NumeroDemo } from "../componentes/clientes/Comuns";
+import { contatoClicavel } from "@compartilhado/dominio/clientes";
 import { FormCliente } from "../componentes/clientes/FormCliente";
 import { FormVeiculo } from "../componentes/clientes/FormVeiculo";
 import { dataCompleta, documentoExibicao, nomeVeiculo, formatarTelefone, haQuanto, linhasEndereco, linkWhatsApp, tipoDoCliente } from "../componentes/clientes/formato";
@@ -132,7 +133,7 @@ function Ficha({ ficha }: { ficha: ClienteFicha }) {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {c.whatsapp && <BotaoWhatsApp numero={c.whatsapp} nome={c.nome} />}
+          {c.whatsapp && <BotaoWhatsApp numero={c.whatsapp} nome={c.nome} demo={c.demo} />}
           {podeEditarCliente && (
             <Botao onClick={() => abrir({ editar: "1" })}>
               Editar
@@ -418,15 +419,20 @@ function Contato({ cliente: c, agora }: { cliente: Cliente; agora: string }) {
         <LinhaContato nome="Telefone">
           {c.telefone && (
             <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <a href={`tel:${c.telefone}`} className="numero text-tinta no-underline hover:underline underline-offset-4">
-                {formatarTelefone(c.telefone)}
-              </a>
+              {contatoClicavel(c, c.telefone) ? (
+                <a href={`tel:${c.telefone}`} className="numero text-tinta no-underline hover:underline underline-offset-4">
+                  {formatarTelefone(c.telefone)}
+                </a>
+              ) : (
+                <NumeroDemo texto={formatarTelefone(c.telefone)} />
+              )}
               {provTel && <Proveniencia fonte={provTel.fonte} lidoEm={provTel.lidoEm} agora={agora} podeDesatualizar={false} />}
             </span>
           )}
         </LinhaContato>
         <LinhaContato nome="WhatsApp">
-          {c.whatsapp && (
+          {c.whatsapp && !contatoClicavel(c, c.whatsapp) && <NumeroDemo texto={formatarTelefone(c.whatsapp)} />}
+          {c.whatsapp && contatoClicavel(c, c.whatsapp) && (
             <a href={linkWhatsApp(c.whatsapp)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 numero text-tinta no-underline hover:underline underline-offset-4">
               {formatarTelefone(c.whatsapp)}
               <Icone nome="externo" tamanho={13} className="text-tinta-fraca" />

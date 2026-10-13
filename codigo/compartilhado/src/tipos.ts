@@ -470,6 +470,8 @@ export interface Fornecedor {
   telefone?: string;
   email?: string;
   obs?: string;
+  /** Fornecedor de DEMONSTRAÇÃO: telefone inventado; a UI não gera link tel:/wa.me para ele. */
+  demo?: boolean;
 }
 
 export interface Material {

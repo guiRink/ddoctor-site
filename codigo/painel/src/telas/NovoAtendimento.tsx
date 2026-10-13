@@ -119,6 +119,12 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
   const veiculoDaPlaca: Veiculo | undefined = placaValida(placa) ? veiculos.data?.find((v) => v.placa === placaNorm) : undefined;
   const donoDaPlaca = veiculoDaPlaca?.clienteId ? clientes.data?.find((r) => r.cliente.id === veiculoDaPlaca.clienteId) : undefined;
   const enviando = acoes.criarAtendimentoRapido.isPending;
+  // documento digitado (válido) que já pertence a outro cadastro: avisa antes de salvar e oferece ligar o cliente
+  const docNorm = normalizarDocumento(documento);
+  const donoDoDocumento =
+    !escolhido && docNorm && validarDocumento(documento)
+      ? clientes.data?.find((r) => r.cliente.documento && normalizarDocumento(r.cliente.documento) === docNorm)
+      : undefined;
 
   /** Preenche marca, modelo e cor vazios a partir do veículo cadastrado. */
   function completarVeiculo(v: Veiculo) {
@@ -159,6 +165,7 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
       if (telefone.trim() && !tel) e.telefone = "Telefone incompleto. Use DDD e número, ex.: (41) 99999-0000.";
       if (maisDados || documento || whatsapp || email) {
         if (documento.trim() && !validarDocumento(documento)) e.documento = ERRO.documento_invalido;
+        else if (donoDoDocumento) e.documento = `${rotuloDoc(docNorm)} já cadastrado. Use o cliente existente (logo abaixo) ou corrija o documento.`;
         const w = whatsIgual ? "" : whatsapp;
         whats = whatsIgual ? tel : normalizarTelefone(w);
         if (!whatsIgual && w.trim() && !whats) e.whatsapp = "WhatsApp incompleto. Use DDD e número, ex.: (41) 99999-0000.";
@@ -518,6 +525,17 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
                     className={`${CLASSE_CAMPO} numero`}
                   />
                 </Grupo>
+                {donoDoDocumento && (
+                  <div role="status" className="sm:col-span-2 -mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5 rounded-controle text-[13px] bg-atencao-claro text-atencao">
+                    <Icone nome="alerta" tamanho={16} className="shrink-0" />
+                    <span className="min-w-0 flex-1">
+                      {rotuloDoc(docNorm)} já cadastrado para <strong className="font-semibold">{donoDoDocumento.cliente.nome}</strong>. Usar este cliente?
+                    </span>
+                    <Botao tamanho="denso" onClick={() => escolherCliente(donoDoDocumento)}>
+                      Usar {primeiroNome(donoDoDocumento.cliente.nome)}
+                    </Botao>
+                  </div>
+                )}
                 <Grupo
                   id="whatsapp"
                   rotulo="WhatsApp"
@@ -828,6 +846,7 @@ function AvisoPlaca({
 // ------------------------------------------------------------------ helpers
 
 const primeiroNome = (nome: string) => nome.trim().split(/\s+/)[0] ?? nome;
+const rotuloDoc = (doc: string) => (doc.length > 11 ? "CNPJ" : "CPF");
 
 /** Código do repositório → campo que recebe a mensagem. */
 const CAMPO_DO_ERRO: Record<string, string> = {

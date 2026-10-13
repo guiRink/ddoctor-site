@@ -159,10 +159,11 @@ function FormFechamento({
   const [erro, setErro] = useState<string>();
   const [ok, setOk] = useState<string>();
 
-  const baixas = titulos.flatMap((t) => t.baixas.map((b) => ({ b, t })));
+  // títulos cancelados não entram na gaveta (mesma regra do calcularFechamento com `titulos`)
+  const baixas = titulos.filter((t) => t.estado !== "cancelado").flatMap((t) => t.baixas.map((b) => ({ b, t })));
   const saldoInicial = reaisParaCentavos(inicial) ?? 0;
   const contadoC = contado.trim() ? reaisParaCentavos(contado) : null;
-  const calc = calcularFechamento({ saldoInicial, contado: contadoC ?? 0, baixas: baixas.map((x) => x.b), despesas, data });
+  const calc = calcularFechamento({ saldoInicial, contado: contadoC ?? 0, titulos, despesas, data });
   const entradasDia = baixas.filter(({ b }) => b.recebidoEm === data && normalizarFormaPagamento(b.forma) === "dinheiro");
   const saidasDia = despesas.filter((d) => d.pagoEm === data && d.formaPagamento === "dinheiro");
 

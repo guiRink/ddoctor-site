@@ -18,7 +18,7 @@ export type CalculoFechamento = Pick<
 
 /**
  * Dinheiro em espécie com data de um dia cujo caixa já foi fechado mudaria a gaveta conferida:
- * recusa com "caixa_ja_fechado" (lance com a data de hoje ou reabra o caixa). Outras formas passam.
+ * recusa com "caixa_ja_fechado" (lance com a data de hoje). Outras formas passam.
  * `forma` aceita o texto livre antigo ("Dinheiro", "espécie").
  */
 export function checarCaixaAberto(

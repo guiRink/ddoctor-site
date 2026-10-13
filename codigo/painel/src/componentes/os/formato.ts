@@ -1,9 +1,8 @@
 // Auxiliares de formatação e leitura dos formulários da ficha da OS e da recepção (sem componentes).
 import type { ReactNode } from "react";
-import { valorAprovado } from "@compartilhado/dominio/financeiro";
 import { normalizarFormaPagamento } from "@compartilhado/dominio/pagamentos";
-import type { OSVisao } from "../../dados/repositorio";
 import { FORMA_PAGAMENTO } from "../../dominio/rotulos";
+import { lerNumero } from "../../dominio/numero";
 
 /** Ids de descrição para aria-describedby, conforme o Grupo mostra erro ou dica. */
 export function descritoPor(id: string, erro?: string, dica?: ReactNode): string | undefined {
@@ -18,13 +17,8 @@ export function milhar(digitos: string): string {
   return d.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
-/** "1,5" | "1.5" | "2" → número; vazio ou inválido → null. */
-export function lerDecimal(texto: string): number | null {
-  const t = texto.trim().replace(/\s/g, "").replace(",", ".");
-  if (!t || !/^\d*\.?\d*$/.test(t)) return null;
-  const n = Number(t);
-  return Number.isFinite(n) ? n : null;
-}
+/** "1,5" | "1.5" | "2" | "1.000" → número; vazio ou inválido → null (regra única: lerNumero). */
+export const lerDecimal = lerNumero;
 
 /** Quantidade legível: 1 → "1", 0,25 → "0,25". */
 export function qtd(n: number): string {
@@ -33,15 +27,6 @@ export function qtd(n: number): string {
 
 export function kmLegivel(km?: number): string {
   return km === undefined ? "—" : `${milhar(String(Math.round(km)))} km`;
-}
-
-/** Receita da OS: valor aprovado/autorizado da versão aprovada + complemento particular. */
-export function receitaOS(v: OSVisao): { valor: number; aprovada: boolean; autorizado: number; complemento: number } {
-  const aprovada = v.versoes.find((x) => x.estado === "aprovado");
-  if (!aprovada) return { valor: 0, aprovada: false, autorizado: 0, complemento: 0 };
-  const autorizado = valorAprovado(aprovada);
-  const complemento = aprovada.tipo === "externo" ? aprovada.complementoParticular ?? 0 : 0;
-  return { valor: autorizado + complemento, aprovada: true, autorizado, complemento };
 }
 
 /** Forma legível de uma baixa (aceita o texto livre antigo, ex.: "Transferência"). */

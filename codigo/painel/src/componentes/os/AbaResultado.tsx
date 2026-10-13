@@ -1,10 +1,9 @@
 import type { ReactNode } from "react";
-import { resultadoOS } from "@compartilhado/dominio/custos";
+import { receitaOS, resultadoOS } from "@compartilhado/dominio/custos";
 import { formatarReais } from "@compartilhado/dominio/dinheiro";
 import type { OSVisao } from "../../dados/repositorio";
 import { Cartao, FaixaIndicadores, Indicador } from "../ui/Basicos";
 import { Icone } from "../Icone";
-import { receitaOS } from "./formato";
 
 const pct = (f: number | null) => (f === null ? "—" : `${(f * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`);
 
@@ -13,9 +12,9 @@ const pct = (f: number | null) => (f === null ? "—" : `${(f * 100).toLocaleStr
  * com barra de composição. Avisa quando ainda não há custo lançado (margem 100 % engana).
  */
 export function AbaResultado({ v, onIrCustos }: { v: OSVisao; onIrCustos?: () => void }) {
-  const receita = receitaOS(v);
+  const receita = receitaOS({ versoes: v.versoes, titulos: v.titulos });
   const r = resultadoOS(receita.valor, 0, v.custos);
-  const externo = v.versoes.find((x) => x.estado === "aprovado")?.tipo === "externo";
+  const externo = v.versoes.find((x) => x.id === receita.versaoId)?.tipo === "externo";
   const negativa = r.margem < 0;
   const semCusto = v.custos.length === 0;
 

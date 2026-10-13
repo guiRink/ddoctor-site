@@ -63,7 +63,7 @@ export function Agenda() {
   const consultas = [oss, ags, cap, config];
   const carregando = consultas.some((c) => c.isPending);
   const falhou = consultas.some((c) => c.isError);
-  const ocupado = [acoes.agendar, acoes.reagendar, acoes.cancelarAgendamento, acoes.marcarNaoCompareceu, acoes.registrarEntrada].some((m) => m.isPending);
+  const ocupado = [acoes.agendar, acoes.reagendar, acoes.cancelarAgendamento, acoes.marcarNaoCompareceu].some((m) => m.isPending);
 
   // ?os=ID vindo da ficha: agenda o carro da fila ou abre o agendamento existente (uma vez por id;
   // ajuste de estado durante o render, sem efeito).

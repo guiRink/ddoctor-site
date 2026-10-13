@@ -44,6 +44,8 @@ import { AbaRecepcao } from "../componentes/os/AbaRecepcao";
 import { AbaResultado } from "../componentes/os/AbaResultado";
 import { NivelCombustivelTexto } from "../componentes/recepcao/FormRecepcao";
 import { kmLegivel, nomeCarro } from "../componentes/os/formato";
+import { NumeroDemo } from "../componentes/clientes/Comuns";
+import { contatoClicavel } from "@compartilhado/dominio/clientes";
 
 /**
  * Ficha da OS (docs/painel-design.md §5, revisão SE): cabeçalho com Placa grande, carro, cliente,
@@ -232,7 +234,12 @@ export function FichaOS() {
       </BarraAbas>
 
       {aba === "recepcao" && <AbaRecepcao key={v.os.id} v={v} config={config.data} perfis={perfis.data} tipos={tipos.data} podeAgir={podeAgir} />}
-      {aba === "custos" && custos && <AbaCustos v={v} perfis={perfis.data} podeLancar={custos} />}
+      {aba === "custos" && custos && <AbaCustos
+          v={v}
+          perfis={perfis.data}
+          podeLancarInsumos={custos && podeEditar(papel, "estoque")}
+          podeLancarServicos={custos && podeEditar(papel, "orcamentos")}
+        />}
       {aba === "resultado" && custos && <AbaResultado v={v} onIrCustos={() => irPara("custos")} />}
       {aba === "pagamentos" && sensivel && (
         <AbaPagamentos
@@ -600,7 +607,9 @@ function SecaoCliente({ v, sensivel, agora }: { v: OSVisao; sensivel: boolean; a
         )}
         {sensivel && (
           <Campo nome="Telefone">
-            {v.cliente.telefone ? (
+            {v.cliente.telefone && !contatoClicavel(v.cliente, v.cliente.telefone) ? (
+              <NumeroDemo texto={telefoneLegivel(v.cliente.telefone)} />
+            ) : v.cliente.telefone ? (
               <a href={`tel:${v.cliente.telefone}`} className="inline-flex items-center gap-1.5 min-h-11 -my-2.5 font-medium text-tinta numero underline decoration-linha-forte underline-offset-4 hover:decoration-tinta">
                 <Icone nome="telefone" tamanho={16} />
                 {telefoneLegivel(v.cliente.telefone)}

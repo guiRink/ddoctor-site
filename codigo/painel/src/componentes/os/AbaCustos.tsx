@@ -20,14 +20,28 @@ import { descritoPor, lerDecimal, qtd } from "./formato";
  * Aba Custos (só dono, gestor e financeiro — veCustosOS): insumos retirados do estoque, mão de obra e
  * terceiros/outros. Cada bloco tem o formulário em cima e a lista embaixo; o total fica na faixa do topo.
  * Remover um insumo devolve a quantidade ao estoque (o repositório cuida disso).
+ * Quem vê não é necessariamente quem lança: insumos pedem edição do estoque; mão de obra e terceiros,
+ * edição de orçamentos. O financeiro só consulta (sem formulário e sem remover).
  */
-export function AbaCustos({ v, perfis, podeLancar }: { v: OSVisao; perfis: Perfil[]; podeLancar: boolean }) {
+export function AbaCustos({
+  v,
+  perfis,
+  podeLancarInsumos,
+  podeLancarServicos,
+}: {
+  v: OSVisao;
+  perfis: Perfil[];
+  podeLancarInsumos: boolean;
+  podeLancarServicos: boolean;
+}) {
   const custos = v.custos;
   const insumos = custos.filter((c) => c.tipo === "insumo");
   const mao = custos.filter((c) => c.tipo === "mao_de_obra");
   const outros = custos.filter((c) => c.tipo === "terceiro" || c.tipo === "outro");
   const soma = (l: CustoOS[]) => somaCentavos(l.map((c) => c.total));
-  const ativa = v.os.estado !== "cancelada" && podeLancar;
+  const aberta = v.os.estado !== "cancelada";
+  const insumoAtivo = aberta && podeLancarInsumos;
+  const servicoAtivo = aberta && podeLancarServicos;
   const equipe = perfis.filter((p) => p.ativo && p.papel !== "dispositivo").sort((a, b) => ordemPapel(a) - ordemPapel(b) || a.nome.localeCompare(b.nome, "pt-BR"));
 
   return (
@@ -39,19 +53,25 @@ export function AbaCustos({ v, perfis, podeLancar }: { v: OSVisao; perfis: Perfi
         <Indicador rotulo="Total de custos" valor={formatarReais(soma(custos))} detalhe={custos.length === 0 ? "nada lançado ainda" : undefined} />
       </FaixaIndicadores>
 
+      {aberta && !podeLancarInsumos && !podeLancarServicos && (
+        <p className="text-[13px] text-tinta-suave">
+          Somente consulta: os custos são lançados pelo dono ou pelo gestor.
+        </p>
+      )}
+
       <Cartao titulo="Insumos do estoque" contagem={insumos.length}>
-        {ativa && <FormInsumo osId={v.os.id} equipe={equipe} />}
-        <ListaCustos tipo="insumo" custos={insumos} perfis={perfis} podeRemover={ativa} vazio="Nenhum insumo retirado para esta OS." />
+        {insumoAtivo && <FormInsumo osId={v.os.id} equipe={equipe} />}
+        <ListaCustos tipo="insumo" custos={insumos} perfis={perfis} podeRemover={insumoAtivo} vazio="Nenhum insumo retirado para esta OS." />
       </Cartao>
 
       <Cartao titulo="Mão de obra" contagem={mao.length}>
-        {ativa && <FormMaoDeObra osId={v.os.id} equipe={equipe} />}
-        <ListaCustos tipo="mao_de_obra" custos={mao} perfis={perfis} podeRemover={ativa} vazio="Nenhuma mão de obra apontada." />
+        {servicoAtivo && <FormMaoDeObra osId={v.os.id} equipe={equipe} />}
+        <ListaCustos tipo="mao_de_obra" custos={mao} perfis={perfis} podeRemover={servicoAtivo} vazio="Nenhuma mão de obra apontada." />
       </Cartao>
 
       <Cartao titulo="Terceiros e outros" contagem={outros.length}>
-        {ativa && <FormTerceiro osId={v.os.id} />}
-        <ListaCustos tipo="terceiro" custos={outros} perfis={perfis} podeRemover={ativa} vazio="Nenhum serviço de terceiro ou outro custo." />
+        {servicoAtivo && <FormTerceiro osId={v.os.id} />}
+        <ListaCustos tipo="terceiro" custos={outros} perfis={perfis} podeRemover={servicoAtivo} vazio="Nenhum serviço de terceiro ou outro custo." />
       </Cartao>
     </div>
   );

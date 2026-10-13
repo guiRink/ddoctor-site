@@ -189,6 +189,38 @@ export const TIPO_AVARIA: Record<TipoAvaria, string> = {
 
 export const TAMANHO_AVARIA: Record<TamanhoAvaria, string> = { p: "Pequeno", m: "Médio", g: "Grande" };
 
+/** Ações gravadas na auditoria (RegistroAuditoria.acao) → texto da tela de Auditoria. */
+export const ACAO_AUDITORIA: Record<string, string> = {
+  criar: "Criou",
+  editar: "Editou",
+  aprovar: "Aprovou",
+  agendar: "Agendou",
+  reagendar: "Reagendou",
+  cancelar: "Cancelou",
+  nao_compareceu: "Não compareceu",
+  entrada: "Entrada",
+  entrega: "Entrega",
+  recepcao: "Recepção",
+  baixa: "Recebimento",
+  pagar: "Pagou",
+  concluir: "Concluiu",
+  atribuir: "Atribuiu",
+  fechar_caixa: "Fechou o caixa",
+  iniciada: "Iniciou etapa",
+  "concluída": "Concluiu etapa",
+  impedida: "Impedimento",
+  retomada: "Retomou etapa",
+  dispensada: "Dispensou etapa",
+  lancar_custo: "Lançou custo",
+  remover_custo: "Removeu custo",
+  entrada_compra: "Entrada no estoque",
+  consumo_interno: "Consumo interno",
+  ajuste: "Ajuste de estoque",
+};
+
+/** Rótulo da ação; ação desconhecida vira "Texto com espaços". */
+export const rotuloAcao = (a: string): string => ACAO_AUDITORIA[a] ?? a.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+
 /** Códigos de erro do domínio/banco → mensagem para a pessoa. */
 export const ERRO: Record<string, string> = {
   sem_vaga: "Não há vaga nesse período. Escolha outro dia ou outro período.",
@@ -248,7 +280,7 @@ export const ERRO: Record<string, string> = {
   despesa_nao_encontrada: "Despesa não encontrada. Atualize a tela.",
   categoria_invalida: "Escolha uma categoria de despesa válida.",
   categoria_duplicada: "Já existe uma categoria com esse nome.",
-  caixa_ja_fechado: "O caixa deste dia já foi fechado. Lance com a data de hoje ou reabra o caixa.",
+  caixa_ja_fechado: "O caixa deste dia já foi fechado. Lance com a data de hoje.",
   data_invalida: "Data inválida. Confira dia, mês e ano.",
   data_futura: "Essa data ainda não chegou. Use hoje ou um dia que já passou.",
   os_quitada: "Esta OS já está quitada.",

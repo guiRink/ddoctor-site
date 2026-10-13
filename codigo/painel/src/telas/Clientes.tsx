@@ -229,7 +229,7 @@ function TabelaClientes({ lista, hoje, mostraValor }: { lista: ClienteResumo[]; 
                   {tel ? (
                     <span className="flex items-center gap-2">
                       <span className="numero whitespace-nowrap">{formatarTelefone(tel)}</span>
-                      {c.whatsapp && <BotaoWhatsApp numero={c.whatsapp} nome={c.nome} icone="pequeno" className="shrink-0" />}
+                      {c.whatsapp && <BotaoWhatsApp numero={c.whatsapp} nome={c.nome} demo={c.demo} icone="pequeno" className="shrink-0" />}
                     </span>
                   ) : (
                     <span className="block text-tinta-fraca">Sem telefone</span>
@@ -288,7 +288,7 @@ function CartoesClientes({ lista, hoje, mostraValor }: { lista: ClienteResumo[];
                 </span>
                 {tel && <span className="block text-[13px] text-tinta-suave numero">{formatarTelefone(tel)}</span>}
               </div>
-              {c.whatsapp && <BotaoWhatsApp numero={c.whatsapp} nome={c.nome} icone className="relative z-10 -mr-1 -mt-1" />}
+              {c.whatsapp && <BotaoWhatsApp numero={c.whatsapp} nome={c.nome} demo={c.demo} icone className="relative z-10 -mr-1 -mt-1" />}
             </div>
             {r.veiculos.length > 0 && (
               <div className="mt-3">

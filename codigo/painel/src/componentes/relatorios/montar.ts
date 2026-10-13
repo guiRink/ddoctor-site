@@ -2,19 +2,16 @@
 // Só agrega o que o repositório já entrega; as contas ficam em @compartilhado/dominio/relatorios.
 import type { Centavos } from "@compartilhado/tipos";
 import type { OSRelatorio } from "@compartilhado/dominio/relatorios";
-import { valorAprovado } from "@compartilhado/dominio/financeiro";
+import { receitaOS } from "@compartilhado/dominio/custos";
 import { somaCentavos } from "@compartilhado/dominio/dinheiro";
 import type { OSVisao } from "../../dados/repositorio";
 
 /**
- * Receita da OS: soma dos títulos não cancelados (o que foi faturado); sem título, o valor aprovado
- * da versão aprovada mais recente; sem aprovação, 0. Custo: soma dos lançamentos; sem lançamento, ausente.
+ * Receita da OS: a mesma da Ficha e do Resultado — receitaOS (versão vigente aprovada: autorizado +
+ * complemento; sem aprovação, 0). Custo: soma dos lançamentos; sem lançamento, ausente.
  */
 export function receitaDaOS(v: OSVisao): Centavos {
-  const titulos = v.titulos.filter((t) => t.estado !== "cancelado");
-  if (titulos.length) return somaCentavos(titulos.map((t) => t.valor));
-  const aprovada = v.versoes.find((x) => x.estado === "aprovado");
-  return aprovada ? valorAprovado(aprovada) : 0;
+  return receitaOS({ versoes: v.versoes, titulos: v.titulos }).valor;
 }
 
 export function paraRelatorio(v: OSVisao): OSRelatorio {

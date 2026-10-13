@@ -12,7 +12,7 @@ import { FormRecepcao, NivelCombustivelTexto, type DadosRecepcao } from "../rece
 import { kmLegivel } from "./formato";
 import { MapaAvarias } from "../recepcao/MapaAvarias";
 import { ReceberCarro } from "../recepcao/ReceberCarro";
-import { progressoChecklist } from "@compartilhado/dominio/recepcao";
+import { progressoChecklist, recepcaoEditavel } from "@compartilhado/dominio/recepcao";
 import { Aviso } from "../ui/Campos";
 
 type Edicao = null | "dados" | "checklist" | "avarias";
@@ -22,7 +22,9 @@ const ANTES_DA_ENTRADA = ["rascunho", "aguardando_aprovacao", "aguardando_agenda
 /**
  * Aba Recepção da ficha: dados da entrada (km, combustível, reclamação, observações internas),
  * checklist e mapa de avarias, cada bloco com "Editar" (salva a recepção inteira com salvarRecepcao).
- * Sem recepção: se o carro ainda não entrou, o vazio leva a "Receber o carro".
+ * Sem recepção: se o carro ainda não entrou, o vazio leva a "Receber o carro". Com recepção gravada e OS
+ * ainda agendada, a faixa do topo também oferece "Receber o carro" (registra a entrada aproveitando o que já foi
+ * preenchido). OS entregue, encerrada ou cancelada não edita mais a recepção (recepcaoEditavel).
  */
 export function AbaRecepcao({
   v,
@@ -46,6 +48,8 @@ export function AbaRecepcao({
   const rec = v.os.recepcao;
   const antes = ANTES_DA_ENTRADA.includes(v.os.estado);
   const podeReceber = podeAgir && (v.os.estado === "aguardando_agendamento" || v.os.estado === "agendada");
+  const fechada = !recepcaoEditavel(v.os.estado).ok;
+  const podeEditarRec = podeAgir && !fechada;
 
   const receberCarro = receber && (
     <ReceberCarro
@@ -85,9 +89,15 @@ export function AbaRecepcao({
             <Vazio
               icone="documento"
               titulo="Recepção não registrada"
-              texto="Esta OS entrou sem recepção. Registre agora o que der: km, combustível, checklist e avarias."
+              texto={
+                fechada
+                  ? "Esta OS entrou sem recepção e já foi fechada; não dá mais para registrar."
+                  : podeEditarRec
+                    ? "Esta OS entrou sem recepção. Registre agora o que der: km, combustível, checklist e avarias."
+                    : "Esta OS entrou sem recepção."
+              }
               acao={
-                podeAgir && (
+                podeEditarRec && (
                   <Botao
                     variante="contorno"
                     icone="mais"
@@ -141,7 +151,7 @@ export function AbaRecepcao({
   const prog = progressoChecklist(atual.checklist, itens);
 
   const botaoEditar = (qual: Exclude<Edicao, null>, rotulo: string) =>
-    podeAgir && edicao === null ? (
+    podeEditarRec && edicao === null ? (
       <Botao tamanho="denso" variante="fantasma" onClick={() => editar(qual)} aria-label={`Editar ${rotulo}`}>
         Editar
       </Botao>
@@ -161,6 +171,17 @@ export function AbaRecepcao({
   return (
     <div className="flex flex-col gap-6">
       {aviso && <Aviso tom={aviso.tom}>{aviso.texto}</Aviso>}
+      {podeReceber && edicao === null && (
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border border-linha bg-cartao">
+          <p className="text-[14px] min-w-0">
+            <span className="font-semibold">Recepção adiantada; o carro ainda não entrou.</span>{" "}
+            <span className="text-tinta-suave">Quando ele chegar, registre a entrada; o que já foi preenchido vem junto.</span>
+          </p>
+          <Botao variante="primario" icone="carro" onClick={() => setReceber(true)} aria-haspopup="dialog">
+            Receber o carro
+          </Botao>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-start">
         <div className="flex flex-col gap-6 min-w-0">
@@ -191,8 +212,12 @@ export function AbaRecepcao({
                 </Linha>
                 {base.registradaEm && (
                   <Linha nome="Registrada">
-                    <span className="numero">{marcoCurto(base.registradaEm)}</span>
-                    {base.registradaPor && <span className="text-tinta-suave"> · {nomePerfil(perfis, base.registradaPor) ?? "—"}</span>}
+                    <Carimbo em={base.registradaEm} por={nomePerfil(perfis, base.registradaPor)} />
+                  </Linha>
+                )}
+                {base.atualizadaEm && base.atualizadaEm !== base.registradaEm && (
+                  <Linha nome="Atualizada">
+                    <Carimbo em={base.atualizadaEm} por={nomePerfil(perfis, base.atualizadaPor)} />
                   </Linha>
                 )}
               </dl>
@@ -240,6 +265,16 @@ export function AbaRecepcao({
       </div>
       {receberCarro}
     </div>
+  );
+}
+
+/** "12/10 14:30 · por Ana" (sem pessoa: só a data). */
+function Carimbo({ em, por }: { em: string; por?: string }) {
+  return (
+    <>
+      <span className="numero">em {marcoCurto(em)}</span>
+      {por && <span className="text-tinta-suave"> por {por}</span>}
+    </>
   );
 }
 

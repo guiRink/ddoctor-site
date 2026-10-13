@@ -17,11 +17,25 @@ export function pecasDaOS(v: OSVisao): number {
   return c.autorizadas || Math.max(0, c.total - c.negadas);
 }
 
+/**
+ * Peças que ainda faltam produzir. OS na oficina com etapas que contam peças (pecasPrevistas): Σ (previstas −
+ * feitas) das etapas ainda abertas (não concluídas nem dispensadas); etapa fechada não conta. Sem etapa de
+ * contagem (ou antes da entrada), todas as peças da OS (pecasDaOS).
+ */
+export function pecasRestantes(v: OSVisao): number {
+  if (v.os.estado !== "na_oficina") return pecasDaOS(v);
+  const contadas = v.etapas.filter((e) => e.pecasPrevistas !== undefined);
+  if (contadas.length === 0) return pecasDaOS(v);
+  return contadas
+    .filter((e) => e.estado !== "concluida" && e.estado !== "dispensada")
+    .reduce((soma, e) => soma + Math.max(0, (e.pecasPrevistas ?? 0) - (e.pecasFeitas ?? 0)), 0);
+}
+
 export type ItemProducao = ItemPrevisto & { v: OSVisao };
 
-/** Itens da produção prevista: OS ainda a produzir, com a previsão de entrega e as peças. */
+/** Itens da produção prevista: OS ainda a produzir, com a previsão de entrega e as peças que faltam. */
 export function itensProducao(oss: readonly OSVisao[]): ItemProducao[] {
-  return oss.filter((v) => A_PRODUZIR.has(v.os.estado)).map((v) => ({ v, previsaoEntrega: v.os.previsaoEntrega, pecas: pecasDaOS(v) }));
+  return oss.filter((v) => A_PRODUZIR.has(v.os.estado)).map((v) => ({ v, previsaoEntrega: v.os.previsaoEntrega, pecas: pecasRestantes(v) }));
 }
 
 export interface EntregaPrevista {

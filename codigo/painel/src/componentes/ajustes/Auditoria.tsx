@@ -1,6 +1,8 @@
 import { useDeferredValue, useState } from "react";
 import type { Perfil, RegistroAuditoria } from "@compartilhado/tipos";
 import { useAuditoria } from "../../dados/hooks";
+import { LIMITE_AUDITORIA } from "../../dados/repositorio";
+import { rotuloAcao } from "../../dominio/rotulos";
 import { Botao, Responsavel, Vazio } from "../ui/Basicos";
 import { Etiqueta } from "../ui/Estado";
 import { CLASSE_TH } from "../ui/Tabela";
@@ -9,35 +11,6 @@ import { marcoCurto } from "../orcamentos/formato";
 import { Icone } from "../Icone";
 import { Consulta, Secao } from "./Estrutura";
 
-// Rótulos das ações gravadas pelo repositório (candidatos a subir para src/dominio/rotulos.ts).
-const ACAO: Record<string, string> = {
-  criar: "Criou",
-  editar: "Editou",
-  aprovar: "Aprovou",
-  agendar: "Agendou",
-  reagendar: "Reagendou",
-  cancelar: "Cancelou",
-  nao_compareceu: "Não compareceu",
-  entrada: "Entrada",
-  entrega: "Entrega",
-  recepcao: "Recepção",
-  baixa: "Recebimento",
-  pagar: "Pagou",
-  concluir: "Concluiu",
-  atribuir: "Atribuiu",
-  fechar_caixa: "Fechou o caixa",
-  iniciada: "Iniciou etapa",
-  "concluída": "Concluiu etapa",
-  impedida: "Impedimento",
-  retomada: "Retomou etapa",
-  dispensada: "Dispensou etapa",
-  lancar_custo: "Lançou custo",
-  remover_custo: "Removeu custo",
-  entrada_compra: "Entrada no estoque",
-  consumo_interno: "Consumo interno",
-  ajuste: "Ajuste de estoque",
-};
-const rotuloAcao = (a: string) => ACAO[a] ?? a.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 
 const semAcento = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 const PAGINA = 50;
@@ -51,7 +24,7 @@ export function Auditoria({ perfis }: { perfis: Perfil[] }) {
   const nome = (id?: string) => perfis.find((p) => p.id === id)?.nome;
 
   return (
-    <Secao id="auditoria" titulo="Auditoria" descricao="Toda alteração deixa uma linha aqui: quem fez, quando e o quê. Ninguém edita nem apaga o registro.">
+    <Secao id="auditoria" titulo="Auditoria" descricao={`Cada alteração feita pelo painel deixa uma linha aqui: quem fez, quando e o quê. Esta tela só consulta; não há como editar nem apagar uma linha por ela. Na demonstração, guarda as últimas ${LIMITE_AUDITORIA} ações (as mais antigas saem).`}>
       <Consulta q={q}>
         {(linhas: RegistroAuditoria[]) => {
           const filtradas = termo

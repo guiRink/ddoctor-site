@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { Veiculo } from "@compartilhado/tipos";
+import { contatoClicavel } from "@compartilhado/dominio/clientes";
 import { BotaoExterno, iniciais } from "../ui/Basicos";
 import { Placa } from "../ui/Placa";
 import { linkWhatsApp } from "./formato";
@@ -24,19 +25,26 @@ export function EtiquetaPJ() {
   );
 }
 
-/** Botão de WhatsApp (link wa.me em nova aba), no desenho do `Botao` contorno. `icone` = quadrado só com o ícone. */
+/**
+ * Botão de WhatsApp (link wa.me em nova aba), no desenho do `Botao` contorno. `icone` = quadrado só com o ícone.
+ * Cliente de demonstração não ganha botão (contatoClicavel): o número inventado pode ser de alguém real.
+ */
 export function BotaoWhatsApp({
   numero,
   nome,
+  demo,
   icone = false,
   className = "",
 }: {
   numero: string;
   nome: string;
+  /** Cliente de demonstração: não renderiza o link. */
+  demo?: boolean;
   /** true ou "pequeno" = quadrado denso (36 px; 40 no celular), para linha de tabela e cartão. */
   icone?: boolean | "pequeno";
   className?: string;
 }) {
+  if (!contatoClicavel({ demo }, numero)) return null;
   return (
     <BotaoExterno
       href={linkWhatsApp(numero)}
@@ -50,6 +58,16 @@ export function BotaoWhatsApp({
     >
       {!icone && "WhatsApp"}
     </BotaoExterno>
+  );
+}
+
+/** Telefone sem link (cliente de demonstração): o número em texto e a dica discreta ao lado. */
+export function NumeroDemo({ texto }: { texto: string }) {
+  return (
+    <span className="inline-flex flex-wrap items-baseline gap-x-2">
+      <span className="numero select-all">{texto}</span>
+      <span className="text-[12px] text-tinta-fraca">dado de demonstração</span>
+    </span>
   );
 }
 

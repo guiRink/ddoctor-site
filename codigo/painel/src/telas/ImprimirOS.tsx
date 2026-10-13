@@ -4,7 +4,7 @@ import type { OrcamentoVersao } from "@compartilhado/tipos";
 import { itensChecklist } from "@compartilhado/dominio/config";
 import { formatarReais, somaCentavos } from "@compartilhado/dominio/dinheiro";
 import { formatarDocumento } from "@compartilhado/dominio/documento";
-import { valorAprovado } from "@compartilhado/dominio/financeiro";
+import { receitaOS } from "@compartilhado/dominio/custos";
 import { dataNoFuso } from "@compartilhado/dominio/fuso";
 import { gruposChecklist, progressoChecklist } from "@compartilhado/dominio/recepcao";
 import { useAgora, useConfig, useOS } from "../dados/hooks";
@@ -93,12 +93,14 @@ export function ImprimirOS() {
   const v = consulta.data;
   const sensivel = veDadosSensiveis(perfil.papel);
   const orcamento = ["rascunho", "aguardando_aprovacao"].includes(v.os.estado);
-  const versao: OrcamentoVersao | undefined = v.versoes.find((x) => x.estado === "aprovado") ?? v.versoes[0];
+  // mesma versão vigente da receita única (receitaOS): a aprovada de maior número; sem aprovação, a primeira da lista
+  const receita = receitaOS({ versoes: v.versoes, titulos: v.titulos });
+  const versao: OrcamentoVersao | undefined = v.versoes.find((x) => x.id === receita.versaoId) ?? v.versoes[0];
   const externo = versao?.tipo === "externo";
   const itens = versao?.itens.filter((i) => i.statusItem !== "dispensado") ?? [];
   const subtotal = somaCentavos(itens.map((i) => i.valor));
   const aprovado = versao?.estado === "aprovado";
-  const total = versao ? (aprovado ? valorAprovado(versao) : subtotal) : 0;
+  const total = versao ? (aprovado ? receita.autorizado : subtotal) : 0;
   const rec = v.os.recepcao;
   const itensCheck = itensChecklist(config.data);
   const prog = rec ? progressoChecklist(rec.checklist, itensCheck) : null;

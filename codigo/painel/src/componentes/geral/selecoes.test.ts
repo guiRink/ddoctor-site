@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { EstadoOS, ItemOrcamento, OS } from "@compartilhado/tipos";
+import type { EstadoEtapa, EtapaOS, EstadoOS, ItemOrcamento, OS } from "@compartilhado/tipos";
 import type { OSVisao } from "../../dados/repositorio";
-import { entregasDoMes, itensProducao, pecasDaOS } from "./selecoes";
+import { entregasDoMes, itensProducao, pecasDaOS, pecasRestantes } from "./selecoes";
 import { paraRelatorio } from "../relatorios/montar";
 
 function item(id: string, statusItem: ItemOrcamento["statusItem"], valor = 10000): ItemOrcamento {
@@ -42,6 +42,22 @@ describe("planejamento do Geral", () => {
     expect(pecasDaOS(os("b", "agendada", [item("1", "solicitado"), item("2", "negado"), item("3", "dispensado")]))).toBe(1);
   });
 
+  it("OS na oficina conta só as peças que faltam nas etapas de contagem abertas", () => {
+    const etapa = (id: string, estado: EstadoEtapa, pecasPrevistas?: number, pecasFeitas?: number): EtapaOS =>
+      ({ id, osId: "a", ordem: 1, nome: id, estado, pecasPrevistas, pecasFeitas }) as EtapaOS;
+    const itens = [item("1", "autorizado"), item("2", "autorizado"), item("3", "autorizado"), item("4", "autorizado")];
+    // martelinho em execução com 1 de 4 feitas → faltam 3
+    expect(pecasRestantes(os("a", "na_oficina", itens, {}, { etapas: [etapa("desm", "concluida"), etapa("mart", "em_execucao", 4, 1), etapa("pol", "aguardando")] }))).toBe(3);
+    // etapa de contagem concluída → nada a produzir em peças
+    expect(pecasRestantes(os("a", "na_oficina", itens, {}, { etapas: [etapa("mart", "concluida", 4, 4), etapa("pol", "em_execucao")] }))).toBe(0);
+    // dispensada não conta; feitas acima do previsto não ficam negativas
+    expect(pecasRestantes(os("a", "na_oficina", itens, {}, { etapas: [etapa("x", "dispensada", 4), etapa("y", "na_fila", 2, 5)] }))).toBe(0);
+    // sem etapa de contagem: todas as autorizadas; antes da entrada também
+    expect(pecasRestantes(os("a", "na_oficina", itens, {}, { etapas: [etapa("pol", "em_execucao")] }))).toBe(4);
+    expect(pecasRestantes(os("a", "agendada", itens, {}, { etapas: [etapa("mart", "aguardando", 4, 2)] }))).toBe(4);
+    expect(itensProducao([os("a", "na_oficina", itens, {}, { etapas: [etapa("mart", "em_execucao", 4, 1)] })])[0].pecas).toBe(3);
+  });
+
   it("produção prevista só com OS a produzir", () => {
     const lista = [
       os("a", "na_oficina", [item("1", "autorizado")], { previsaoEntrega: "2026-10-14" }),
@@ -63,7 +79,7 @@ describe("planejamento do Geral", () => {
     expect(mapa.get("2026-10-14")!.reduce((s, e) => s + e.pecas, 0)).toBe(3);
   });
 
-  it("monta o resumo de relatório: títulos não cancelados ou valor aprovado; custo ausente sem lançamento", () => {
+  it("monta o resumo de relatório: receita única (aprovado, não os títulos); custo ausente sem lançamento", () => {
     const semTitulo = os("a", "entregue", [item("1", "autorizado", 30000), item("2", "negado", 5000)]);
     expect(paraRelatorio(semTitulo)).toMatchObject({ receita: 30000, custo: undefined });
     const comTitulo = os("b", "entregue", [item("1", "autorizado", 30000)], {}, {
@@ -73,6 +89,7 @@ describe("planejamento do Geral", () => {
       ],
       custos: [{ id: "k", osId: "b", tipo: "outro", descricao: "z", quantidade: 1, custoUnitario: 4000, total: 4000, lancadoEm: "2026-10-02T09:00:00-03:00" }],
     });
-    expect(paraRelatorio(comTitulo)).toMatchObject({ receita: 25000, custo: 4000 });
+    // título parcial não reduz a receita: vale o autorizado da versão vigente (receitaOS)
+    expect(paraRelatorio(comTitulo)).toMatchObject({ receita: 30000, custo: 4000 });
   });
 });

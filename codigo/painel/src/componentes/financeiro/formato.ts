@@ -2,6 +2,7 @@
 import { formatarMarco, minutoDoDia, msDeLocal } from "@compartilhado/dominio/fuso";
 import { normalizarFormaPagamento } from "@compartilhado/dominio/pagamentos";
 import { FORMA_PAGAMENTO } from "../../dominio/rotulos";
+import { lerNumero } from "../../dominio/numero";
 
 /** Forma de pagamento legível: "pix" → "Pix"; texto antigo é normalizado; desconhecido sai como veio. */
 export function rotuloForma(forma: string | undefined | null): string {
@@ -36,14 +37,8 @@ export function horaDoMarco(marco: string): string {
 /** Quantidade com até 3 casas, separador pt-BR. */
 export const formatarQtd = (n: number): string => new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 }).format(n);
 
-/** Campo de quantidade "1,5" (ou "1.5") → 1.5; "1.000,5" → 1000.5; inválido → null. */
-export function lerQuantidade(texto: string): number | null {
-  const bruto = texto.trim();
-  const t = bruto.includes(",") ? bruto.replace(/\./g, "").replace(",", ".") : bruto;
-  if (!t) return null;
-  const n = Number(t);
-  return Number.isFinite(n) ? n : null;
-}
+/** Campo de quantidade "1,5" | "1.5" → 1.5; "1.000" → 1000; "1.000,5" → 1000.5; inválido → null (regra única: lerNumero). */
+export const lerQuantidade = lerNumero;
 
 /** Marco de uma movimentação lançada para um dia: hoje = agora (o repositório carimba); outro dia = meio-dia no fuso da oficina. */
 export function marcoDoDia(data: string, hoje: string): string | undefined {

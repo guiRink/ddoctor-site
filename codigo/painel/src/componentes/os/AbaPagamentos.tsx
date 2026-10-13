@@ -3,7 +3,8 @@ import { FORMAS_PAGAMENTO, type FormaPagamento, type MarcoISO, type Pagador } fr
 import { formatarReais, reaisParaCentavos } from "@compartilhado/dominio/dinheiro";
 import { estadoTitulo, saldoTitulo } from "@compartilhado/dominio/financeiro";
 import { dataNoFuso } from "@compartilhado/dominio/fuso";
-import { resumoPagamentosOS } from "@compartilhado/dominio/pagamentos";
+import { receitaOS } from "@compartilhado/dominio/custos";
+import { resumoPagamentosOS, saldoACobrarCliente, titulosDoCliente } from "@compartilhado/dominio/pagamentos";
 import { mensagemErro, useAcoes } from "../../dados/hooks";
 import type { OSVisao } from "../../dados/repositorio";
 import { ESTADO_TITULO, FORMA_PAGAMENTO } from "../../dominio/rotulos";
@@ -16,6 +17,7 @@ import { AreaTexto, Aviso, CLASSE_CAMPO, CampoComAfixo, Grupo, OpcoesEmGrade, Se
 /**
  * Aba Pagamentos (quem vê dinheiro: veDadosSensiveis — nunca produção nem TV): total, recebido e saldo
  * dos títulos da OS, formulário de pagamento (vira baixa no título do cliente) e a lista de baixas.
+ * Cliente sem nada a pagar (títulos dele quitados e nada mais a cobrar): no lugar do formulário, "Quitada".
  */
 export function AbaPagamentos({ v, agora, pagadores, podeRegistrar }: { v: OSVisao; agora: MarcoISO; pagadores: Pagador[]; podeRegistrar: boolean }) {
   const hoje = dataNoFuso(agora);
@@ -26,6 +28,12 @@ export function AbaPagamentos({ v, agora, pagadores, podeRegistrar }: { v: OSVis
     .sort((a, b) => b.b.recebidoEm.localeCompare(a.b.recebidoEm));
   const pagador = (id: string) => pagadores.find((p) => p.id === id)?.nome ?? "Pagador não informado";
   const ativa = podeRegistrar && v.os.estado !== "cancelada";
+  // o mesmo critério do repositório (os_quitada): títulos do cliente sem saldo e nada mais a cobrar dele
+  const doCliente = titulosDoCliente(titulos, pagadores);
+  const vigente = v.versoes.find((x) => x.id === receitaOS({ versoes: v.versoes, titulos: v.titulos }).versaoId);
+  const aCobrar = saldoACobrarCliente({ origem: v.os.origem, versao: vigente, titulosCliente: doCliente });
+  const clienteQuitado = doCliente.length > 0 && doCliente.every((t) => saldoTitulo(t) === 0) && aCobrar <= 0;
+  const tudoQuitado = clienteQuitado && resumo.saldo === 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -36,7 +44,19 @@ export function AbaPagamentos({ v, agora, pagadores, podeRegistrar }: { v: OSVis
       </FaixaIndicadores>
 
       <div className={`grid gap-6 items-start ${ativa ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]" : ""}`}>
-        {ativa && <FormPagamento v={v} hoje={hoje} />}
+        {ativa && !clienteQuitado && <FormPagamento v={v} hoje={hoje} />}
+        {ativa && clienteQuitado && (
+          <Cartao titulo="Registrar pagamento" acao={<Etiqueta tom="ok">{tudoQuitado ? "Quitada" : "Cliente quitado"}</Etiqueta>}>
+            <p className="px-4 py-4 text-[14px]">
+              {tudoQuitado ? "Quitada: não há saldo a receber nesta OS." : "O cliente já quitou a parte dele."}
+              <span className="block mt-1 text-[13px] text-tinta-suave">
+                {tudoQuitado
+                  ? "Todos os títulos foram recebidos."
+                  : `Falta receber ${formatarReais(resumo.saldo)} de outro pagador; a baixa é feita em Recebíveis.`}
+              </span>
+            </p>
+          </Cartao>
+        )}
 
         <div className="flex flex-col gap-6 min-w-0">
           <Cartao titulo="Pagamentos recebidos" contagem={baixas.length}>

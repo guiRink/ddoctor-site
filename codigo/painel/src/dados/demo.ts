@@ -835,9 +835,9 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
   const cat = (id: string) => ({ categoriaId: id, categoria: categorias.find((c) => c.id === id)!.nome });
 
   const fornecedores: Fornecedor[] = [
-    { id: "f-1", nome: "Distribuidora de Tintas Exemplo", documento: cnpjDemo(11), telefone: "+554133000001", email: "vendas@example.com", obs: "Fornecedor de demonstração" },
-    { id: "f-2", nome: "Abrasivos Modelo Comércio", documento: cnpjDemo(12), telefone: "+554133000002", obs: "Fornecedor de demonstração" },
-    { id: "f-3", nome: "EPI e Químicos Fictícia", documento: cnpjDemo(13), telefone: "+554133000003", obs: "Fornecedor de demonstração" },
+    { id: "f-1", nome: "Distribuidora de Tintas Exemplo", documento: cnpjDemo(11), telefone: "+554133000001", email: "vendas@example.com", obs: "Fornecedor de demonstração", demo: true },
+    { id: "f-2", nome: "Abrasivos Modelo Comércio", documento: cnpjDemo(12), telefone: "+554133000002", obs: "Fornecedor de demonstração", demo: true },
+    { id: "f-3", nome: "EPI e Químicos Fictícia", documento: cnpjDemo(13), telefone: "+554133000003", obs: "Fornecedor de demonstração", demo: true },
   ];
 
   // último dia antes de hoje em que a oficina abre (para o fechamento de caixa anterior)
