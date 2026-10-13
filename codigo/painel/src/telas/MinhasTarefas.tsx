@@ -1,0 +1,11 @@
+import { CabecalhoPagina, Vazio } from "../componentes/ui/Basicos";
+
+// Tela em construção no sprint SD (docs/painel-execucao.md, revisão de 12/10/2026).
+export function MinhasTarefas() {
+  return (
+    <>
+      <CabecalhoPagina titulo="Minhas tarefas" />
+      <Vazio titulo="Tela em construção" texto="Esta aba está sendo desenhada no sprint SD." />
+    </>
+  );
+}
