@@ -1,4 +1,5 @@
 import type { ConfigOficina, MarcoISO, Perfil } from "@compartilhado/tipos";
+import { SUPERFICIE } from "../ui/Basicos";
 import { CartaoOS } from "../ui/Carro";
 import { Etiqueta } from "../ui/Estado";
 import { Placa } from "../ui/Placa";
@@ -34,8 +35,8 @@ export function CartaoQuadro({
         aria-expanded={selecionado}
         aria-controls="painel-os"
         onClick={(e) => onAbrir(v.os.id, e.currentTarget)}
-        className={`absolute inset-0 w-full h-full bg-transparent transition-colors duration-150 ${
-          selecionado ? "outline-[3px] outline-amarelo -outline-offset-[3px]" : "hover:outline hover:outline-1 hover:outline-linha-forte"
+        className={`absolute inset-0 w-full h-full rounded-cartao bg-transparent transition-shadow duration-150 ${
+          selecionado ? "ring-2 ring-amarelo ring-offset-0" : "hover:ring-1 hover:ring-linha-forte"
         }`}
       />
     </li>
@@ -64,7 +65,7 @@ function Rodape({ item, agora }: { item: ItemQuadro; agora: MarcoISO }) {
 function CartaoPronto({ item, agora }: { item: ItemQuadro; agora: MarcoISO }) {
   const { v } = item;
   return (
-    <article className="block bg-cartao border border-linha p-3.5 text-tinta">
+    <article className={`block ${SUPERFICIE} p-4 text-tinta`}>
       <div className="flex items-start justify-between gap-2">
         <Placa placa={v.veiculo.placa} tamanho="m" />
         <Etiqueta tom="ok">

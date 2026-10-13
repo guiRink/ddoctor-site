@@ -32,30 +32,30 @@ export function CartaoTV({ item, agora, perfis }: { item: ItemQuadro; agora: Mar
   const { total, atualIndex } = progressoEtapas(v.etapas);
 
   return (
-    <article className="bg-grafite-2 flex flex-col min-h-0 overflow-hidden">
+    <article className="bg-grafite-2 rounded-cartao flex flex-col min-h-0 overflow-hidden">
       <header className={`${cab.fundo} text-cartao flex items-center justify-between gap-3 h-11 px-5 shrink-0`}>
-        <span className="flex items-center gap-2.5 text-[24px] font-extrabold uppercase tracking-[0.04em] leading-none whitespace-nowrap">
+        <span className="flex items-center gap-2.5 text-[24px] font-semibold leading-none whitespace-nowrap">
           {item.pronto && <Icone nome="ok" tamanho={24} />}
           {item.impedido && <Icone nome="bloqueio" tamanho={24} />}
           {cab.texto}
         </span>
-        <span className="text-[20px] font-bold leading-none whitespace-nowrap">{estado}</span>
+        <span className="text-[20px] font-medium leading-none whitespace-nowrap">{estado}</span>
       </header>
 
       <div className="flex-1 min-h-0 flex flex-col px-5 pt-2.5 pb-2.5">
         <Placa placa={v.veiculo.placa} tamanho="tv" />
-        <p className="mt-1.5 shrink-0 text-[32px] font-bold leading-[1.1] truncate">{v.veiculo.modelo ?? "Modelo não informado"}</p>
+        <p className="mt-1.5 shrink-0 text-[32px] font-semibold tracking-[-0.01em] leading-[1.1] truncate">{v.veiculo.modelo ?? "Modelo não informado"}</p>
         <div className="shrink-0 flex items-center justify-between gap-3 min-w-0">
           <p className="text-[20px] text-papel-suave leading-snug truncate" title={[v.veiculo.cor, v.tipoReparo?.nome].filter(Boolean).join(" · ")}>
             {[v.veiculo.cor, v.tipoReparo?.nome].filter(Boolean).join(" · ") || "—"}
           </p>
           {v.os.prioridade === 2 && (
-            <span className="shrink-0 bg-amarelo text-preto px-2 text-[16px] font-extrabold uppercase tracking-[0.04em] leading-7">Urgente</span>
+            <span className="shrink-0 rounded-full bg-amarelo text-preto px-3 text-[18px] font-semibold leading-8">Urgente</span>
           )}
         </div>
 
         {bloqueio ? (
-          <p className="mt-1 shrink-0 flex items-start gap-2 text-[20px] font-semibold leading-[1.15] min-w-0">
+          <p className="mt-1 shrink-0 flex items-start gap-2 text-[20px] font-medium leading-[1.15] min-w-0">
             <Icone nome="bloqueio" tamanho={20} className="shrink-0 mt-0.5 text-alerta" />
             <span className="line-clamp-2">{bloqueio.motivo}</span>
           </p>
@@ -65,7 +65,7 @@ export function CartaoTV({ item, agora, perfis }: { item: ItemQuadro; agora: Mar
               <ProgressoEtapas etapas={v.etapas} semaforo={item.semaforo} escuro mostrarTexto={false} />
             </div>
             {!item.pronto && atualIndex !== null && (
-              <span className="text-[20px] font-semibold text-papel-suave numero leading-none">
+              <span className="text-[20px] font-medium text-papel-suave numero leading-none">
                 {atualIndex + 1}/{total}
               </span>
             )}
@@ -76,10 +76,10 @@ export function CartaoTV({ item, agora, perfis }: { item: ItemQuadro; agora: Mar
           <div className="mt-1.5 flex items-center gap-3 min-w-0">
             {nome ? (
               <>
-                <span aria-hidden="true" className="inline-grid place-items-center w-11 h-11 shrink-0 bg-papel text-preto text-[20px] font-bold">
+                <span aria-hidden="true" className="inline-grid place-items-center w-11 h-11 shrink-0 rounded-full bg-grafite-3 text-papel text-[18px] font-semibold">
                   {iniciais(nome)}
                 </span>
-                <span className="text-[24px] font-semibold truncate">{nome}</span>
+                <span className="text-[24px] font-medium truncate">{nome}</span>
               </>
             ) : (
               <span className="text-[24px] text-papel-fraco leading-[44px]">Sem responsável</span>
@@ -110,8 +110,8 @@ export function CartaoTV({ item, agora, perfis }: { item: ItemQuadro; agora: Mar
 function Numero({ nome, valor, destaque = false }: { nome: string; valor: string; destaque?: boolean }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[14px] font-bold uppercase tracking-[0.08em] text-papel-fraco leading-none">{nome}</dt>
-      <dd className={`m-0 mt-1 text-[24px] font-bold leading-[1.1] truncate ${destaque ? "text-amarelo" : ""}`}>{valor}</dd>
+      <dt className="text-[16px] font-medium text-papel-suave leading-none">{nome}</dt>
+      <dd className={`m-0 mt-1 text-[24px] font-semibold leading-[1.1] truncate ${destaque ? "text-amarelo" : ""}`}>{valor}</dd>
     </div>
   );
 }

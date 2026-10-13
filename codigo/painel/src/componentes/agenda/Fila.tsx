@@ -68,7 +68,7 @@ export function FilaAgendamento({
         const proposta = v.agendamento?.estado === "proposto" || v.agendamento?.estado === "contatando" ? v.agendamento : undefined;
         const msg = copiado?.id === v.os.id ? copiado : null;
         return (
-          <li key={v.os.id} className={`px-4 py-3 ${escolhendo ? "bg-amarelo-claro" : ""}`}>
+          <li key={v.os.id} className={`px-4 py-3.5 ${escolhendo ? "bg-amarelo-claro" : ""}`}>
             <div className="flex items-start gap-3">
               <Placa placa={v.veiculo.placa} tamanho="p" />
               <div className="min-w-0 flex-1">
@@ -79,7 +79,7 @@ export function FilaAgendamento({
                   {v.cliente.nome}
                 </p>
               </div>
-              <p className={`shrink-0 text-[12px] font-semibold numero text-right leading-tight text-tinta-suave`}>
+              <p className="shrink-0 text-[12px] font-medium numero text-right leading-tight text-tinta-suave">
                 <span className="sr-only">Esperando </span>
                 {dias === 0 ? "desde hoje" : `há ${dias} ${dias === 1 ? "dia" : "dias"}`}
               </p>
@@ -144,7 +144,7 @@ export function FilaAgendamento({
             </p>
             {msg && !msg.ok && (
               <div className="mt-2">
-                <label className="rotulo text-tinta-suave block mb-1" htmlFor={`msg-${v.os.id}`}>
+                <label className="text-[13px] font-medium text-tinta-suave block mb-1.5" htmlFor={`msg-${v.os.id}`}>
                   Não consegui copiar sozinho. Copie o texto:
                 </label>
                 <textarea
@@ -153,7 +153,7 @@ export function FilaAgendamento({
                   rows={4}
                   value={msg.texto}
                   onFocus={(e) => e.currentTarget.select()}
-                  className="w-full p-2 text-[13px] bg-cartao border border-linha-forte focus:border-preto outline-none"
+                  className="w-full p-2 text-[13px] bg-cartao border border-linha-forte focus:border-tinta-fraca focus:ring-[3px] focus:ring-amarelo/30 outline-none"
                 />
               </div>
             )}

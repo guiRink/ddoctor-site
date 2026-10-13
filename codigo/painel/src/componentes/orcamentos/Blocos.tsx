@@ -8,7 +8,7 @@ export function VerTudo({ para, children = "Ver tudo", rotulo }: { para: string;
     <Link
       to={para}
       aria-label={rotulo}
-      className="inline-flex items-center gap-1 min-h-11 -my-2 px-1 text-[13px] font-semibold text-tinta-suave no-underline hover:text-tinta hover:underline underline-offset-4 shrink-0"
+      className="inline-flex items-center gap-1 min-h-11 -my-2 px-1 text-[13px] font-medium text-tinta-suave no-underline hover:text-tinta hover:underline underline-offset-4 shrink-0"
     >
       {children}
       <Icone nome="seta" tamanho={14} />
@@ -22,7 +22,7 @@ export function MaisItens({ restantes, para }: { restantes: number; para?: strin
   const texto = `Ver ${restantes === 1 ? "o outro" : `os outros ${restantes}`}`;
   if (!para) return <p className="px-4 py-3 text-[13px] text-tinta-suave numero">e mais {restantes}</p>;
   return (
-    <Link to={para} className="flex items-center gap-1 px-4 h-11 text-[13px] font-semibold text-tinta-suave no-underline hover:bg-amarelo-claro hover:text-tinta numero">
+    <Link to={para} className="flex items-center gap-1 px-4 h-11 text-[13px] font-medium text-tinta-suave no-underline hover:bg-cinza-50 hover:text-tinta transition-colors duration-150 numero">
       {texto}
       <Icone nome="seta" tamanho={14} />
     </Link>
@@ -31,7 +31,7 @@ export function MaisItens({ restantes, para }: { restantes: number; para?: strin
 
 /** Subtítulo dentro de uma lista (ex.: Manhã / Tarde). */
 export function Subtitulo({ children }: { children: ReactNode }) {
-  return <p className="rotulo text-tinta-suave bg-papel px-4 h-8 flex items-center border-b border-linha numero">{children}</p>;
+  return <p className="rotulo text-tinta-suave bg-cinza-50 px-4 h-8 flex items-center border-b border-linha numero">{children}</p>;
 }
 
 /** Linha de texto quando um grupo está vazio, com a próxima ação. */

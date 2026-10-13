@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { dataNoFuso } from "@compartilhado/dominio/fuso";
 import { useAgora, useConfig, useOSs, usePerfis } from "../dados/hooks";
 import { Icone } from "../componentes/Icone";
+import { MarcaD } from "../componentes/ui/Marca";
 import { CartaoTV } from "../componentes/producao/CartaoTV";
 import {
   NOME_FILTRO,
@@ -112,11 +113,11 @@ export function ProducaoTV() {
       {/* cabeçalho */}
       <header className="shrink-0 flex items-center gap-8 px-8 border-b border-linha-clara" style={{ height: CABECALHO_PX }}>
         <div className="flex items-center gap-5 shrink-0">
-          <img src={`${import.meta.env.BASE_URL}logo-mark.svg`} alt="" width={64} height={64} />
+          <MarcaD tamanho={56} />
           <div className="flex items-center gap-5">
-            <h1 className="titulo-condensado text-[56px] leading-none">Produção</h1>
+            <h1 className="titulo text-[52px] leading-none">Produção</h1>
             {filtro !== "todos" && (
-              <p className="inline-flex items-center gap-2 bg-amarelo text-preto px-2.5 h-8 text-[18px] font-bold uppercase tracking-[0.06em]">
+              <p className="inline-flex items-center gap-2 rounded-full bg-amarelo text-preto px-4 h-10 text-[20px] font-semibold">
                 <Icone nome="filtro" tamanho={18} />
                 Só {NOME_FILTRO[filtro].toLowerCase()}
               </p>
@@ -124,7 +125,7 @@ export function ProducaoTV() {
           </div>
         </div>
 
-        <dl className="flex-1 flex justify-end items-stretch gap-3 m-0">
+        <dl className="flex-1 flex justify-end items-center gap-3 m-0">
           <Contador nome="Na oficina" valor={totais.naOficina} />
           <Contador nome="Atrasados" valor={totais.atrasados} alerta />
           <Contador nome="Impedidos" valor={totais.impedidos} alerta />
@@ -150,12 +151,12 @@ export function ProducaoTV() {
           <div className="h-full flex gap-5">
             {visiveis.map((f) => (
               <section key={f.chave} className="flex-1 min-w-0 max-w-[460px] flex flex-col">
-                <header className="shrink-0 flex items-end justify-between gap-3 border-b-4 border-papel pb-2 mb-3" style={{ height: TITULO_COLUNA_PX - 12 }}>
-                  <h2 className="text-[32px] font-extrabold leading-none truncate">
+                <header className="shrink-0 flex items-center justify-between gap-3 mb-3" style={{ height: TITULO_COLUNA_PX - 12 }}>
+                  <h2 className="titulo text-[32px] leading-none truncate">
                     {f.nome}
-                    {f.parte > 1 && <span className="text-papel-suave font-bold"> (cont.)</span>}
+                    {f.parte > 1 && <span className="text-papel-suave font-medium"> (cont.)</span>}
                   </h2>
-                  <span className="text-[24px] font-bold text-papel-suave numero leading-none whitespace-nowrap">
+                  <span className="inline-grid place-items-center min-w-11 h-10 px-3 rounded-full bg-grafite-3 text-[24px] font-semibold text-papel numero leading-none whitespace-nowrap">
                     {f.total}
                   </span>
                 </header>
@@ -172,7 +173,7 @@ export function ProducaoTV() {
 
       {/* rodapé */}
       <footer className="shrink-0 flex items-center gap-8 px-8 border-t border-linha-clara text-[20px]" style={{ height: RODAPE_PX }}>
-        <p className={`numero font-semibold ${desatualizado || consulta.isError ? "text-cartao bg-alerta px-3 py-1" : "text-papel-suave"}`}>
+        <p className={`numero font-medium ${desatualizado || consulta.isError ? "text-cartao bg-alerta rounded-full px-4 py-1" : "text-papel-suave"}`}>
           {atualizadoEm > 0 ? (
             <>
               {desatualizado || consulta.isError ? "Sem atualizar desde" : "Atualizado às"} {formatarHora(atualizadoEm)}
@@ -195,12 +196,12 @@ export function ProducaoTV() {
         <div className="flex items-center gap-3 text-papel-suave numero">
           {paginas > 1 && (
             <>
-              <span className="font-semibold">
+              <span className="font-medium">
                 Página {atual + 1} de {paginas}
               </span>
               <span className="flex gap-1.5" aria-hidden="true">
                 {Array.from({ length: paginas }, (_, i) => (
-                  <span key={i} className={`w-3 h-3 ${i === atual ? "bg-amarelo" : "bg-grafite-3"}`} />
+                  <span key={i} className={`w-3 h-3 rounded-full ${i === atual ? "bg-amarelo" : "bg-grafite-3"}`} />
                 ))}
               </span>
             </>
@@ -214,9 +215,9 @@ export function ProducaoTV() {
 function Contador({ nome, valor, alerta = false }: { nome: string; valor: number; alerta?: boolean }) {
   const vermelho = alerta && valor > 0;
   return (
-    <div className={`flex flex-col justify-center min-w-[148px] px-5 py-2 ${vermelho ? "bg-alerta text-cartao" : "bg-grafite-2"}`}>
-      <dt className={`text-[14px] font-bold uppercase tracking-[0.08em] leading-none ${vermelho ? "text-cartao" : "text-papel-suave"}`}>{nome}</dt>
-      <dd className="m-0 mt-1.5 text-[48px] font-extrabold leading-none numero">{valor}</dd>
+    <div className={`flex items-center gap-4 h-16 pl-6 pr-7 rounded-full ${vermelho ? "bg-alerta text-cartao" : "bg-grafite-2"}`}>
+      <dt className={`text-[20px] font-medium leading-none whitespace-nowrap ${vermelho ? "text-cartao" : "text-papel-suave"}`}>{nome}</dt>
+      <dd className="m-0 text-[40px] font-semibold leading-none numero">{valor}</dd>
     </div>
   );
 }
@@ -226,7 +227,7 @@ function Relogio() {
   const agora = useAgora(1_000);
   return (
     <div className="shrink-0 text-right pl-8 border-l border-linha-clara">
-      <p className="text-[64px] font-extrabold leading-none numero tracking-[-0.02em]">{formatarHora(agora)}</p>
+      <p className="text-[60px] font-semibold leading-none numero tracking-[-0.02em]">{formatarHora(agora)}</p>
       <p className="mt-1 text-[20px] text-papel-suave capitalize">{formatarDataCurta(dataNoFuso(agora))}</p>
     </div>
   );
@@ -235,7 +236,7 @@ function Relogio() {
 function Legenda({ cor, texto }: { cor: string; texto: string }) {
   return (
     <li className="flex items-center gap-2.5">
-      <span aria-hidden="true" className={`w-5 h-5 ${cor}`} />
+      <span aria-hidden="true" className={`w-4 h-4 rounded-full ${cor}`} />
       {texto}
     </li>
   );
@@ -244,10 +245,10 @@ function Legenda({ cor, texto }: { cor: string; texto: string }) {
 function Aviso({ icone, titulo, texto }: { icone: "ok" | "alerta"; titulo: string; texto: string }) {
   return (
     <div className="h-full grid place-content-center justify-items-center gap-5 text-center">
-      <span className={`inline-grid place-items-center w-24 h-24 ${icone === "alerta" ? "bg-alerta text-cartao" : "bg-grafite-2 text-amarelo"}`}>
+      <span className={`inline-grid place-items-center w-24 h-24 rounded-full ${icone === "alerta" ? "bg-alerta text-cartao" : "bg-grafite-2 text-amarelo"}`}>
         <Icone nome={icone} tamanho={48} />
       </span>
-      <p className="text-[48px] font-extrabold leading-tight">{titulo}</p>
+      <p className="titulo text-[48px] leading-tight">{titulo}</p>
       <p className="text-[24px] text-papel-suave">{texto}</p>
     </div>
   );
@@ -258,9 +259,11 @@ function Carregando({ colunas }: { colunas: number }) {
     <div role="status" aria-label="Carregando o quadro" className="h-full flex gap-5">
       {Array.from({ length: colunas }, (_, c) => (
         <div key={c} className="flex-1 flex flex-col gap-4">
-          <div className="h-11 border-b-4 border-grafite-3" />
-          <div className="flex-1 bg-grafite" />
-          <div className="flex-1 bg-grafite" />
+          <div className="h-11 flex items-center">
+            <div className="h-7 w-48 rounded-controle bg-grafite-2" />
+          </div>
+          <div className="flex-1 rounded-cartao bg-grafite" />
+          <div className="flex-1 rounded-cartao bg-grafite" />
         </div>
       ))}
     </div>

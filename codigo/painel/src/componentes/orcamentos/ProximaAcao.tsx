@@ -4,7 +4,7 @@ import { etapaAtual, progressoEtapas } from "@compartilhado/dominio/semaforo";
 import { mensagemErro, useAcoes } from "../../dados/hooks";
 import type { OSVisao } from "../../dados/repositorio";
 import { JANELA } from "../../dominio/rotulos";
-import { Botao, BotaoLink } from "../ui/Basicos";
+import { Botao, BotaoLink, SUPERFICIE } from "../ui/Basicos";
 import { Provisorio } from "../ui/Estado";
 import { Icone } from "../Icone";
 import { diaCurto } from "./formato";
@@ -156,8 +156,8 @@ export function ProximaAcao({ v, podeAgir, tipos }: { v: OSVisao; podeAgir: bool
   const idErro = `${idBase}-erro`;
 
   return (
-    <section aria-label="Próxima ação" className="bg-cartao border border-linha p-4 min-w-0">
-      <p className="rotulo text-tinta-suave">Próxima ação</p>
+    <section aria-label="Próxima ação" className={`${SUPERFICIE} p-4 min-w-0`}>
+      <p className="text-[13px] font-medium text-tinta-suave">Próxima ação</p>
       <p className="mt-1.5 text-[14px] leading-snug">{texto}</p>
       {podeAgir && botoes && painel === null && <div className="mt-3 flex flex-wrap gap-2">{botoes}</div>}
       {!podeAgir && botoes && <p className="mt-2 text-[13px] text-tinta-fraca">Seu papel só consulta esta ficha.</p>}
@@ -165,7 +165,7 @@ export function ProximaAcao({ v, podeAgir, tipos }: { v: OSVisao; podeAgir: bool
       {painel === "aprovacao" && (
         <form onSubmit={enviarAprovacao} className="mt-3 flex flex-col gap-3" noValidate>
           <div>
-            <label htmlFor={`${idBase}-ev`} className="block text-[13px] font-bold mb-1.5">
+            <label htmlFor={`${idBase}-ev`} className="block text-[13px] font-medium text-tinta-suave mb-1.5">
               Como a aprovação foi confirmada?
             </label>
             <textarea
@@ -177,7 +177,7 @@ export function ProximaAcao({ v, podeAgir, tipos }: { v: OSVisao; podeAgir: bool
               aria-invalid={Boolean(erro)}
               aria-describedby={erro ? idErro : undefined}
               placeholder={os.origem === "particular" ? "Ex.: Cliente aprovou pelo WhatsApp às 14h" : "Ex.: Vi a autorização no portal às 14h"}
-              className="w-full px-3 py-2 bg-cartao border border-linha-forte focus:border-preto outline-none placeholder:text-tinta-fraca"
+              className="w-full px-3 py-2 bg-cartao border border-linha-forte focus:border-tinta-fraca focus:ring-[3px] focus:ring-amarelo/30 outline-none placeholder:text-tinta-fraca"
             />
           </div>
           <Rodape erro={erro} idErro={idErro} ocupado={ocupado} confirmar="Confirmar aprovação" onCancelar={() => abrir(null)} />
@@ -187,13 +187,13 @@ export function ProximaAcao({ v, podeAgir, tipos }: { v: OSVisao; podeAgir: bool
       {painel === "entrada" && (
         <form onSubmit={enviarEntrada} className="mt-3 flex flex-col gap-3" noValidate>
           <fieldset aria-describedby={erro ? idErro : undefined}>
-            <legend className="text-[13px] font-bold mb-1.5">Tipo de reparo (gera as etapas)</legend>
-            <div className="flex flex-col border border-linha">
+            <legend className="text-[13px] font-medium text-tinta-suave mb-1.5">Tipo de reparo (gera as etapas)</legend>
+            <div className="flex flex-col border border-linha rounded-cartao overflow-hidden">
               {tipos.map((t) => (
                 <label
                   key={t.id}
                   className={`flex items-start gap-3 px-3 py-2.5 min-h-11 border-b border-linha last:border-b-0 cursor-pointer ${
-                    tipoId === t.id ? "bg-amarelo-claro" : "hover:bg-papel"
+                    tipoId === t.id ? "bg-amarelo-claro" : "hover:bg-cinza-50"
                   }`}
                 >
                   <input
@@ -202,10 +202,10 @@ export function ProximaAcao({ v, podeAgir, tipos }: { v: OSVisao; podeAgir: bool
                     value={t.id}
                     checked={tipoId === t.id}
                     onChange={() => setTipoId(t.id)}
-                    className="mt-1 accent-preto w-4 h-4"
+                    className="mt-1 w-4 h-4"
                   />
                   <span className="min-w-0">
-                    <span className="block font-semibold">
+                    <span className="block font-medium">
                       {t.nome}
                       {t.provisorio && (
                         <span className="ml-2 text-[12px] font-normal text-tinta-suave">
@@ -235,7 +235,7 @@ export function ProximaAcao({ v, podeAgir, tipos }: { v: OSVisao; podeAgir: bool
       )}
 
       {aviso && (
-        <p role="status" className="mt-3 flex items-center gap-2 text-[13px] font-semibold text-ok">
+        <p role="status" className="mt-3 flex items-center gap-2 text-[13px] font-medium text-ok">
           <Icone nome="ok" tamanho={16} />
           {aviso}
         </p>
@@ -260,7 +260,7 @@ function Rodape({
   return (
     <>
       {erro && (
-        <p id={idErro} role="alert" className="text-[13px] font-semibold text-alerta">
+        <p id={idErro} role="alert" className="text-[13px] font-medium text-alerta">
           {erro}
         </p>
       )}
