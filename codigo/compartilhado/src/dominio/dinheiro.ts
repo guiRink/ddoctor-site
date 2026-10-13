@@ -52,3 +52,8 @@ export function somaCentavos(valores: ReadonlyArray<Centavos | null | undefined>
   for (const v of valores) if (v !== null && v !== undefined) total += v;
   return total;
 }
+
+/** Arredonda um valor calculado (quantidade × preço) ao centavo, sem o erro de ponto flutuante de x,5. */
+export function arredondarCentavos(valor: number): Centavos {
+  return Math.round(Number(valor.toFixed(6)));
+}

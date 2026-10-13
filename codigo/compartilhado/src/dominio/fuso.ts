@@ -126,3 +126,16 @@ export function minutosDeHora(hhmm: string): number {
   if (!m) throw new Error(`hora_invalida: ${hhmm}`);
   return Number(m[1]) * 60 + Number(m[2]);
 }
+
+/** "AAAA-MM" de uma data ou marco (marco convertido para o dia no fuso da oficina). */
+export function mesDe(dataOuMarco: DataISO | MarcoISO): string {
+  return (SO_DATA.test(dataOuMarco) ? dataOuMarco : dataNoFuso(dataOuMarco)).slice(0, 7);
+}
+
+/** Todos os dias do mês "AAAA-MM", em ordem. */
+export function diasDoMes(mes: string): DataISO[] {
+  if (!/^\d{4}-\d{2}$/.test(mes)) throw new Error(`mes_invalido: ${mes}`);
+  const dias: DataISO[] = [];
+  for (let d = `${mes}-01`; d.startsWith(mes); d = somarDias(d, 1)) dias.push(d);
+  return dias;
+}
