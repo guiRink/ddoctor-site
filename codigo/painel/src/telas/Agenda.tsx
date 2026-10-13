@@ -203,9 +203,10 @@ export function Agenda() {
           onNaoCompareceu={() =>
             executar(() => acoes.marcarNaoCompareceu.mutateAsync([agSelecionado.id]), `${nomeCarro} marcado como não compareceu. Voltou para a fila.`)
           }
-          onRegistrarEntrada={(tipoId) =>
-            executar(() => acoes.registrarEntrada.mutateAsync([vSelecionado.os.id, tipoId]), `Entrada de ${nomeCarro} registrada. O carro já está na Produção.`)
-          }
+          onEntradaRegistrada={(mensagem) => {
+            setAviso({ tom: "ok", texto: mensagem });
+            setModo(null);
+          }}
         />
       ) : modo.tipo !== "ver" ? (
         <PainelEscolha

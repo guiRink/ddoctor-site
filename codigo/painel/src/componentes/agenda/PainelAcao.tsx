@@ -4,9 +4,9 @@ import type { Agendamento, DataISO, Janela, MarcoISO, TipoReparo } from "@compar
 import type { OSVisao } from "../../dados/repositorio";
 import { JANELA } from "../../dominio/rotulos";
 import { Botao, SUPERFICIE } from "../ui/Basicos";
-import { Provisorio } from "../ui/Estado";
 import { Placa } from "../ui/Placa";
 import { Icone } from "../Icone";
+import { ReceberCarro } from "../recepcao/ReceberCarro";
 import { diaCurto, plural, telefoneBR } from "./formato";
 import { EstadoAgendamento } from "./Grade";
 import type { Vaga } from "./modelo";
@@ -156,7 +156,7 @@ export function PainelAgendamento({
   onConfirmarProposta,
   onCancelar,
   onNaoCompareceu,
-  onRegistrarEntrada,
+  onEntradaRegistrada,
   onFechar,
 }: {
   ag: Agendamento;
@@ -173,19 +173,17 @@ export function PainelAgendamento({
   onConfirmarProposta: () => void;
   onCancelar: (motivo: string) => void;
   onNaoCompareceu: () => void;
-  onRegistrarEntrada: (tipoId: string) => void;
+  /** Depois que "Receber o carro" registrou a entrada (com a mensagem de sucesso). */
+  onEntradaRegistrada: (mensagem: string) => void;
   onFechar: () => void;
 }) {
   const [sub, setSub] = useState<Sub>(null);
   const [motivo, setMotivo] = useState("");
   const [faltaMotivo, setFaltaMotivo] = useState(false);
-  const [tipoId, setTipoId] = useState(v.os.tipoReparoId ?? "");
   const idMotivo = useId();
-  const idTipo = useId();
   const idDicas = useId();
   const confirmado = ag.estado === "confirmado";
   const futuro = ag.data > hoje;
-  const tipoEscolhido = tipos.find((t) => t.id === tipoId);
 
   function cancelar(e: FormEvent) {
     e.preventDefault();
@@ -194,11 +192,6 @@ export function PainelAgendamento({
       return;
     }
     onCancelar(motivo.trim());
-  }
-
-  function entrada(e: FormEvent) {
-    e.preventDefault();
-    if (tipoId) onRegistrarEntrada(tipoId);
   }
 
   return (
@@ -224,12 +217,12 @@ export function PainelAgendamento({
         </Link>
       )}
 
-      {podeEditar && sub === null && (
+      {podeEditar && (sub === null || sub === "entrada") && (
         <div className="flex flex-col gap-2 pt-4 border-t border-linha">
           {confirmado ? (
             <>
-              <Botao variante="primario" icone="carro" onClick={() => setSub("entrada")} disabled={ocupado}>
-                Registrar entrada
+              <Botao variante="primario" icone="carro" onClick={() => setSub("entrada")} disabled={ocupado} aria-haspopup="dialog">
+                Receber o carro
               </Botao>
               <Botao variante="contorno" icone="agenda" onClick={onReagendar} disabled={ocupado}>
                 Reagendar
@@ -260,51 +253,15 @@ export function PainelAgendamento({
       )}
 
       {sub === "entrada" && (
-        <form onSubmit={entrada} className="flex flex-col gap-3 pt-3 border-t border-linha">
-          <div>
-            <label htmlFor={idTipo} className="text-[13px] font-medium text-tinta-suave block mb-1.5">
-              Tipo de reparo
-            </label>
-            <span className="relative flex">
-            <select
-              id={idTipo}
-              required
-              value={tipoId}
-              onChange={(e) => setTipoId(e.target.value)}
-              className="appearance-none w-full h-11 md:h-10 pl-3 pr-9 cursor-pointer bg-cartao border border-linha-forte shadow-controle focus:border-tinta-fraca focus:ring-[3px] focus:ring-amarelo/30 outline-none"
-            >
-              <option value="">Escolha…</option>
-              {tipos.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nome}
-                  {t.provisorio ? " (provisório)" : ""}
-                </option>
-              ))}
-            </select>
-            <Icone nome="baixo" tamanho={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-tinta-suave" />
-            </span>
-            {tipoEscolhido && (
-              <p className="mt-1.5 text-[12px] text-tinta-suave">
-                Gera {plural(tipoEscolhido.etapas.length, "etapa", "etapas")}: {tipoEscolhido.etapas.map((e) => e.nome).join(" → ")}
-                {tipoEscolhido.provisorio && (
-                  <>
-                    {" "}
-                    · <Provisorio>modelo provisório — a confirmar</Provisorio>
-                  </>
-                )}
-              </p>
-            )}
-          </div>
-          <p className="text-[12px] text-tinta-suave">O carro entra na Produção agora, com a primeira etapa na fila. Faça a vistoria de entrada.</p>
-          <div className="flex flex-wrap gap-2">
-            <Botao type="submit" variante="primario" disabled={!tipoId || ocupado}>
-              Confirmar entrada
-            </Botao>
-            <Botao variante="fantasma" onClick={() => setSub(null)}>
-              Voltar
-            </Botao>
-          </div>
-        </form>
+        <ReceberCarro
+          v={v}
+          tipos={tipos}
+          onFechar={() => setSub(null)}
+          onConcluido={(msg) => {
+            setSub(null);
+            onEntradaRegistrada(msg);
+          }}
+        />
       )}
 
       {sub === "cancelar" && (
