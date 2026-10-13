@@ -8,6 +8,7 @@ import type { OSVisao } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
 import { podeEditar } from "../dominio/permissoes";
 import { ESTADO_TITULO } from "../dominio/rotulos";
+import { rotuloForma } from "../componentes/financeiro/formato";
 import { Botao, CabecalhoPagina, SUPERFICIE, Vazio } from "../componentes/ui/Basicos";
 import { Etiqueta, Provisorio } from "../componentes/ui/Estado";
 import { Icone } from "../componentes/Icone";
@@ -453,7 +454,7 @@ function PainelTitulo({ titulo, hoje, podeReceber, onFechar }: { titulo: TituloR
             {titulo.baixas.map((b) => (
               <li key={b.id} className="flex items-center justify-between gap-3 py-1.5 border-b border-linha last:border-b-0 text-[13px]">
                 <span className="numero">
-                  {dataCurta(b.recebidoEm, hoje.slice(0, 4))} · {b.forma}
+                  {dataCurta(b.recebidoEm, hoje.slice(0, 4))} · {rotuloForma(b.forma)}
                 </span>
                 <span className="numero font-semibold">{formatarReais(b.valor)}</span>
               </li>
