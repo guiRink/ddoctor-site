@@ -59,7 +59,7 @@ export function PinGate({ children }: { children: ReactNode }) {
           autoComplete="one-time-code"
           value={pin}
           onChange={(e) => setPin(e.target.value)}
-          className={`w-full h-12 px-4 bg-cartao text-tinta text-[22px] tracking-[0.3em] border outline-none transition-colors duration-150 focus:border-tinta-fraca focus:ring-3 focus:ring-amarelo/30 ${
+          className={`w-full h-12 px-4 bg-cartao text-tinta text-[24px] tracking-[0.3em] border outline-none transition-colors duration-150 focus:border-tinta-fraca focus:ring-3 focus:ring-amarelo/30 ${
             erro ? "border-alerta" : "border-linha-forte"
           }`}
           aria-invalid={erro ? true : undefined}

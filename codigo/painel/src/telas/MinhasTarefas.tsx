@@ -7,7 +7,7 @@ import { useAgora, useConfig, useOSs } from "../dados/hooks";
 import type { OSVisao } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
 import { acesso } from "../dominio/permissoes";
-import { Botao, Erro, Esqueleto, SUPERFICIE, Vazio } from "../componentes/ui/Basicos";
+import { Botao, Contagem, Erro, Esqueleto, SUPERFICIE, Vazio } from "../componentes/ui/Basicos";
 import { Icone } from "../componentes/Icone";
 import { CartaoTarefa, type Retorno } from "../componentes/producao/CartaoTarefa";
 
@@ -97,7 +97,6 @@ export function MinhasTarefas() {
                 </option>
               ))}
             </select>
-            <Icone nome="baixo" tamanho={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-tinta-suave" />
             </span>
           </label>
         )}
@@ -154,7 +153,7 @@ export function MinhasTarefas() {
             <section className="mt-8" aria-labelledby="sem-responsavel">
               <h2 id="sem-responsavel" className="flex items-center gap-2">
                 <span className="text-[16px] font-semibold">Na fila sem responsável</span>
-                <span className="inline-grid place-items-center min-w-6 h-5 px-1.5 rounded-full bg-cinza-200 text-[12px] font-medium numero">{livres.length}</span>
+                <Contagem n={livres.length} />
               </h2>
               <p className="mt-1 mb-3 text-[14px] text-tinta-suave">Quem iniciar fica como responsável.</p>
               <ul className="m-0 p-0 list-none flex flex-col gap-4">

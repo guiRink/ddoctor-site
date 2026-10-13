@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { FaseVistoria, Foto, Perfil } from "@compartilhado/tipos";
 import { FASE_VISTORIA } from "../../dominio/rotulos";
+import { Contagem } from "../ui/Basicos";
 import { Etiqueta } from "../ui/Estado";
 import { Icone } from "../Icone";
 import { dataHora } from "../agenda/formato";
@@ -77,7 +78,7 @@ export function FaixasPorFase({ fotos, perfis }: { fotos: Foto[]; perfis: Perfil
           <section key={fase} aria-labelledby={`fase-${fase}`}>
             <h3 id={`fase-${fase}`} className="flex items-center gap-2 mb-2.5">
               <span className="text-[15px] font-semibold">{FASE_VISTORIA[fase]}</span>
-              <span className="inline-grid place-items-center min-w-6 h-5 px-1.5 rounded-full bg-cinza-200 text-[12px] font-medium numero">{daFase.length}</span>
+              <Contagem n={daFase.length} />
               {fase === "externa" && <span className="text-[12px] text-tinta-suave font-normal">só leitura, importadas do portal</span>}
             </h3>
             {daFase.length === 0 ? (

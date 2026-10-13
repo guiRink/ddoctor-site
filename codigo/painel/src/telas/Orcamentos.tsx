@@ -11,6 +11,7 @@ import { Botao, BotaoLink, CabecalhoPagina, Cartao, Erro, Esqueleto, SUPERFICIE,
 import { CLASSE_LINHA, Tabela, Th } from "../componentes/ui/Tabela";
 import { Etiqueta } from "../componentes/ui/Estado";
 import { Placa } from "../componentes/ui/Placa";
+import { BarraAbas, ContagemAba, classeAba } from "../componentes/ui/Abas";
 import { Icone } from "../componentes/Icone";
 import { ha } from "../componentes/orcamentos/formato";
 import {
@@ -98,8 +99,7 @@ export function Orcamentos() {
     <>
       {cabecalho}
 
-      <nav aria-label="Filtrar por estado" className="-mx-4 md:mx-0 px-4 md:px-0 overflow-x-auto border-b border-linha mb-4">
-        <ul className="flex gap-0.5 min-w-max">
+      <BarraAbas rotulo="Filtrar por estado" chave={filtro.chave} className="mb-5">
           {ABAS_ORCAMENTOS.map((aba) => {
             const ativa = aba.chave === filtro.chave;
             const n = daAba(aba.estados).length;
@@ -109,18 +109,15 @@ export function Orcamentos() {
                   to={{ search: novaBusca(params, aba.chave) }}
                   replace
                   aria-current={ativa ? "page" : undefined}
-                  className={`flex items-center gap-2 h-11 px-3 text-[14px] no-underline whitespace-nowrap border-b-2 transition-colors duration-150 ${
-                    ativa ? "border-amarelo font-semibold text-tinta" : "border-transparent font-medium text-tinta-suave hover:text-tinta hover:border-linha-forte"
-                  }`}
+                  className={classeAba(ativa)}
                 >
                   {aba.nome}
-                  <span className={`numero text-[12px] font-medium ${ativa ? "text-tinta-suave" : "text-tinta-fraca"}`}>{n}</span>
+                  <ContagemAba n={n} ativa={ativa} />
                 </Link>
               </li>
             );
           })}
-        </ul>
-      </nav>
+      </BarraAbas>
 
       {(termo || !abaConhecida) && (
         <div className="flex flex-wrap items-center gap-2 mb-4 text-[14px]">

@@ -2,8 +2,8 @@ import { useId, useState } from "react";
 import type { Fornecedor, Id, Material } from "@compartilhado/tipos";
 import { formatarReais, reaisParaCentavos } from "@compartilhado/dominio/dinheiro";
 import { mensagemErro, useAcoes } from "../../dados/hooks";
-import { Gaveta } from "../financeiro/Gaveta";
-import { EntradaComAfixo, Rotulado, Selecao, CLASSE_ENTRADA } from "../financeiro/Campos";
+import { Gaveta } from "../ui/Gaveta";
+import { CLASSE_ENTRADA, CampoComAfixo, Rotulado, Selecao } from "../ui/Campos";
 import { formatarQtd, lerQuantidade } from "../financeiro/formato";
 
 const UNIDADES = ["un", "L", "mL", "kg", "g", "folha", "rolo", "m", "par", "caixa"];
@@ -122,7 +122,7 @@ export function FormMaterial({
 
       <div className="grid grid-cols-2 gap-3">
         <Rotulado rotulo="Estoque mínimo" dica="Abaixo disso entra na reposição.">
-          <EntradaComAfixo inputMode="decimal" autoComplete="off" value={minimo} onChange={(e) => setMinimo(e.target.value)} sufixo={unidade || undefined} placeholder="0" />
+          <CampoComAfixo inputMode="decimal" autoComplete="off" value={minimo} onChange={(e) => setMinimo(e.target.value)} sufixo={unidade || undefined} placeholder="0" />
         </Rotulado>
         <Rotulado rotulo="Fornecedor" opcional>
           <Selecao value={fornecedorId} onChange={(e) => setFornecedorId(e.target.value)}>
@@ -142,11 +142,11 @@ export function FormMaterial({
           <p className="-mt-2 text-[13px] text-tinta-suave">O que já existe na prateleira hoje. Entra no extrato como “saldo inicial no cadastro”.</p>
           <div className="grid grid-cols-2 gap-3">
             <Rotulado rotulo="Quantidade" opcional>
-              <EntradaComAfixo inputMode="decimal" autoComplete="off" value={saldoInicial} onChange={(e) => setSaldoInicial(e.target.value)} sufixo={unidade || undefined} placeholder="0" />
+              <CampoComAfixo inputMode="decimal" autoComplete="off" value={saldoInicial} onChange={(e) => setSaldoInicial(e.target.value)} sufixo={unidade || undefined} placeholder="0" />
             </Rotulado>
             {veDinheiro && (
               <Rotulado rotulo="Custo unitário" opcional dica="Vira o custo médio inicial.">
-                <EntradaComAfixo inputMode="decimal" autoComplete="off" prefixo="R$" value={custoInicial} onChange={(e) => setCustoInicial(e.target.value)} placeholder="0,00" />
+                <CampoComAfixo inputMode="decimal" autoComplete="off" prefixo="R$" value={custoInicial} onChange={(e) => setCustoInicial(e.target.value)} placeholder="0,00" />
               </Rotulado>
             )}
           </div>

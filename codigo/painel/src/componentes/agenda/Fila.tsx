@@ -117,7 +117,7 @@ export function FilaAgendamento({
             {podeAgendar && (
               <div className="mt-2.5 flex flex-wrap gap-2">
                 <Botao
-                  variante={escolhendo ? "secundario" : "primario"}
+                  variante="contorno"
                   tamanho="denso"
                   icone={escolhendo ? "fechar" : "agenda"}
                   onClick={() => onAgendar(v)}

@@ -11,7 +11,6 @@ import { ESTADO_TITULO } from "../dominio/rotulos";
 import { rotuloForma } from "../componentes/financeiro/formato";
 import { Botao, CabecalhoPagina, SUPERFICIE, Vazio } from "../componentes/ui/Basicos";
 import { Etiqueta, Provisorio } from "../componentes/ui/Estado";
-import { Icone } from "../componentes/Icone";
 import { EstadoConsultas } from "../componentes/gestao/Consultas";
 import { PlacaOS, Retorno } from "../componentes/gestao/Comuns";
 import { GrupoFiltros } from "../componentes/ui/Filtros";
@@ -143,7 +142,7 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
                 {quantidade > 0 && COR_FAIXA[f].ponto && <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full shrink-0 ${COR_FAIXA[f].ponto}`} />}
                 {FAIXA_AGING[f].texto}
               </span>
-              <span className="block mt-1 text-[22px] md:text-[28px] font-semibold tracking-[-0.01em] numero leading-none whitespace-nowrap">
+              <span className="block mt-1 text-[24px] md:text-[28px] font-semibold tracking-[-0.02em] md:tracking-[-0.01em] numero leading-none whitespace-nowrap">
                 {formatarReais(total)}
               </span>
               <span className="block mt-1.5 text-[12px] text-tinta-suave numero">
@@ -495,7 +494,6 @@ function PainelTitulo({ titulo, hoje, podeReceber, onFechar }: { titulo: TituloR
                     <option key={f}>{f}</option>
                   ))}
                 </select>
-                <Icone nome="baixo" tamanho={16} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-tinta-suave" />
               </span>
             </label>
           </div>

@@ -6,7 +6,8 @@ import { useCategorias, useConfig, useDespesas, useAgora, useMateriais, useMovim
 import { useSessao } from "../dados/sessao";
 import { podeVer, veCustosOS } from "../dominio/permissoes";
 import { Botao, CabecalhoPagina, Erro, Esqueleto, FaixaIndicadores, Indicador } from "../componentes/ui/Basicos";
-import { Abas, SeletorMes } from "../componentes/relatorios/Controles";
+import { Abas, PainelAba } from "../componentes/ui/Abas";
+import { SeletorMes } from "../componentes/relatorios/Controles";
 import { montarRelatorio } from "../componentes/relatorios/dados";
 import { ABAS_RELATORIO, csvDaAba, type AbaRelatorio } from "../componentes/relatorios/exportar";
 import { baixarCsv } from "../componentes/relatorios/csv";
@@ -22,7 +23,7 @@ import { PainelClientes, PainelDespesas, PainelFaturamento, PainelMateriais, Pai
 const MES_VALIDO = /^\d{4}-(0[1-9]|1[0-2])$/;
 const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
 /** Valor em reais no indicador: 22 px no celular (cabe em meia tela sem quebrar), 28 px no desktop. */
-const Reais = ({ c }: { c: number | null }) => <span className="text-[22px] md:text-[28px] whitespace-nowrap">{c === null ? "—" : formatarReais(c)}</span>;
+const Reais = ({ c }: { c: number | null }) => <span className="whitespace-nowrap">{c === null ? "—" : formatarReais(c)}</span>;
 
 export function Relatorios() {
   const { perfil } = useSessao();
@@ -104,7 +105,7 @@ export function Relatorios() {
     <>
       {cabecalho(
         <Botao
-          tamanho="denso"
+          icone="documento"
           disabled={semLinhas}
           title={semLinhas ? "Nada para exportar neste mês" : undefined}
           aria-label={`Exportar ${nomeAba.toLowerCase()} de ${nomeMesAno(mes)} em CSV`}
@@ -145,19 +146,19 @@ export function Relatorios() {
 
       <Abas
         rotulo="Seções do relatório"
-        idPainel="relatorio-painel"
-        abas={ABAS_RELATORIO.map((a) => ({ ...a, contagem: contagens[a.chave] }))}
+        idBase="relatorio"
+        abas={ABAS_RELATORIO.map((a) => ({ valor: a.chave, texto: a.nome, contagem: contagens[a.chave] }))}
         valor={aba}
         onMudar={(v) => mudar("aba", v)}
       />
 
-      <div id="relatorio-painel" role="tabpanel" aria-labelledby={`aba-${aba}`}>
+      <PainelAba idBase="relatorio" valor={aba}>
         {aba === "faturamento" && <PainelFaturamento d={d} hoje={hoje} config={config.data} podeAbrirRecebiveis={podeVer(perfil.papel, "recebiveis")} />}
         {aba === "despesas" && <PainelDespesas d={d} podeAbrirFinanceiro={podeVer(perfil.papel, "financeiro")} />}
         {aba === "os" && <PainelOS d={d} veCustos={veCustos} />}
         {aba === "clientes" && <PainelClientes d={d} podeAbrirCliente={podeVer(perfil.papel, "clientes")} />}
         {aba === "materiais" && <PainelMateriais d={d} podeAbrirEstoque={podeVer(perfil.papel, "estoque")} />}
-      </div>
+      </PainelAba>
     </>
   );
 }

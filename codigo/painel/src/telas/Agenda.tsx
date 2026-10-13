@@ -7,7 +7,8 @@ import type { Resultado } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
 import { podeEditar, podeVer, veDadosSensiveis } from "../dominio/permissoes";
 import { JANELA } from "../dominio/rotulos";
-import { Botao, CabecalhoPagina, Cartao, Erro, Esqueleto } from "../componentes/ui/Basicos";
+import { CabecalhoPagina, Cartao, Erro, Esqueleto } from "../componentes/ui/Basicos";
+import { SeletorPeriodo } from "../componentes/ui/Periodo";
 import { Provisorio } from "../componentes/ui/Estado";
 import { Icone } from "../componentes/Icone";
 import { FilaAgendamento } from "../componentes/agenda/Fila";
@@ -140,18 +141,17 @@ export function Agenda() {
   }
 
   // ------------------------------------------------------------ estados de tela
-  const tam = largo ? "denso" : "padrao";
   const navegacao = (
-    <div className="flex items-center gap-2">
-      <Botao variante="contorno" tamanho={tam} icone="voltar" aria-label="Semana anterior" onClick={() => irPara(somarDias(semana, -7))} />
-      <p className="min-w-[124px] text-center font-semibold numero" aria-live="polite">
-        {diaMes(semana)} – {diaMes(fimSemana)}
-      </p>
-      <Botao variante="contorno" tamanho={tam} icone="seta" aria-label="Próxima semana" onClick={() => irPara(somarDias(semana, 7))} />
-      <Botao variante="contorno" tamanho={tam} onClick={() => irPara(inicioDaSemana(hoje))} disabled={semana === inicioDaSemana(hoje)}>
-        Hoje
-      </Botao>
-    </div>
+    <SeletorPeriodo
+      rotulo="Semana"
+      texto={`${diaMes(semana)} – ${diaMes(fimSemana)}`}
+      onAnterior={() => irPara(somarDias(semana, -7))}
+      onProximo={() => irPara(somarDias(semana, 7))}
+      rotuloAnterior="Semana anterior"
+      rotuloProximo="Próxima semana"
+      larguraTexto="min-w-[124px]"
+      atalho={semana !== inicioDaSemana(hoje) ? { texto: "Hoje", onClick: () => irPara(inicioDaSemana(hoje)) } : undefined}
+    />
   );
 
   const capacidadePadrao = config.data?.capacidadePadrao;

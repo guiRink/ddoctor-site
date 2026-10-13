@@ -8,8 +8,8 @@ import { Etiqueta } from "../ui/Estado";
 import { GrupoFiltros } from "../ui/Filtros";
 import { Linha, Tabela, Td, Th } from "../ui/Tabela";
 import { dataCurta } from "../gestao/formato";
-import { BarraFerramentas } from "./Abas";
-import { Busca, FiltroSelecao } from "./Campos";
+import { BarraFerramentas } from "../ui/Abas";
+import { Busca, FiltroSelecao } from "../ui/Campos";
 import { SITUACAO_DESPESA, prazoDespesa, situacaoDespesa, type SituacaoDespesa } from "./modelo";
 
 type Filtro = "todas" | "abertas" | "vencidas" | "pagas";

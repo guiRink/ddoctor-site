@@ -7,7 +7,7 @@ import { Etiqueta } from "../ui/Estado";
 import { dataComSemana } from "../gestao/formato";
 import { BarrasLista, RodapeTotal } from "./BarrasLista";
 import { rotuloForma } from "./formato";
-import { AcaoTexto } from "./Campos";
+import { AcaoTexto } from "../ui/Campos";
 import { SITUACAO_DESPESA, prazoDespesa, situacaoDespesa } from "./modelo";
 
 export function AbaResumo({
@@ -51,7 +51,6 @@ export function AbaResumo({
             <>
               <BarrasLista
                 legenda="Entradas por forma de pagamento"
-                tom="ok"
                 itens={formas.map((f) => ({
                   chave: f.forma,
                   rotulo: f.forma === "outra" ? "Outra forma" : rotuloForma(f.forma),

@@ -16,7 +16,8 @@ export interface ItemBarra {
 export function BarrasLista({ itens, tom = "neutro", legenda }: { itens: ItemBarra[]; tom?: "ok" | "neutro"; legenda: string }) {
   const max = Math.max(...itens.map((i) => i.valor), 1);
   const total = itens.reduce((s, i) => s + i.valor, 0);
-  const cor = tom === "ok" ? "bg-ok/75" : "bg-tinta-suave/80";
+  // Barra de proporção é neutra (mostra parte do total, não estado); `ok` fica para quando a barra É o estado.
+  const cor = tom === "ok" ? "bg-ok" : "bg-tinta-suave";
   return (
     <ul aria-label={legenda} className="flex flex-col">
       {itens.map((i) => {

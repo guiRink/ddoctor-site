@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 import type { Veiculo } from "@compartilhado/tipos";
-import { iniciais } from "../ui/Basicos";
+import { BotaoExterno, iniciais } from "../ui/Basicos";
 import { Placa } from "../ui/Placa";
-import { Icone } from "../Icone";
 import { linkWhatsApp } from "./formato";
 
 /** Avatar redondo com iniciais (sem foto), como o `Responsavel`. */
@@ -25,11 +24,7 @@ export function EtiquetaPJ() {
   );
 }
 
-// Mesmo desenho do Botao "contorno" (ui/Basicos), para um link externo (<a>), que o Botao não cobre.
-const CLASSE_BOTAO_LINK =
-  "inline-flex items-center justify-center rounded-controle font-semibold whitespace-nowrap transition-colors duration-150 no-underline bg-cartao text-tinta border border-linha-forte shadow-controle hover:bg-cinza-50 hover:border-tinta-fraca";
-
-/** Botão de WhatsApp (link wa.me em nova aba). `icone` = quadrado só com o ícone. */
+/** Botão de WhatsApp (link wa.me em nova aba), no desenho do `Botao` contorno. `icone` = quadrado só com o ícone. */
 export function BotaoWhatsApp({
   numero,
   nome,
@@ -38,24 +33,23 @@ export function BotaoWhatsApp({
 }: {
   numero: string;
   nome: string;
-  /** true = quadrado 44/32 px; "pequeno" = 28 px no desktop (dentro de linha de tabela). */
+  /** true ou "pequeno" = quadrado denso (36 px; 40 no celular), para linha de tabela e cartão. */
   icone?: boolean | "pequeno";
   className?: string;
 }) {
-  const quadrado = icone === "pequeno" ? "h-11 w-11 md:h-7 md:w-7" : "h-11 w-11 md:h-8 md:w-8";
   return (
-    <a
+    <BotaoExterno
       href={linkWhatsApp(numero)}
-      target="_blank"
-      rel="noreferrer"
+      tamanho={icone ? "denso" : "padrao"}
+      icone="whatsapp"
+      classeIcone="text-ok"
+      rotulo={icone ? `Abrir o WhatsApp de ${nome}` : undefined}
+      titulo={icone ? "Abrir no WhatsApp" : undefined}
       onClick={(e) => e.stopPropagation()}
-      aria-label={icone ? `Abrir o WhatsApp de ${nome}` : undefined}
-      title={icone ? "Abrir no WhatsApp" : undefined}
-      className={`${CLASSE_BOTAO_LINK} ${icone ? quadrado : "h-11 md:h-10 px-4 gap-2 text-[14px]"} ${className}`}
+      className={className}
     >
-      <Icone nome="whatsapp" tamanho={icone === "pequeno" ? 15 : icone ? 16 : 18} className="shrink-0 text-ok" />
       {!icone && "WhatsApp"}
-    </a>
+    </BotaoExterno>
   );
 }
 

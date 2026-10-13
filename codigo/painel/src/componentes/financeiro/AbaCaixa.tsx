@@ -8,7 +8,7 @@ import { Botao, Cartao, Responsavel, SUPERFICIE, Vazio } from "../ui/Basicos";
 import { CLASSE_LINHA, Td, Th } from "../ui/Tabela";
 import { Retorno } from "../gestao/Comuns";
 import { centavosParaCampo, dataComSemana } from "../gestao/formato";
-import { Area, EntradaComAfixo, Rotulado, CLASSE_ENTRADA } from "./Campos";
+import { AreaTexto, CLASSE_ENTRADA, CampoComAfixo, Rotulado } from "../ui/Campos";
 import { horaDoMarco } from "./formato";
 
 /** Fechamento de caixa do dia (só dinheiro em espécie) + fechamentos recentes. */
@@ -191,7 +191,7 @@ function FormFechamento({
         rotulo="Saldo inicial da gaveta"
         dica={anterior ? `Sugerido: o contado no fechamento de ${dataComSemana(anterior.data)}.` : "Nenhum fechamento anterior: comece pelo troco deixado na gaveta."}
       >
-        <EntradaComAfixo inputMode="decimal" autoComplete="off" prefixo="R$" value={inicial} onChange={(e) => setInicial(e.target.value)} disabled={!podeFechar} />
+        <CampoComAfixo inputMode="decimal" autoComplete="off" prefixo="R$" value={inicial} onChange={(e) => setInicial(e.target.value)} disabled={!podeFechar} />
       </Rotulado>
 
       <dl className="m-0 flex flex-col">
@@ -225,7 +225,7 @@ function FormFechamento({
       {podeFechar ? (
         <>
           <Rotulado rotulo="Contado na gaveta">
-            <EntradaComAfixo inputMode="decimal" autoComplete="off" prefixo="R$" value={contado} onChange={(e) => setContado(e.target.value)} placeholder="0,00" className="text-[16px]" />
+            <CampoComAfixo inputMode="decimal" autoComplete="off" prefixo="R$" value={contado} onChange={(e) => setContado(e.target.value)} placeholder="0,00" className="text-[16px]" />
           </Rotulado>
 
           <div
@@ -239,7 +239,7 @@ function FormFechamento({
           </div>
 
           <Rotulado rotulo="Observação" opcional dica={contadoC !== null && calc.diferenca !== 0 ? "Explique a diferença (ex.: troco errado)." : undefined}>
-            <Area value={obs} onChange={(e) => setObs(e.target.value)} rows={2} />
+            <AreaTexto value={obs} onChange={(e) => setObs(e.target.value)} rows={2} />
           </Rotulado>
 
           <div className="flex flex-col gap-2">

@@ -3,11 +3,9 @@ import type { Id, Veiculo } from "@compartilhado/tipos";
 import { normalizarPlaca, placaValida } from "@compartilhado/dominio/placa";
 import { mensagemErro, useAcoes } from "../../dados/hooks";
 import { ERRO } from "../../dominio/rotulos";
-import { Botao } from "../ui/Basicos";
 import { Placa } from "../ui/Placa";
-import { Icone } from "../Icone";
-import { CLASSE_CAMPO, Campo, SecaoForm } from "./Campos";
-import { Gaveta } from "./Gaveta";
+import { CLASSE_CAMPO, Grupo, SecaoForm } from "../ui/Campos";
+import { Gaveta } from "../ui/Gaveta";
 import { descrito } from "./formato";
 
 type Erros = Partial<Record<"placa" | "ano", string>>;
@@ -63,25 +61,13 @@ export function FormVeiculo({ clienteId, veiculo, onFechar }: { clienteId: Id; v
       descricao={veiculo ? undefined : "O veículo fica ligado a este cliente."}
       onFechar={onFechar}
       onEnviar={salvar}
-      rodape={
-        <>
-          <Botao variante="contorno" onClick={onFechar}>
-            Cancelar
-          </Botao>
-          <Botao type="submit" variante="primario" disabled={enviando} className="min-w-[148px]">
-            {enviando ? "Salvando…" : veiculo ? "Salvar alterações" : "Adicionar veículo"}
-          </Botao>
-        </>
-      }
+      acao={veiculo ? "Salvar alterações" : "Adicionar veículo"}
+      enviando={enviando}
+      erro={erroGeral || undefined}
+      corpoClassName=""
     >
-      {erroGeral && (
-        <p role="alert" className="mb-5 flex items-start gap-2 px-3 py-2.5 rounded-controle bg-alerta-claro text-alerta text-[13px] font-medium">
-          <Icone nome="alerta" tamanho={16} className="mt-0.5 shrink-0" />
-          {erroGeral}
-        </p>
-      )}
       <SecaoForm titulo="Veículo">
-        <Campo id="vei-placa" rotulo="Placa" erro={erros.placa} dica="7 caracteres, Mercosul ou antiga.">
+        <Grupo id="vei-placa" rotulo="Placa" erro={erros.placa} dica="7 caracteres, Mercosul ou antiga.">
           <div className="flex items-center gap-4">
             <input
               id="vei-placa"
@@ -104,18 +90,18 @@ export function FormVeiculo({ clienteId, veiculo, onFechar }: { clienteId: Id; v
               <Placa placa={placaNorm || "ABC1D23"} tamanho="m" />
             </span>
           </div>
-        </Campo>
+        </Grupo>
         <div className="grid gap-4 grid-cols-2">
-          <Campo id="vei-marca" rotulo="Marca" opcional>
+          <Grupo id="vei-marca" rotulo="Marca" opcional>
             <input id="vei-marca" value={marca} onChange={(e) => setMarca(e.target.value)} placeholder="Ex.: Jeep" autoComplete="off" className={CLASSE_CAMPO} />
-          </Campo>
-          <Campo id="vei-modelo" rotulo="Modelo" opcional>
+          </Grupo>
+          <Grupo id="vei-modelo" rotulo="Modelo" opcional>
             <input id="vei-modelo" value={modelo} onChange={(e) => setModelo(e.target.value)} placeholder="Ex.: Compass" autoComplete="off" className={CLASSE_CAMPO} />
-          </Campo>
-          <Campo id="vei-cor" rotulo="Cor" opcional>
+          </Grupo>
+          <Grupo id="vei-cor" rotulo="Cor" opcional>
             <input id="vei-cor" value={cor} onChange={(e) => setCor(e.target.value)} placeholder="Ex.: Branco" autoComplete="off" className={CLASSE_CAMPO} />
-          </Campo>
-          <Campo id="vei-ano" rotulo="Ano" opcional erro={erros.ano}>
+          </Grupo>
+          <Grupo id="vei-ano" rotulo="Ano" opcional erro={erros.ano}>
             <input
               id="vei-ano"
               inputMode="numeric"
@@ -130,7 +116,7 @@ export function FormVeiculo({ clienteId, veiculo, onFechar }: { clienteId: Id; v
               aria-describedby={descrito("vei-ano", erros.ano)}
               className={`${CLASSE_CAMPO} numero`}
             />
-          </Campo>
+          </Grupo>
         </div>
       </SecaoForm>
     </Gaveta>

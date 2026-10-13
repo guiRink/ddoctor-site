@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, MouseEvent, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Icone, type NomeIcone } from "../Icone";
 
@@ -82,6 +82,50 @@ export function BotaoLink({
   );
 }
 
+/** Link externo (<a>: WhatsApp, quadro da TV) com o mesmo desenho do `Botao`. `novaAba` abre em outra aba. */
+export function BotaoExterno({
+  href,
+  variante = "contorno",
+  tamanho = "padrao",
+  icone,
+  classeIcone = "",
+  novaAba = true,
+  rotulo,
+  titulo,
+  className = "",
+  onClick,
+  children,
+}: {
+  href: string;
+  variante?: Variante;
+  tamanho?: TamanhoBotao;
+  icone?: NomeIcone;
+  /** Cor do ícone (ex.: `text-ok` no WhatsApp). */
+  classeIcone?: string;
+  novaAba?: boolean;
+  rotulo?: string;
+  titulo?: string;
+  className?: string;
+  onClick?: (e: MouseEvent<HTMLAnchorElement>) => void;
+  children?: ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      target={novaAba ? "_blank" : undefined}
+      rel={novaAba ? "noreferrer" : undefined}
+      aria-label={rotulo}
+      title={titulo}
+      onClick={onClick}
+      className={`${BASE_BOTAO} ${VARIANTE[variante]} ${icone && !temConteudo(children) ? QUADRADO[tamanho] : TAMANHO[tamanho]} no-underline ${className}`}
+    >
+      {icone && <Icone nome={icone} tamanho={TAMANHO_ICONE[tamanho]} className={`shrink-0 ${classeIcone}`} />}
+      {children}
+      {novaAba && temConteudo(children) && <span className="sr-only"> (abre em nova aba)</span>}
+    </a>
+  );
+}
+
 // ------------------------------------------------------------------ estrutura
 
 /** Cabeçalho de página: título 24/650 sentence case, resumo 14 cinza, ações à direita. */
@@ -118,12 +162,14 @@ export function Cartao({
   return (
     <section className={`${SUPERFICIE} overflow-hidden min-w-0 ${className}`}>
       {(titulo || acao) && (
-        <header className="flex items-center justify-between gap-3 px-4 h-12 border-b border-linha">
-          <h2 className="text-[14px] font-semibold flex items-baseline gap-2 min-w-0">
-            <span className="truncate">{titulo}</span>
-            {contagem !== undefined && <span className="numero text-[13px] text-tinta-fraca font-medium">{contagem}</span>}
+        <header className="flex items-center justify-between gap-3 px-4 min-h-12 py-2 border-b border-linha">
+          <h2 className="text-[14px] font-semibold leading-snug min-w-0">
+            <span className="line-clamp-2">
+              {titulo}
+              {contagem !== undefined && <span className="numero ml-2 text-[13px] text-tinta-fraca font-medium">{contagem}</span>}
+            </span>
           </h2>
-          {acao}
+          {acao && <div className="shrink-0 flex items-center gap-1 whitespace-nowrap">{acao}</div>}
         </header>
       )}
       <div className={corpoClassName}>{children}</div>
@@ -139,6 +185,16 @@ export function Campo({ nome, children }: { nome: string; children: ReactNode })
       <dd className="m-0 text-[14px] break-words min-w-0">{children ?? <span className="text-tinta-fraca">—</span>}</dd>
     </div>
   );
+}
+
+/**
+ * Pílula de contagem ao lado de um título de seção ou coluna (fora de cartão): `rounded-full` 20 px,
+ * 12/500 tabular. `neutro` cinza-200 + tinta; `alerta` quando o número pede ação; `ok` para prontos.
+ * Dentro do cabeçalho de `Cartao` e nas abas a contagem é só o número em `tinta-fraca`, sem pílula.
+ */
+export function Contagem({ n, tom = "neutro" }: { n: number; tom?: "neutro" | "alerta" | "ok" }) {
+  const cor = { neutro: "bg-cinza-200 text-tinta", alerta: "bg-alerta-claro text-alerta", ok: "bg-ok-claro text-ok" }[tom];
+  return <span className={`inline-grid place-items-center shrink-0 min-w-6 h-5 px-1.5 rounded-full text-[12px] font-medium leading-none tracking-normal numero ${cor}`}>{n}</span>;
 }
 
 // ------------------------------------------------------------------ números (KPI)
@@ -174,14 +230,14 @@ export function Indicador({
   const corpo = (
     <>
       <dt className="text-[13px] font-medium text-tinta-suave">{rotulo}</dt>
-      <dd className={`m-0 mt-1 text-[28px] font-semibold leading-none tracking-[-0.01em] numero ${alerta ? "text-alerta" : "text-tinta"}`}>{valor}</dd>
+      <dd className={`m-0 mt-1 text-[24px] md:text-[28px] font-semibold leading-none tracking-[-0.02em] md:tracking-[-0.01em] numero ${alerta ? "text-alerta" : "text-tinta"}`}>{valor}</dd>
       {detalhe && <dd className="m-0 mt-1.5 text-[12px] text-tinta-suave numero">{detalhe}</dd>}
     </>
   );
-  if (!para) return <div className="px-4 py-3.5 min-w-0">{corpo}</div>;
+  if (!para) return <div className="px-3 md:px-4 py-3.5 min-w-0">{corpo}</div>;
   // dl só aceita div/dt/dd: o link cobre a célula por cima (alvo inteiro clicável).
   return (
-    <div className="relative px-4 py-3.5 min-w-0 hover:bg-cinza-50 transition-colors duration-150">
+    <div className="relative px-3 md:px-4 py-3.5 min-w-0 hover:bg-cinza-50 transition-colors duration-150">
       {corpo}
       <Link to={para} className="absolute inset-0 focus-visible:outline-offset-[-2px]">
         <span className="sr-only">Abrir a lista: {rotulo}</span>

@@ -5,8 +5,8 @@ import { mensagemErro, useAcoes } from "../../dados/hooks";
 import { FORMA_PAGAMENTO } from "../../dominio/rotulos";
 import { centavosParaCampo, dataComSemana } from "../gestao/formato";
 import { Etiqueta } from "../ui/Estado";
-import { Gaveta } from "./Gaveta";
-import { EntradaComAfixo, LinhaPrevia, Previa, Rotulado, CLASSE_ENTRADA } from "./Campos";
+import { Gaveta } from "../ui/Gaveta";
+import { CLASSE_ENTRADA, CampoComAfixo, LinhaPrevia, OpcoesEmGrade, Previa, Rotulado } from "../ui/Campos";
 import { FORMAS_DESPESA, SITUACAO_DESPESA, prazoDespesa, situacaoDespesa } from "./modelo";
 
 /** Baixa de uma despesa: valor pago, data e forma (dinheiro entra no caixa do dia). */
@@ -51,30 +51,22 @@ export function FormPagar({ despesa: d, hoje, onFechar, onFeito }: { despesa: De
 
       <div className="grid grid-cols-2 gap-3">
         <Rotulado rotulo="Valor pago">
-          <EntradaComAfixo inputMode="decimal" autoComplete="off" prefixo="R$" value={valor} onChange={(e) => setValor(e.target.value)} />
+          <CampoComAfixo inputMode="decimal" autoComplete="off" prefixo="R$" value={valor} onChange={(e) => setValor(e.target.value)} />
         </Rotulado>
         <Rotulado rotulo="Pago em">
           <input type="date" value={data} max={hoje} onChange={(e) => setData(e.target.value)} className={`${CLASSE_ENTRADA} numero`} />
         </Rotulado>
       </div>
 
-      <fieldset className="border-0 p-0 m-0 min-w-0">
-        <legend className="text-[13px] font-medium text-tinta-suave mb-1.5">Forma de pagamento</legend>
-        <div className="grid grid-cols-2 gap-2">
-          {FORMAS_DESPESA.map((f) => (
-            <label
-              key={f}
-              className={`flex items-center gap-2.5 h-11 md:h-10 px-3 rounded-controle border cursor-pointer transition-colors duration-150 ${
-                forma === f ? "border-tinta bg-cinza-50" : "border-linha-forte hover:border-tinta-fraca"
-              }`}
-            >
-              <input type="radio" name="forma-pagar" value={f} checked={forma === f} onChange={() => setForma(f)} />
-              <span className="text-[14px] font-medium">{FORMA_PAGAMENTO[f]}</span>
-            </label>
-          ))}
-        </div>
-        {forma === "dinheiro" && <p className="mt-2 text-[12px] text-tinta-fraca">Pagamento em dinheiro entra como saída no fechamento de caixa do dia.</p>}
-      </fieldset>
+      <OpcoesEmGrade
+        nome="forma-pagar"
+        legenda="Forma de pagamento"
+        opcoes={FORMAS_DESPESA.map((f) => ({ valor: f, texto: FORMA_PAGAMENTO[f] }))}
+        valor={forma}
+        onMudar={setForma}
+      >
+        {forma === "dinheiro" && <p className="mt-2 text-[12px] text-tinta-suave">Pagamento em dinheiro entra como saída no fechamento de caixa do dia.</p>}
+      </OpcoesEmGrade>
     </Gaveta>
   );
 }

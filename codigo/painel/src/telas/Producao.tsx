@@ -3,8 +3,7 @@ import { useHref, useSearchParams } from "react-router-dom";
 import { useAgora, useConfig, useOSs, usePerfis } from "../dados/hooks";
 import { useSessao } from "../dados/sessao";
 import { podeEditar, podeVer } from "../dominio/permissoes";
-import { Botao, BotaoLink, CabecalhoPagina, Erro, SUPERFICIE, Vazio } from "../componentes/ui/Basicos";
-import { Icone } from "../componentes/Icone";
+import { Botao, BotaoExterno, BotaoLink, CabecalhoPagina, Contagem, Erro, SUPERFICIE, Vazio } from "../componentes/ui/Basicos";
 import { GrupoFiltros } from "../componentes/ui/Filtros";
 import { CartaoQuadro } from "../componentes/producao/CartaoQuadro";
 import { PainelOS } from "../componentes/producao/PainelOS";
@@ -89,16 +88,9 @@ export function Producao() {
         resumo={resumo}
         acoes={
           podeVer(perfil.papel, "tv") && (
-            <a
-              href={hrefTV}
-              target="_blank"
-              rel="noopener"
-              className="hidden md:inline-flex items-center justify-center gap-2 h-10 px-4 rounded-controle text-[14px] font-semibold whitespace-nowrap no-underline bg-cartao text-tinta border border-linha-forte shadow-controle hover:bg-cinza-50 hover:border-tinta-fraca transition-colors duration-150"
-            >
-              <Icone nome="tv" tamanho={18} />
+            <BotaoExterno href={hrefTV} icone="tv" className="max-md:hidden">
               Abrir quadro da TV
-              <span className="sr-only">(abre em nova aba)</span>
-            </a>
+            </BotaoExterno>
           )
         }
       />
@@ -135,7 +127,6 @@ export function Producao() {
               </option>
             ))}
           </select>
-          <Icone nome="baixo" tamanho={16} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-tinta-suave" />
           </span>
         </label>
         {(filtro !== "todos" || responsavel) && (
@@ -205,11 +196,7 @@ export function Producao() {
                   <h2 className="flex items-center gap-2 min-w-0 text-[15px] font-semibold">
                     {pronto && <span aria-hidden="true" className="w-2 h-2 rounded-full bg-ok shrink-0" />}
                     <span className="truncate">{c.nome}</span>
-                    <span
-                      className={`inline-grid place-items-center min-w-6 h-5 px-1.5 rounded-full text-[12px] font-medium numero ${pronto ? "bg-ok-claro text-ok" : "bg-cinza-200 text-tinta"}`}
-                    >
-                      {c.itens.length}
-                    </span>
+                    <Contagem n={c.itens.length} tom={pronto ? "ok" : "neutro"} />
                   </h2>
                   {!pronto && partes.length > 0 && <span className="text-[12px] text-tinta-fraca numero whitespace-nowrap">{partes.join(" · ")}</span>}
                 </header>

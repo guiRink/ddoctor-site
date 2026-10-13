@@ -1,7 +1,7 @@
 import { useId } from "react";
 import { NIVEIS_COMBUSTIVEL, type NivelCombustivel, type RecepcaoVeiculo } from "@compartilhado/tipos";
 import { NIVEL_COMBUSTIVEL } from "../../dominio/rotulos";
-import { AreaTexto, CampoComAfixo, Grupo } from "../os/Campos";
+import { AreaTexto, CampoComAfixo, Grupo } from "../ui/Campos";
 import { descritoPor, milhar } from "../os/formato";
 
 /** Campos de texto e número da recepção (o checklist e as avarias têm componentes próprios). */

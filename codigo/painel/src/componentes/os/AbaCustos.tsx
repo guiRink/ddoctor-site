@@ -13,7 +13,7 @@ import { CLASSE_LINHA, CLASSE_TH } from "../ui/Tabela";
 import { nomePerfil } from "../ui/Carro";
 import { Icone } from "../Icone";
 import { dataCurta } from "../orcamentos/formato";
-import { Aviso, CLASSE_CAMPO, CampoComAfixo, Grupo, Segmentado, Selecao } from "./Campos";
+import { Aviso, CLASSE_CAMPO, CampoComAfixo, Grupo, Segmentado, Selecao } from "../ui/Campos";
 import { descritoPor, lerDecimal, qtd } from "./formato";
 
 /**
@@ -419,7 +419,7 @@ function FormMaoDeObra({ osId, equipe }: { osId: string; equipe: Perfil[] }) {
         </Grupo>
       </div>
       <div className="grid gap-3 md:grid-cols-[auto_minmax(0,160px)_minmax(0,180px)_1fr] items-start">
-        <Segmentado nome={`${id}-modo`} rotulo="Cobrança" valor={modo} onMudar={setModo} opcoes={MODOS.map((m) => ({ valor: m.valor, texto: m.texto }))} />
+        <Segmentado nome={`${id}-modo`} legenda="Cobrança" valor={modo} onMudar={setModo} opcoes={MODOS.map((m) => ({ valor: m.valor, texto: m.texto }))} />
         {modo !== "fixo" ? (
           <Grupo id={`${id}-t`} rotulo="Tempo" erro={erros.tempo} dica={!erros.tempo && minutos ? formatarDuracao(minutos) : "h:mm ou minutos"}>
             <input
@@ -504,7 +504,7 @@ function FormTerceiro({ osId }: { osId: string }) {
     <Faixa onSubmit={enviar} aviso={aviso}>
       <Segmentado
         nome={`${id}-tipo`}
-        rotulo="Tipo"
+        legenda="Tipo"
         valor={tipo}
         onMudar={setTipo}
         opcoes={[
@@ -716,7 +716,14 @@ function ListaCustos({
               <p className="font-medium break-words">{c.descricao}</p>
               <p className="text-[12px] text-tinta-suave numero">
                 {quando(c)} · {nomePerfil(perfis, c.perfilId) ?? (c.fornecedor || TIPO_CUSTO_OS[c.tipo])}
-                {c.tipo === "insumo" && ` · ${qtd(c.quantidade)} ${c.unidade ?? ""} × ${formatarReais(c.custoUnitario)}`}
+                {c.tipo === "insumo" && (
+                  <>
+                    {" · "}
+                    <span className="whitespace-nowrap">
+                      {qtd(c.quantidade)} {c.unidade ?? ""} × {formatarReais(c.custoUnitario)}
+                    </span>
+                  </>
+                )}
                 {c.tipo === "mao_de_obra" && c.minutos ? ` · ${formatarDuracao(c.minutos)}` : ""}
               </p>
             </div>

@@ -3,8 +3,8 @@ import type { Fornecedor, Id, Material } from "@compartilhado/tipos";
 import { custoMedioPonderado } from "@compartilhado/dominio/estoque";
 import { formatarReais, reaisParaCentavos } from "@compartilhado/dominio/dinheiro";
 import { mensagemErro, useAcoes } from "../../dados/hooks";
-import { Gaveta } from "../financeiro/Gaveta";
-import { Area, EntradaComAfixo, LinhaPrevia, Previa, Rotulado, Selecao, CLASSE_ENTRADA } from "../financeiro/Campos";
+import { Gaveta } from "../ui/Gaveta";
+import { AreaTexto, CLASSE_ENTRADA, CampoComAfixo, LinhaPrevia, Previa, Rotulado, Selecao } from "../ui/Campos";
 import { formatarQtd, lerQuantidade, marcoDoDia } from "../financeiro/formato";
 import { centavosParaCampo } from "../gestao/formato";
 import { OpcoesMateriais } from "./OpcoesMateriais";
@@ -95,7 +95,7 @@ export function FormEntrada({
 
       <div className="grid grid-cols-2 gap-3">
         <Rotulado rotulo="Quantidade">
-          <EntradaComAfixo
+          <CampoComAfixo
             inputMode="decimal"
             autoComplete="off"
             value={quantidade}
@@ -105,7 +105,7 @@ export function FormEntrada({
           />
         </Rotulado>
         <Rotulado rotulo="Custo unitário">
-          <EntradaComAfixo inputMode="decimal" autoComplete="off" prefixo="R$" value={custo} onChange={(e) => setCusto(e.target.value)} placeholder="0,00" />
+          <CampoComAfixo inputMode="decimal" autoComplete="off" prefixo="R$" value={custo} onChange={(e) => setCusto(e.target.value)} placeholder="0,00" />
         </Rotulado>
       </div>
 
@@ -126,7 +126,7 @@ export function FormEntrada({
       </div>
 
       <Rotulado rotulo="Observação" opcional dica="Ex.: número da nota fiscal.">
-        <Area value={obs} onChange={(e) => setObs(e.target.value)} rows={2} />
+        <AreaTexto value={obs} onChange={(e) => setObs(e.target.value)} rows={2} />
       </Rotulado>
 
       {material && (

@@ -11,8 +11,8 @@ import { GrupoFiltros } from "../ui/Filtros";
 import { Linha, Tabela, Td, Th } from "../ui/Tabela";
 import { PlacaOS } from "../gestao/Comuns";
 import { dataCurta } from "../gestao/formato";
-import { BarraFerramentas } from "../financeiro/Abas";
-import { Busca, FiltroSelecao } from "../financeiro/Campos";
+import { BarraFerramentas } from "../ui/Abas";
+import { Busca, FiltroSelecao } from "../ui/Campos";
 import { formatarQtd, horaDoMarco } from "../financeiro/formato";
 import { TOM_MOVIMENTO, combinaMaterial, movimentosNoPeriodo, quantidadeComSinal } from "./modelo";
 

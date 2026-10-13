@@ -4,8 +4,8 @@ import { formatarDocumento } from "@compartilhado/dominio/documento";
 import { Botao, SUPERFICIE, Vazio } from "../ui/Basicos";
 import { Linha, Tabela, Td, Th } from "../ui/Tabela";
 import { telefoneBR } from "../agenda/formato";
-import { BarraFerramentas } from "../financeiro/Abas";
-import { AcaoTexto, Busca } from "../financeiro/Campos";
+import { BarraFerramentas } from "../ui/Abas";
+import { AcaoTexto, Busca } from "../ui/Campos";
 
 const semAcento = (t: string) => t.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 

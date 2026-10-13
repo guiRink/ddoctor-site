@@ -30,6 +30,7 @@ import { Botao, BotaoLink, Campo, Cartao, Erro, Esqueleto, Responsavel, Vazio } 
 import { ProgressoEtapas, nomePerfil } from "../componentes/ui/Carro";
 import { Etiqueta, Provisorio, Semaforo } from "../componentes/ui/Estado";
 import { Placa } from "../componentes/ui/Placa";
+import { BarraAbas, ContagemAba, classeAba } from "../componentes/ui/Abas";
 import { CLASSE_TH } from "../componentes/ui/Tabela";
 import { Icone } from "../componentes/Icone";
 import { LinhaVazia, VerTudo } from "../componentes/orcamentos/Blocos";
@@ -205,8 +206,7 @@ export function FichaOS() {
       </header>
 
       {/* ---------------- abas */}
-      <nav aria-label="Seções da OS" className="-mx-4 md:mx-0 px-4 md:px-0 overflow-x-auto border-b border-linha mb-6">
-        <ul className="flex gap-0.5 min-w-max">
+      <BarraAbas rotulo="Seções da OS" chave={aba}>
           {abas.map((a) => {
             const ativa = a === aba;
             const contagem = a === "custos" ? v.custos.length : undefined;
@@ -216,23 +216,20 @@ export function FichaOS() {
                   type="button"
                   onClick={() => irPara(a)}
                   aria-current={ativa ? "page" : undefined}
-                  className={`flex items-center gap-2 h-11 px-3 text-[14px] whitespace-nowrap border-b-2 transition-colors duration-150 ${
-                    ativa ? "border-amarelo font-semibold text-tinta" : "border-transparent font-medium text-tinta-suave hover:text-tinta hover:border-linha-forte"
-                  }`}
+                  className={classeAba(ativa)}
                 >
                   {NOMES_ABA[a]}
                   {a === "recepcao" && !v.os.recepcao && v.os.estado === "na_oficina" && (
                     <span className="inline-block w-1.5 h-1.5 rounded-full bg-atencao" aria-label="(pendente)" />
                   )}
                   {contagem !== undefined && contagem > 0 && (
-                    <span className={`numero text-[12px] font-medium ${ativa ? "text-tinta-suave" : "text-tinta-fraca"}`}>{contagem}</span>
+                    <ContagemAba n={contagem} ativa={ativa} />
                   )}
                 </button>
               </li>
             );
           })}
-        </ul>
-      </nav>
+      </BarraAbas>
 
       {aba === "recepcao" && <AbaRecepcao key={v.os.id} v={v} config={config.data} perfis={perfis.data} tipos={tipos.data} podeAgir={podeAgir} />}
       {aba === "custos" && custos && <AbaCustos v={v} perfis={perfis.data} podeLancar={custos} />}

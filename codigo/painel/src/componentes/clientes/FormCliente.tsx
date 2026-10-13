@@ -6,10 +6,9 @@ import { normalizarCEP, normalizarDocumento, tipoPorDocumento, validarDocumento 
 import { mensagemErro, useAcoes, useClientes } from "../../dados/hooks";
 import type { ClienteEntrada } from "../../dados/repositorio";
 import { ERRO } from "../../dominio/rotulos";
-import { Botao } from "../ui/Basicos";
 import { Icone } from "../Icone";
-import { CLASSE_AREA, CLASSE_CAMPO, Campo, Marcador, MensagemErro, SecaoForm, Segmentado } from "./Campos";
-import { Gaveta } from "./Gaveta";
+import { CLASSE_AREA, CLASSE_CAMPO, Grupo, Marcador, MensagemErro, SecaoForm, Segmentado } from "../ui/Campos";
+import { Gaveta } from "../ui/Gaveta";
 import { descrito, formatarTelefone, mascaraCEP, mascaraDocumento, mascaraTelefone, telefoneCompleto } from "./formato";
 
 type Erros = Partial<Record<"nome" | "documento" | "telefone" | "whatsapp" | "email" | "cep" | "endereco", string>>;
@@ -165,26 +164,15 @@ export function FormCliente({ cliente, onFechar, onSalvo }: { cliente?: Cliente;
       descricao={editando ? cliente?.nome : "Só o nome é obrigatório. O resto pode vir depois."}
       onFechar={onFechar}
       onEnviar={salvar}
-      rodape={
-        <>
-          <Botao variante="contorno" onClick={onFechar}>
-            Cancelar
-          </Botao>
-          <Botao type="submit" variante="primario" disabled={enviando} className="min-w-[148px]">
-            {enviando ? "Salvando…" : editando ? "Salvar alterações" : "Cadastrar cliente"}
-          </Botao>
-        </>
-      }
+      acao={editando ? "Salvar alterações" : "Cadastrar cliente"}
+      enviando={enviando}
+      erro={erroGeral || undefined}
+      corpoClassName=""
     >
-      {erroGeral && (
-        <p role="alert" className="mb-5 flex items-start gap-2 px-3 py-2.5 rounded-controle bg-alerta-claro text-alerta text-[13px] font-medium">
-          <Icone nome="alerta" tamanho={16} className="mt-0.5 shrink-0" />
-          {erroGeral}
-        </p>
-      )}
 
       <SecaoForm titulo="Identificação">
         <Segmentado
+          larguraTotal
           nome="tipo-pessoa"
           legenda="Tipo de cliente"
           ocultarLegenda
@@ -199,7 +187,7 @@ export function FormCliente({ cliente, onFechar, onSalvo }: { cliente?: Cliente;
             limpar("documento");
           }}
         />
-        <Campo id="cli-nome" rotulo={tipo === "pj" ? "Razão social" : "Nome completo"} erro={erros.nome}>
+        <Grupo id="cli-nome" rotulo={tipo === "pj" ? "Razão social" : "Nome completo"} erro={erros.nome}>
           <input
             id="cli-nome"
             data-foco-inicial
@@ -213,8 +201,8 @@ export function FormCliente({ cliente, onFechar, onSalvo }: { cliente?: Cliente;
             aria-describedby={descrito("cli-nome", erros.nome)}
             className={CLASSE_CAMPO}
           />
-        </Campo>
-        <Campo
+        </Grupo>
+        <Grupo
           id="cli-documento"
           rotulo={rotuloDoc}
           opcional
@@ -249,12 +237,12 @@ export function FormCliente({ cliente, onFechar, onSalvo }: { cliente?: Cliente;
               <Icone nome="seta" tamanho={14} />
             </Link>
           )}
-        </Campo>
+        </Grupo>
       </SecaoForm>
 
       <SecaoForm titulo="Contato">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Campo id="cli-telefone" rotulo="Telefone" opcional erro={erros.telefone}>
+          <Grupo id="cli-telefone" rotulo="Telefone" opcional erro={erros.telefone}>
             <input
               id="cli-telefone"
               type="tel"
@@ -271,8 +259,8 @@ export function FormCliente({ cliente, onFechar, onSalvo }: { cliente?: Cliente;
               aria-describedby={descrito("cli-telefone", erros.telefone)}
               className={`${CLASSE_CAMPO} numero`}
             />
-          </Campo>
-          <Campo
+          </Grupo>
+          <Grupo
             id="cli-whatsapp"
             rotulo="WhatsApp"
             erro={erros.whatsapp}
@@ -294,9 +282,9 @@ export function FormCliente({ cliente, onFechar, onSalvo }: { cliente?: Cliente;
               aria-describedby={descrito("cli-whatsapp", erros.whatsapp)}
               className={`${CLASSE_CAMPO} numero`}
             />
-          </Campo>
+          </Grupo>
         </div>
-        <Campo id="cli-email" rotulo="E-mail" opcional erro={erros.email}>
+        <Grupo id="cli-email" rotulo="E-mail" opcional erro={erros.email}>
           <input
             id="cli-email"
             type="email"
@@ -312,7 +300,7 @@ export function FormCliente({ cliente, onFechar, onSalvo }: { cliente?: Cliente;
             aria-describedby={descrito("cli-email", erros.email)}
             className={CLASSE_CAMPO}
           />
-        </Campo>
+        </Grupo>
       </SecaoForm>
 
       <SecaoForm titulo="Endereço" descricao="Opcional. Se preencher, informe ao menos CEP, rua e cidade.">
@@ -323,7 +311,7 @@ export function FormCliente({ cliente, onFechar, onSalvo }: { cliente?: Cliente;
           </div>
         )}
         <div className="grid gap-4 grid-cols-[112px_minmax(0,1fr)_76px] sm:grid-cols-[132px_minmax(0,1fr)_88px]">
-          <Campo id="cli-cep" rotulo="CEP">
+          <Grupo id="cli-cep" rotulo="CEP">
             <input
               id="cli-cep"
               inputMode="numeric"
@@ -340,11 +328,11 @@ export function FormCliente({ cliente, onFechar, onSalvo }: { cliente?: Cliente;
               aria-describedby={descrito("cli-cep", erros.cep)}
               className={`${CLASSE_CAMPO} numero`}
             />
-          </Campo>
-          <Campo id="cli-cidade" rotulo="Cidade">
+          </Grupo>
+          <Grupo id="cli-cidade" rotulo="Cidade">
             <input id="cli-cidade" value={cidade} onChange={(e) => { setCidade(e.target.value); limpar("endereco"); }} autoComplete="off" className={CLASSE_CAMPO} />
-          </Campo>
-          <Campo id="cli-uf" rotulo="UF">
+          </Grupo>
+          <Grupo id="cli-uf" rotulo="UF">
             <select id="cli-uf" value={uf} onChange={(e) => setUf(e.target.value)} className={`${CLASSE_CAMPO} px-2`}>
               <option value="">—</option>
               {UFS.map((u) => (
@@ -353,28 +341,28 @@ export function FormCliente({ cliente, onFechar, onSalvo }: { cliente?: Cliente;
                 </option>
               ))}
             </select>
-          </Campo>
+          </Grupo>
         </div>
         <div className="grid gap-4 grid-cols-[minmax(0,1fr)_88px]">
-          <Campo id="cli-logradouro" rotulo="Rua">
+          <Grupo id="cli-logradouro" rotulo="Rua">
             <input id="cli-logradouro" aria-describedby={erros.endereco ? "cli-endereco-erro" : undefined} value={logradouro} onChange={(e) => { setLogradouro(e.target.value); limpar("endereco"); }} autoComplete="off" className={CLASSE_CAMPO} />
-          </Campo>
-          <Campo id="cli-numero" rotulo="Número">
+          </Grupo>
+          <Grupo id="cli-numero" rotulo="Número">
             <input id="cli-numero" value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="s/n" autoComplete="off" className={`${CLASSE_CAMPO} numero`} />
-          </Campo>
+          </Grupo>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Campo id="cli-complemento" rotulo="Complemento" opcional>
+          <Grupo id="cli-complemento" rotulo="Complemento" opcional>
             <input id="cli-complemento" value={complemento} onChange={(e) => setComplemento(e.target.value)} placeholder="Apto, sala, bloco" autoComplete="off" className={CLASSE_CAMPO} />
-          </Campo>
-          <Campo id="cli-bairro" rotulo="Bairro">
+          </Grupo>
+          <Grupo id="cli-bairro" rotulo="Bairro">
             <input id="cli-bairro" value={bairro} onChange={(e) => setBairro(e.target.value)} autoComplete="off" className={CLASSE_CAMPO} />
-          </Campo>
+          </Grupo>
         </div>
       </SecaoForm>
 
       <SecaoForm titulo="Observações">
-        <Campo id="cli-obs" rotulo="Observações" ocultarRotulo>
+        <Grupo id="cli-obs" rotulo="Observações" ocultarRotulo>
           <textarea
             id="cli-obs"
             value={observacoes}
@@ -383,7 +371,7 @@ export function FormCliente({ cliente, onFechar, onSalvo }: { cliente?: Cliente;
             placeholder="Ex.: Prefere contato por WhatsApp à tarde."
             className={CLASSE_AREA}
           />
-        </Campo>
+        </Grupo>
       </SecaoForm>
     </Gaveta>
   );

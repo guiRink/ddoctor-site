@@ -9,7 +9,7 @@ import type { OSVisao } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
 import { veDadosSensiveis } from "../dominio/permissoes";
 import { JANELA, ORIGEM_OS, TIPO_PENDENCIA } from "../dominio/rotulos";
-import { BotaoLink, Cartao, Erro, Esqueleto, FaixaIndicadores, Indicador, Vazio } from "../componentes/ui/Basicos";
+import { BotaoLink, Cartao, Contagem, Erro, Esqueleto, FaixaIndicadores, Indicador, Vazio } from "../componentes/ui/Basicos";
 import { LinhaCarro, nomePerfil } from "../componentes/ui/Carro";
 import { Placa } from "../componentes/ui/Placa";
 import { Etiqueta, Provisorio, Semaforo } from "../componentes/ui/Estado";
@@ -225,13 +225,7 @@ function Coluna({
       <h2 className={`flex items-center gap-2 h-7 titulo ${destaque ? "text-[18px] text-tinta" : "text-[18px] text-tinta-suave"}`}>
         {titulo}
         {total !== undefined && (
-          <span
-            className={`inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-semibold numero tracking-normal ${
-              total > 0 && destaque ? "bg-alerta-claro text-alerta" : "bg-cinza-100 text-tinta-suave"
-            }`}
-          >
-            {total}
-          </span>
+          <Contagem n={total} tom={total > 0 && destaque ? "alerta" : "neutro"} />
         )}
       </h2>
       {children}
@@ -501,7 +495,7 @@ function ColunaDinheiro({ p, agora }: { p: PainelDoDia; agora: MarcoISO }) {
 function Total({ valor, para, alerta = false, nota }: { valor: number; para: string; alerta?: boolean; nota?: string }) {
   return (
     <Link to={para} className="block px-4 py-3.5 border-b border-linha last:border-b-0 no-underline text-tinta hover:bg-cinza-50 transition-colors duration-150">
-      <span className={`block text-[26px] font-semibold leading-none tracking-[-0.01em] numero whitespace-nowrap ${alerta ? "text-alerta" : ""}`}>{formatarReais(valor)}</span>
+      <span className={`block text-[24px] font-semibold leading-none tracking-[-0.01em] numero whitespace-nowrap ${alerta ? "text-alerta" : ""}`}>{formatarReais(valor)}</span>
       {nota && <span className="block mt-2 text-[12px] text-tinta-suave numero">{nota}</span>}
     </Link>
   );

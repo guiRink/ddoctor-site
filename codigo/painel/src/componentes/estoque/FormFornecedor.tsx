@@ -2,8 +2,8 @@ import { useState } from "react";
 import type { Fornecedor } from "@compartilhado/tipos";
 import { formatarDocumento } from "@compartilhado/dominio/documento";
 import { mensagemErro, useAcoes } from "../../dados/hooks";
-import { Gaveta } from "../financeiro/Gaveta";
-import { Area, Rotulado, CLASSE_ENTRADA } from "../financeiro/Campos";
+import { Gaveta } from "../ui/Gaveta";
+import { AreaTexto, CLASSE_ENTRADA, Rotulado } from "../ui/Campos";
 import { telefoneBR } from "../agenda/formato";
 
 /** Cadastro e edição de fornecedor (CNPJ/CPF validado no repositório). */
@@ -62,7 +62,7 @@ export function FormFornecedor({ fornecedor, onFechar, onFeito }: { fornecedor?:
         </Rotulado>
       </div>
       <Rotulado rotulo="Observação" opcional dica="Ex.: prazo de entrega, vendedor, condição de pagamento.">
-        <Area value={obs} onChange={(e) => setObs(e.target.value)} />
+        <AreaTexto value={obs} onChange={(e) => setObs(e.target.value)} />
       </Rotulado>
     </Gaveta>
   );

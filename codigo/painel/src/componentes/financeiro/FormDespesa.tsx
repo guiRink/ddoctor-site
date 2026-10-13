@@ -3,8 +3,8 @@ import type { CategoriaFinanceira, FormaPagamento, Fornecedor } from "@compartil
 import { formatarReais, reaisParaCentavos } from "@compartilhado/dominio/dinheiro";
 import { mensagemErro, useAcoes } from "../../dados/hooks";
 import { FORMA_PAGAMENTO } from "../../dominio/rotulos";
-import { Gaveta } from "./Gaveta";
-import { Area, EntradaComAfixo, Rotulado, Selecao, CLASSE_ENTRADA } from "./Campos";
+import { Gaveta } from "../ui/Gaveta";
+import { AreaTexto, CLASSE_ENTRADA, CampoComAfixo, Rotulado, Selecao } from "../ui/Campos";
 import { FORMAS_DESPESA } from "./modelo";
 
 /** Lançamento de despesa (a pagar ou já paga). Categorias vêm de Ajustes (tipo despesa, ativas). */
@@ -91,7 +91,7 @@ export function FormDespesa({
           </Selecao>
         </Rotulado>
         <Rotulado rotulo="Valor">
-          <EntradaComAfixo inputMode="decimal" autoComplete="off" prefixo="R$" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" />
+          <CampoComAfixo inputMode="decimal" autoComplete="off" prefixo="R$" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" />
         </Rotulado>
       </div>
 
@@ -134,7 +134,7 @@ export function FormDespesa({
       </section>
 
       <Rotulado rotulo="Observação" opcional>
-        <Area value={obs} onChange={(e) => setObs(e.target.value)} rows={2} />
+        <AreaTexto value={obs} onChange={(e) => setObs(e.target.value)} rows={2} />
       </Rotulado>
     </Gaveta>
   );

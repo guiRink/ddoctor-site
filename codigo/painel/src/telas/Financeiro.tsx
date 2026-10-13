@@ -18,10 +18,10 @@ import type { OSVisao } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
 import { podeEditar } from "../dominio/permissoes";
 import { Botao, CabecalhoPagina, Esqueleto, FaixaIndicadores, Indicador } from "../componentes/ui/Basicos";
-import { Icone } from "../componentes/Icone";
 import { EstadoConsultas } from "../componentes/gestao/Consultas";
 import { Retorno } from "../componentes/gestao/Comuns";
-import { Abas, PainelAba } from "../componentes/financeiro/Abas";
+import { Abas, PainelAba } from "../componentes/ui/Abas";
+import { SeletorPeriodo } from "../componentes/ui/Periodo";
 import { useParametro } from "../componentes/financeiro/useParametro";
 import { AbaResumo } from "../componentes/financeiro/AbaResumo";
 import { AbaDespesas } from "../componentes/financeiro/AbaDespesas";
@@ -134,7 +134,7 @@ function Conteudo({
           <>
             <SeletorMes mes={mes} mesAtual={mesAtual} onMudar={setMes} />
             {podePagar && (
-              <Botao tamanho="denso" variante="primario" icone="mais" onClick={() => setGaveta({ tipo: "nova" })}>
+              <Botao variante="primario" icone="mais" onClick={() => setGaveta({ tipo: "nova" })}>
                 Nova despesa
               </Botao>
             )}
@@ -145,25 +145,25 @@ function Conteudo({
       <FaixaIndicadores colunas={5} className="mb-6 max-md:[&>*:last-child:nth-child(odd)]:col-span-2 max-md:[&>*:last-child:nth-child(odd)]:border-r-0">
         <Indicador
           rotulo="Entradas"
-          valor={<span className="whitespace-nowrap max-md:text-[21px]">{formatarReais(resumo.entradas)}</span>}
+          valor={<span className="whitespace-nowrap">{formatarReais(resumo.entradas)}</span>}
           detalhe={`${entradas.length} ${entradas.length === 1 ? "recebimento" : "recebimentos"}`}
           para={para("entradas")}
         />
         <Indicador
           rotulo="Saídas"
-          valor={<span className="whitespace-nowrap max-md:text-[21px]">{formatarReais(resumo.saidas)}</span>}
+          valor={<span className="whitespace-nowrap">{formatarReais(resumo.saidas)}</span>}
           detalhe={`${pagasNoMes} ${pagasNoMes === 1 ? "despesa paga" : "despesas pagas"}`}
           para={para("despesas")}
         />
         <Indicador
           rotulo="Resultado"
-          valor={<span className="whitespace-nowrap max-md:text-[21px]">{formatarReais(resumo.resultado)}</span>}
+          valor={<span className="whitespace-nowrap">{formatarReais(resumo.resultado)}</span>}
           alerta={resumo.resultado < 0}
           detalhe="entradas − saídas"
         />
         <Indicador
           rotulo="A pagar em aberto"
-          valor={<span className="whitespace-nowrap max-md:text-[21px]">{formatarReais(resumo.aPagarEmAberto)}</span>}
+          valor={<span className="whitespace-nowrap">{formatarReais(resumo.aPagarEmAberto)}</span>}
           detalhe={
             mes === mesAtual && vencidas.length > 0 ? (
               <span className="text-alerta font-medium">
@@ -177,7 +177,7 @@ function Conteudo({
         />
         <Indicador
           rotulo="A receber em aberto"
-          valor={<span className="whitespace-nowrap max-md:text-[21px]">{formatarReais(resumo.aReceberEmAberto)}</span>}
+          valor={<span className="whitespace-nowrap">{formatarReais(resumo.aReceberEmAberto)}</span>}
           detalhe="títulos com vencimento no mês"
           para="/recebiveis"
         />
@@ -238,29 +238,17 @@ function Conteudo({
   );
 }
 
-/** Competência: ◀ outubro de 2026 ▶, com atalho para o mês atual. */
+/** Competência: ← outubro de 2026 →, com atalho para o mês atual. */
 function SeletorMes({ mes, mesAtual, onMudar }: { mes: string; mesAtual: string; onMudar: (m: string) => void }) {
-  const nome = nomeCompetencia(mes);
-  const botao =
-    "inline-grid place-items-center w-10 h-10 md:w-9 md:h-9 rounded-controle text-tinta-suave hover:text-tinta hover:bg-cinza-100 transition-colors duration-150 disabled:opacity-40 disabled:pointer-events-none";
   return (
-    <div role="group" aria-label="Competência" className="inline-flex items-center gap-1">
-      {mes !== mesAtual && (
-        <button type="button" onClick={() => onMudar(mesAtual)} className="h-10 md:h-9 px-2.5 rounded-controle text-[13px] font-medium text-tinta-suave hover:text-tinta hover:bg-cinza-100 transition-colors duration-150">
-          Mês atual
-        </button>
-      )}
-      <span className="inline-flex items-center bg-cartao border border-linha-forte rounded-controle shadow-controle p-0.5">
-        <button type="button" onClick={() => onMudar(somarMeses(mes, -1))} aria-label="Mês anterior" className={botao}>
-          <Icone nome="voltar" tamanho={16} />
-        </button>
-        <span className="min-w-[148px] px-2 text-center text-[14px] font-semibold first-letter:uppercase numero" aria-live="polite">
-          {nome}
-        </span>
-        <button type="button" onClick={() => onMudar(somarMeses(mes, 1))} aria-label="Próximo mês" className={botao}>
-          <Icone nome="seta" tamanho={16} />
-        </button>
-      </span>
-    </div>
+    <SeletorPeriodo
+      rotulo="Competência"
+      texto={nomeCompetencia(mes)}
+      onAnterior={() => onMudar(somarMeses(mes, -1))}
+      onProximo={() => onMudar(somarMeses(mes, 1))}
+      rotuloAnterior="Mês anterior"
+      rotuloProximo="Próximo mês"
+      atalho={mes !== mesAtual ? { texto: "Mês atual", onClick: () => onMudar(mesAtual) } : undefined}
+    />
   );
 }

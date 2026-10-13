@@ -13,7 +13,7 @@ import { kmLegivel } from "./formato";
 import { MapaAvarias } from "../recepcao/MapaAvarias";
 import { ReceberCarro } from "../recepcao/ReceberCarro";
 import { progressoChecklist } from "@compartilhado/dominio/recepcao";
-import { Aviso } from "./Campos";
+import { Aviso } from "../ui/Campos";
 
 type Edicao = null | "dados" | "checklist" | "avarias";
 

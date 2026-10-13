@@ -129,7 +129,7 @@ export function BarrasHorizontais({ itens, formatar, total }: { itens: ItemBarra
               <span className="block text-[14px] font-medium truncate">{i.rotulo}</span>
               {i.detalhe && <span className="block text-[12px] text-tinta-suave numero">{i.detalhe}</span>}
             </span>
-            <span className="col-span-2 row-start-2 @xl:col-span-1 @xl:row-start-auto h-2 rounded-full bg-cinza-100" aria-hidden="true">
+            <span className="col-span-2 row-start-2 @xl:col-span-1 @xl:row-start-auto h-1.5 rounded-full bg-cinza-100" aria-hidden="true">
               <span className="block h-full rounded-full bg-tinta-suave" style={{ width: `${largura}%` }} />
             </span>
             <span className="col-start-2 row-start-1 @xl:col-start-auto @xl:row-start-auto text-right whitespace-nowrap">

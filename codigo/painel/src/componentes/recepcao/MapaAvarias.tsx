@@ -11,7 +11,7 @@ import {
 import { validarAvaria } from "@compartilhado/dominio/recepcao";
 import { TAMANHO_AVARIA, TIPO_AVARIA, VISTA_AVARIA } from "../../dominio/rotulos";
 import { Icone } from "../Icone";
-import { Segmentado } from "../os/Campos";
+import { Segmentado } from "../ui/Campos";
 import { DesenhoCarro } from "./DesenhoCarro";
 
 /**
@@ -306,7 +306,7 @@ export function MapaAvarias({
       <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
         <Segmentado
           nome={`${id}-tipo`}
-          rotulo="Tipo"
+          legenda="Tipo"
           valor={tipo}
           onMudar={setTipo}
           opcoes={TIPOS_AVARIA.map((t) => ({
@@ -321,7 +321,7 @@ export function MapaAvarias({
         />
         <Segmentado
           nome={`${id}-tam`}
-          rotulo="Tamanho"
+          legenda="Tamanho"
           valor={tamanho}
           onMudar={setTamanho}
           opcoes={TAMANHOS_AVARIA.map((t) => ({ valor: t, texto: t.toUpperCase(), rotuloAcessivel: TAMANHO_AVARIA[t] }))}

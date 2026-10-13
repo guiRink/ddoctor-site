@@ -15,7 +15,7 @@ import { Placa } from "../componentes/ui/Placa";
 import { Icone } from "../componentes/Icone";
 import { BuscaCliente } from "../componentes/clientes/BuscaCliente";
 import { AvatarCliente, EtiquetaPJ } from "../componentes/clientes/Comuns";
-import { CLASSE_AREA, CLASSE_CAMPO, Campo, Marcador, MensagemErro, Segmentado } from "../componentes/clientes/Campos";
+import { CLASSE_AREA, CLASSE_CAMPO, Grupo, Marcador, MensagemErro, Segmentado } from "../componentes/ui/Campos";
 import { descrito, documentoExibicao, formatarTelefone, mascaraDocumento, mascaraTelefone, nomeVeiculo, tipoDoCliente } from "../componentes/clientes/formato";
 
 /**
@@ -289,6 +289,7 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
         {/* ---------------- atendimento */}
         <Secao titulo="Atendimento">
           <Segmentado
+            larguraTotal
             nome="origem"
             legenda="Origem"
             opcoes={ORIGENS.map((o) => ({ valor: o, texto: ORIGEM_OS[o] }))}
@@ -298,7 +299,7 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
           {externo && (
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-4 min-w-0">
-                <Campo id="seguradora" rotulo="Seguradora" erro={erros.seguradora}>
+                <Grupo id="seguradora" rotulo="Seguradora" erro={erros.seguradora}>
                   <select
                     id="seguradora"
                     value={seguradora}
@@ -319,9 +320,9 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
                     ))}
                     <option value={OUTRA}>Outra</option>
                   </select>
-                </Campo>
+                </Grupo>
                 {seguradora === OUTRA && (
-                  <Campo id="seguradoraOutra" rotulo="Nome da seguradora" erro={erros.seguradoraOutra}>
+                  <Grupo id="seguradoraOutra" rotulo="Nome da seguradora" erro={erros.seguradoraOutra}>
                     <input
                       id="seguradoraOutra"
                       value={seguradoraOutra}
@@ -334,10 +335,10 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
                       className={CLASSE_CAMPO}
                       autoComplete="off"
                     />
-                  </Campo>
+                  </Grupo>
                 )}
               </div>
-              <Campo id="protocolo" rotulo={origem === "maxpar" ? "Protocolo Maxpar" : "Protocolo ou nº do sinistro"} erro={erros.protocolo}>
+              <Grupo id="protocolo" rotulo={origem === "maxpar" ? "Protocolo Maxpar" : "Protocolo ou nº do sinistro"} erro={erros.protocolo}>
                 <input
                   id="protocolo"
                   value={protocolo}
@@ -351,7 +352,7 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
                   className={`${CLASSE_CAMPO} numero`}
                   autoComplete="off"
                 />
-              </Campo>
+              </Grupo>
             </div>
           )}
         </Secao>
@@ -383,7 +384,7 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
               </div>
             </div>
           )}
-          <Campo id="placa" rotulo="Placa" erro={erros.placa} dica={veiculoDaPlaca ? undefined : "7 caracteres, Mercosul ou antiga."}>
+          <Grupo id="placa" rotulo="Placa" erro={erros.placa} dica={veiculoDaPlaca ? undefined : "7 caracteres, Mercosul ou antiga."}>
             <div className="flex items-center gap-4">
               <input
                 id="placa"
@@ -410,7 +411,7 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
                 <Placa placa={placaNorm || "ABC1D23"} tamanho="m" />
               </span>
             </div>
-          </Campo>
+          </Grupo>
           {veiculoDaPlaca && (
             <AvisoPlaca
               veiculo={veiculoDaPlaca}
@@ -422,10 +423,10 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
             />
           )}
           <div className="grid gap-4 grid-cols-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)]">
-            <Campo id="marca" rotulo="Marca" opcional>
+            <Grupo id="marca" rotulo="Marca" opcional>
               <input id="marca" value={marca} onChange={(e) => setMarca(e.target.value)} placeholder="Ex.: Jeep" autoComplete="off" className={CLASSE_CAMPO} />
-            </Campo>
-            <Campo id="modelo" rotulo="Modelo" erro={erros.modelo}>
+            </Grupo>
+            <Grupo id="modelo" rotulo="Modelo" erro={erros.modelo}>
               <input
                 id="modelo"
                 value={modelo}
@@ -439,10 +440,10 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
                 autoComplete="off"
                 className={CLASSE_CAMPO}
               />
-            </Campo>
-            <Campo id="cor" rotulo="Cor" opcional className="col-span-2 sm:col-span-1">
+            </Grupo>
+            <Grupo id="cor" rotulo="Cor" opcional className="col-span-2 sm:col-span-1">
               <input id="cor" value={cor} onChange={(e) => setCor(e.target.value)} placeholder="Ex.: Branco" autoComplete="off" className={CLASSE_CAMPO} />
-            </Campo>
+            </Grupo>
           </div>
         </Secao>
 
@@ -450,7 +451,7 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
         {!escolhido && (
           <Secao titulo="Cliente" descricao="Cliente novo: o cadastro é criado junto com o atendimento.">
             <div className="grid gap-4 sm:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-              <Campo id="cliente" rotulo="Nome" erro={erros.cliente}>
+              <Grupo id="cliente" rotulo="Nome" erro={erros.cliente}>
                 <input
                   id="cliente"
                   value={cliente}
@@ -463,8 +464,8 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
                   autoComplete="off"
                   className={CLASSE_CAMPO}
                 />
-              </Campo>
-              <Campo id="telefone" rotulo="Telefone" erro={erros.telefone} opcional>
+              </Grupo>
+              <Grupo id="telefone" rotulo="Telefone" erro={erros.telefone} opcional>
                 <input
                   id="telefone"
                   type="tel"
@@ -480,7 +481,7 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
                   autoComplete="off"
                   className={`${CLASSE_CAMPO} numero`}
                 />
-              </Campo>
+              </Grupo>
             </div>
 
             <div className="border-t border-linha pt-3 -mb-1">
@@ -498,7 +499,7 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
             </div>
             {maisDados && (
               <div id="mais-dados-cliente" className="grid gap-4 sm:grid-cols-2">
-                <Campo id="documento" rotulo="CPF ou CNPJ" opcional erro={erros.documento} className="sm:col-span-2 sm:max-w-[calc(50%-0.5rem)]">
+                <Grupo id="documento" rotulo="CPF ou CNPJ" opcional erro={erros.documento} className="sm:col-span-2 sm:max-w-[calc(50%-0.5rem)]">
                   <input
                     id="documento"
                     value={documento}
@@ -516,8 +517,8 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
                     aria-describedby={descrito("documento", erros.documento)}
                     className={`${CLASSE_CAMPO} numero`}
                   />
-                </Campo>
-                <Campo
+                </Grupo>
+                <Grupo
                   id="whatsapp"
                   rotulo="WhatsApp"
                   erro={erros.whatsapp}
@@ -549,8 +550,8 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
                     aria-describedby={descrito("whatsapp", erros.whatsapp)}
                     className={`${CLASSE_CAMPO} numero`}
                   />
-                </Campo>
-                <Campo id="email" rotulo="E-mail" opcional erro={erros.email}>
+                </Grupo>
+                <Grupo id="email" rotulo="E-mail" opcional erro={erros.email}>
                   <input
                     id="email"
                     type="email"
@@ -566,7 +567,7 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
                     aria-describedby={descrito("email", erros.email)}
                     className={CLASSE_CAMPO}
                   />
-                </Campo>
+                </Grupo>
               </div>
             )}
           </Secao>
@@ -682,7 +683,7 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
 
         {/* ---------------- observações */}
         <Secao titulo="Observações">
-          <Campo id="observacoes" rotulo="Observações" opcional ocultarRotulo>
+          <Grupo id="observacoes" rotulo="Observações" opcional ocultarRotulo>
             <textarea
               id="observacoes"
               value={observacoes}
@@ -691,7 +692,7 @@ function Formulario({ clienteDoLink }: { clienteDoLink?: string }) {
               placeholder="Ex.: Cliente só pode trazer o carro à tarde."
               className={CLASSE_AREA}
             />
-          </Campo>
+          </Grupo>
         </Secao>
 
         {/* ---------------- rodapé de ações (fixo) */}

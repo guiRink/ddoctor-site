@@ -11,7 +11,7 @@ import { descritoPor, formaLegivel } from "./formato";
 import { Botao, Cartao, FaixaIndicadores, Indicador } from "../ui/Basicos";
 import { Etiqueta } from "../ui/Estado";
 import { dataCurta, diaCurto } from "../orcamentos/formato";
-import { AreaTexto, Aviso, CLASSE_CAMPO, CampoComAfixo, Grupo, Selecao } from "./Campos";
+import { AreaTexto, Aviso, CLASSE_CAMPO, CampoComAfixo, Grupo, OpcoesEmGrade, Selecao } from "../ui/Campos";
 
 /**
  * Aba Pagamentos (quem vê dinheiro: veDadosSensiveis — nunca produção nem TV): total, recebido e saldo
@@ -177,25 +177,14 @@ function FormPagamento({ v, hoje }: { v: OSVisao; hoje: string }) {
           </Grupo>
         </div>
 
-        <fieldset className="min-w-0">
-          <legend className="mb-1.5 text-[13px] font-medium text-tinta-suave">Forma de pagamento</legend>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {formas.map((f) => {
-              const ativo = f === forma;
-              return (
-                <label
-                  key={f}
-                  className={`flex items-center justify-center text-center h-11 md:h-10 px-2 rounded-controle border text-[13px] cursor-pointer transition-colors duration-150 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-amarelo-escuro has-[:focus-visible]:outline-offset-1 ${
-                    ativo ? "bg-cartao border-tinta text-tinta font-semibold ring-1 ring-tinta" : "bg-cartao border-linha-forte text-tinta-suave font-medium hover:text-tinta hover:bg-cinza-50"
-                  }`}
-                >
-                  <input type="radio" name={`${id}-forma`} value={f} checked={ativo} onChange={() => setForma(f)} className="sr-only" />
-                  {FORMA_PAGAMENTO[f]}
-                </label>
-              );
-            })}
-          </div>
-        </fieldset>
+        <OpcoesEmGrade
+          nome={`${id}-forma`}
+          legenda="Forma de pagamento"
+          colunas={3}
+          opcoes={formas.map((f) => ({ valor: f, texto: FORMA_PAGAMENTO[f] }))}
+          valor={forma}
+          onMudar={setForma}
+        />
 
         {forma === "credito" && (
           <Grupo id={`${id}-p`} rotulo="Parcelas" className="sm:max-w-[200px]">

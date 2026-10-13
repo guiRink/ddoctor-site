@@ -12,7 +12,7 @@ import { Botao, CabecalhoPagina, Esqueleto, FaixaIndicadores, Indicador } from "
 import { Provisorio } from "../componentes/ui/Estado";
 import { EstadoConsultas } from "../componentes/gestao/Consultas";
 import { Retorno } from "../componentes/gestao/Comuns";
-import { Abas, PainelAba } from "../componentes/financeiro/Abas";
+import { Abas, PainelAba } from "../componentes/ui/Abas";
 import { useParametro } from "../componentes/financeiro/useParametro";
 import { AbaMateriais, type AcaoMaterial } from "../componentes/estoque/AbaMateriais";
 import { AbaMovimentos } from "../componentes/estoque/AbaMovimentos";
@@ -129,13 +129,13 @@ function Conteudo({
         acoes={
           podeLancar ? (
             <>
-              <Botao tamanho="denso" variante="fantasma" icone="mais" onClick={() => setGaveta({ tipo: "material" })}>
+              <Botao variante="fantasma" icone="mais" onClick={() => setGaveta({ tipo: "material" })}>
                 Novo material
               </Botao>
-              <Botao tamanho="denso" onClick={() => setGaveta({ tipo: "retirada" })} disabled={materiais.length === 0}>
+              <Botao onClick={() => setGaveta({ tipo: "retirada" })} disabled={materiais.length === 0}>
                 Retirada
               </Botao>
-              <Botao tamanho="denso" variante="primario" onClick={() => setGaveta({ tipo: "entrada" })} disabled={materiais.length === 0}>
+              <Botao variante="primario" onClick={() => setGaveta({ tipo: "entrada" })} disabled={materiais.length === 0}>
                 Entrada
               </Botao>
             </>
@@ -162,7 +162,7 @@ function Conteudo({
           valor={parados.length}
           detalhe={veDinheiro && parados.length > 0 ? `${formatarReais(valorParado)} sem giro` : "sem saída no período"}
         />
-        {veDinheiro && <Indicador rotulo="Valor em estoque" valor={<span className="whitespace-nowrap max-md:text-[21px]">{formatarReais(valorEstoque)}</span>} detalhe="saldo × custo médio" />}
+        {veDinheiro && <Indicador rotulo="Valor em estoque" valor={<span className="whitespace-nowrap">{formatarReais(valorEstoque)}</span>} detalhe="saldo × custo médio" />}
       </FaixaIndicadores>
 
       {aviso && (

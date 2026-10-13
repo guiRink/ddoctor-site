@@ -96,7 +96,7 @@ function Dia({ data, itens, hoje, selecionado, onEscolher }: { data: DataISO; it
       {itens.length > 0 && (
         <span className="flex flex-col leading-none">
           <span className={`text-[15px] font-semibold numero ${atrasado ? "text-alerta" : "text-tinta"}`}>{itens.length}</span>
-          <span className={`mt-0.5 text-[10px] numero ${atrasado ? "text-alerta" : "text-tinta-suave"}`}>{pecas} pç</span>
+          <span className={`mt-0.5 text-[11px] numero ${atrasado ? "text-alerta" : "text-tinta-suave"}`}>{pecas} pç</span>
         </span>
       )}
     </>

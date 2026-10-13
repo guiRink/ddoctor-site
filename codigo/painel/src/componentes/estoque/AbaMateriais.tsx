@@ -7,8 +7,8 @@ import { Etiqueta, Provisorio } from "../ui/Estado";
 import { GrupoFiltros } from "../ui/Filtros";
 import { Linha, Tabela, Td, Th } from "../ui/Tabela";
 import { BarraSaldo } from "../gestao/Barras";
-import { BarraFerramentas } from "../financeiro/Abas";
-import { AcaoTexto, Busca, FiltroSelecao } from "../financeiro/Campos";
+import { BarraFerramentas } from "../ui/Abas";
+import { AcaoTexto, Busca, FiltroSelecao } from "../ui/Campos";
 import { formatarQtd } from "../financeiro/formato";
 import { SITUACAO, combinaMaterial, passaSituacao, type FiltroSituacao, type LinhaMaterial } from "./modelo";
 

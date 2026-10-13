@@ -251,7 +251,6 @@ function LinhaEtapa({
                     </option>
                   ))}
                 </select>
-                <Icone nome="baixo" tamanho={16} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-tinta-suave" />
                 </span>
               </>
             ) : (

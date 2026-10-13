@@ -2,8 +2,8 @@ import { useState } from "react";
 import type { Id, Material, Perfil } from "@compartilhado/tipos";
 import { formatarReais } from "@compartilhado/dominio/dinheiro";
 import { mensagemErro, useAcoes } from "../../dados/hooks";
-import { Gaveta } from "../financeiro/Gaveta";
-import { Ajuda, Area, EntradaComAfixo, LinhaPrevia, Previa, Rotulado, Selecao, CLASSE_ENTRADA } from "../financeiro/Campos";
+import { Gaveta } from "../ui/Gaveta";
+import { Ajuda, AreaTexto, CLASSE_ENTRADA, CampoComAfixo, LinhaPrevia, OpcoesEmGrade, Previa, Rotulado, Selecao } from "../ui/Campos";
 import { formatarQtd, lerQuantidade, marcoDoDia } from "../financeiro/formato";
 import { GrupoFiltros } from "../ui/Filtros";
 import { OpcoesMateriais } from "./OpcoesMateriais";
@@ -115,35 +115,31 @@ export function FormRetirada({
       </Rotulado>
 
       {tipo === "ajuste" && (
-        <fieldset className="flex flex-col gap-1.5 min-w-0 border-0 p-0 m-0">
-          <legend className="text-[13px] font-medium text-tinta-suave mb-1.5">Sentido</legend>
-          <div className="grid grid-cols-2 gap-2">
-            {(
-              [
-                ["mais", "Somar ao estoque", "+"],
-                ["menos", "Tirar do estoque", "−"],
-              ] as const
-            ).map(([v, texto, s]) => (
-              <label
-                key={v}
-                className={`flex items-center gap-2.5 h-11 md:h-10 px-3 rounded-controle border cursor-pointer transition-colors duration-150 ${
-                  sentido === v ? "border-tinta bg-cinza-50" : "border-linha-forte hover:border-tinta-fraca"
-                }`}
-              >
-                <input type="radio" name="sentido" value={v} checked={sentido === v} onChange={() => setSentido(v)} />
-                <span className="text-[14px] font-medium">
-                  <span className="numero text-tinta-suave mr-1">{s}</span>
-                  {texto}
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <OpcoesEmGrade
+          nome="sentido"
+          legenda="Sentido"
+          opcoes={(
+            [
+              ["mais", "Somar ao estoque", "+"],
+              ["menos", "Tirar do estoque", "−"],
+            ] as const
+          ).map(([v, texto, sinal]) => ({
+            valor: v,
+            texto: (
+              <>
+                <span className="numero text-tinta-suave mr-1">{sinal}</span>
+                {texto}
+              </>
+            ),
+          }))}
+          valor={sentido}
+          onMudar={setSentido}
+        />
       )}
 
       <div className="grid grid-cols-2 gap-3">
         <Rotulado rotulo="Quantidade">
-          <EntradaComAfixo
+          <CampoComAfixo
             inputMode="decimal"
             autoComplete="off"
             value={quantidade}
@@ -175,7 +171,7 @@ export function FormRetirada({
         opcional={tipo !== "ajuste"}
         dica={tipo === "ajuste" ? "Obrigatório. Ex.: contagem mensal, avaria, vencido." : "Ex.: limpeza da área de entrega."}
       >
-        <Area value={obs} onChange={(e) => setObs(e.target.value)} rows={2} required={tipo === "ajuste"} />
+        <AreaTexto value={obs} onChange={(e) => setObs(e.target.value)} rows={2} required={tipo === "ajuste"} />
       </Rotulado>
 
       {material && (

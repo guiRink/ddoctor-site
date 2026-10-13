@@ -46,8 +46,8 @@ export function AbaResultado({ v, onIrCustos }: { v: OSVisao; onIrCustos?: () =>
       </FaixaIndicadores>
 
       <Cartao titulo="Demonstrativo">
-        <div className="p-4 flex flex-col gap-5">
-          {/* barra: custos por tipo + margem, sobre a receita */}
+        <div className="p-4 flex flex-col gap-5 max-w-[672px]">
+          {/* barra: custos por tipo + margem, sobre a receita (mesma largura do demonstrativo) */}
           <div>
             <div className="flex h-2.5 rounded-full overflow-hidden bg-cinza-100" aria-hidden="true">
               {partes.map((p) => (p.valor > 0 ? <span key={p.nome} className={p.cor} style={{ width: `${(p.valor / base) * 100}%` }} /> : null))}
@@ -56,7 +56,7 @@ export function AbaResultado({ v, onIrCustos }: { v: OSVisao; onIrCustos?: () =>
             {negativa && <p className="mt-2 text-[13px] font-medium text-alerta">Os custos passaram a receita em {formatarReais(-r.margem)}.</p>}
           </div>
 
-          <dl className="m-0 max-w-[640px] w-full">
+          <dl className="m-0 w-full">
             <LinhaValor nome="Receita" valor={receita.valor} forte />
             {partes.map((p) => (
               <LinhaValor key={p.nome} nome={p.nome} valor={p.valor} cor={p.cor} recuo pctReceita={receita.valor > 0 ? p.valor / receita.valor : null} />

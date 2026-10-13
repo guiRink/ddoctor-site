@@ -7,9 +7,9 @@ import type { ClienteResumo } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
 import { podeEditar, veDadosSensiveis } from "../dominio/permissoes";
 import { Botao, CabecalhoPagina, Cartao, Erro, Esqueleto, SUPERFICIE, Vazio } from "../componentes/ui/Basicos";
+import { Busca } from "../componentes/ui/Campos";
 import { GrupoFiltros } from "../componentes/ui/Filtros";
 import { CLASSE_LINHA, Tabela, Th } from "../componentes/ui/Tabela";
-import { Icone } from "../componentes/Icone";
 import { AvatarCliente, BotaoWhatsApp, EtiquetaPJ, PlacasDoCliente } from "../componentes/clientes/Comuns";
 import { FormCliente } from "../componentes/clientes/FormCliente";
 import { documentoExibicao, formatarTelefone, haQuanto, resumoCorresponde, tipoDoCliente } from "../componentes/clientes/formato";
@@ -80,23 +80,14 @@ export function Clientes() {
       />
 
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
-        <div className="relative w-full md:max-w-[420px]">
-          <label htmlFor="busca-clientes" className="sr-only">
-            Buscar cliente por nome, CPF/CNPJ, telefone, e-mail ou placa
-          </label>
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-tinta-fraca pointer-events-none">
-            <Icone nome="busca" tamanho={16} />
-          </span>
-          <input
-            id="busca-clientes"
-            type="search"
-            value={termo}
-            onChange={(e) => trocar({ q: e.target.value })}
-            placeholder="Nome, CPF/CNPJ, telefone, e-mail ou placa"
-            autoComplete="off"
-            className="w-full h-11 md:h-10 pl-9 pr-3 bg-cartao border border-linha-forte shadow-controle text-[14px] outline-none transition-[border-color,box-shadow] duration-150 hover:border-tinta-fraca focus:border-tinta-fraca focus:ring-[3px] focus:ring-amarelo/30"
-          />
-        </div>
+        <Busca
+          id="busca-clientes"
+          larga
+          valor={termo}
+          onMudar={(q) => trocar({ q })}
+          rotulo="Buscar cliente por nome, CPF/CNPJ, telefone, e-mail ou placa"
+          placeholder="Nome, CPF/CNPJ, telefone, e-mail ou placa"
+        />
         <GrupoFiltros
           rotulo="Tipo de cliente"
           mostrarRotulo={false}

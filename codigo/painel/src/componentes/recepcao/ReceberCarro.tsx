@@ -10,7 +10,8 @@ import { Botao, Erro, Esqueleto } from "../ui/Basicos";
 import { Etiqueta, Provisorio } from "../ui/Estado";
 import { Placa } from "../ui/Placa";
 import { Icone } from "../Icone";
-import { Aviso } from "../os/Campos";
+import { Aviso } from "../ui/Campos";
+import { Gaveta } from "../ui/Gaveta";
 import { Checklist, ProgressoChecklist } from "./Checklist";
 import { FormRecepcao, MedidorCombustivel, type DadosRecepcao } from "./FormRecepcao";
 import { kmLegivel, nomeCarro } from "../os/formato";
@@ -36,9 +37,7 @@ export function ReceberCarro({
   /** Chamado depois de registrar; recebe a mensagem de sucesso para a tela mostrar. */
   onConcluido: (mensagem: string) => void;
 }) {
-  const ref = useRef<HTMLDialogElement>(null);
   const corpo = useRef<HTMLDivElement>(null);
-  const titulo = useId();
   const idTipo = useId();
   const config = useConfig();
   const acoes = useAcoes();
@@ -56,11 +55,6 @@ export function ReceberCarro({
   const [pulados, setPulados] = useState<{ checklist?: boolean; avarias?: boolean }>({});
   const [erroTipo, setErroTipo] = useState("");
   const [erro, setErro] = useState("");
-
-  useEffect(() => {
-    const d = ref.current;
-    if (d && !d.open) d.showModal?.();
-  }, []);
 
   // ao trocar de passo, volta ao topo do conteúdo
   useEffect(() => {
@@ -129,7 +123,7 @@ export function ReceberCarro({
                   <label
                     key={t.id}
                     className={`flex items-start gap-3 px-3.5 py-3 min-h-12 border-b border-linha last:border-b-0 cursor-pointer transition-colors duration-150 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-amarelo-escuro has-[:focus-visible]:-outline-offset-2 ${
-                      ativo ? "bg-amarelo-claro" : "hover:bg-cinza-50"
+                      ativo ? "bg-cinza-50" : "hover:bg-cinza-50"
                     }`}
                   >
                     <input
@@ -214,35 +208,23 @@ export function ReceberCarro({
   const ultimo = passo === PASSOS.length - 1;
 
   return (
-    <dialog
-      ref={ref}
-      aria-labelledby={titulo}
-      onClose={onFechar}
-      className="fixed inset-0 m-0 ml-auto w-full max-w-[760px] h-dvh max-h-dvh p-0 overflow-hidden bg-papel text-tinta elevacao open:flex flex-col backdrop:bg-preto/35 md:border-l md:border-linha"
-    >
-      {/* cabeçalho: carro + passos */}
-      <header className="shrink-0 bg-cartao border-b border-linha">
-        <div className="flex items-center gap-3 px-4 md:px-6 pt-4 pb-3">
-          <Placa placa={v.veiculo.placa} tamanho="m" />
-          <div className="min-w-0 flex-1">
-            <h2 id={titulo} className="text-[18px] titulo leading-tight">
-              Receber o carro
-            </h2>
-            <p className="text-[13px] text-tinta-suave truncate">
-              {nomeCarro(v.veiculo) || "Modelo não informado"}
-              {v.veiculo.cor && ` · ${v.veiculo.cor}`} · OS <span className="numero">{v.os.numero}</span>
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => ref.current?.close()}
-            aria-label="Fechar sem registrar"
-            className="inline-grid place-items-center shrink-0 w-11 h-11 md:w-9 md:h-9 rounded-controle text-tinta-suave hover:text-tinta hover:bg-cinza-100 transition-colors duration-150"
-          >
-            <Icone nome="fechar" />
-          </button>
-        </div>
-        <ol aria-label="Passos" className="flex px-4 md:px-6">
+    <Gaveta
+      titulo="Receber o carro"
+      descricao={
+        <span className="block truncate">
+          {nomeCarro(v.veiculo) || "Modelo não informado"}
+          {v.veiculo.cor && ` · ${v.veiculo.cor}`} · OS <span className="numero">{v.os.numero}</span>
+        </span>
+      }
+      antesDoTitulo={<Placa placa={v.veiculo.placa} tamanho="m" />}
+      onFechar={onFechar}
+      rotuloFechar="Fechar sem registrar"
+      larga
+      fundoCorpo="papel"
+      corpoClassName=""
+      refCorpo={corpo}
+      cabecalhoExtra={
+        <ol aria-label="Passos" className="flex px-5">
           {PASSOS.map((nome, i) => {
             const atual = i === passo;
             const feito = i < passo;
@@ -271,49 +253,46 @@ export function ReceberCarro({
             );
           })}
         </ol>
-      </header>
-
-      {/* conteúdo do passo */}
-      <div ref={corpo} className="flex-1 min-h-0 overflow-y-auto px-4 md:px-6 py-5">
-        {conteudo}
-      </div>
-
-      {/* rodapé fixo */}
-      <footer className="shrink-0 bg-cartao border-t border-linha px-4 md:px-6 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        {erro && (
-          <div className="mb-2">
-            <Aviso tom="alerta">{erro}</Aviso>
+      }
+      rodape={
+        <>
+          {erro && (
+            <div className="mb-2">
+              <Aviso tom="alerta">{erro}</Aviso>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            {passo === 0 ? (
+              <Botao variante="fantasma" onClick={() => onFechar()} disabled={salvando}>
+                Cancelar
+              </Botao>
+            ) : (
+              <Botao variante="fantasma" icone="voltar" onClick={() => setPasso((p) => p - 1)} disabled={salvando}>
+                Voltar
+              </Botao>
+            )}
+            <span className="flex-1" />
+            {(passo === 1 || passo === 2) && (
+              <Botao variante="contorno" onClick={pular} disabled={salvando}>
+                Pular
+              </Botao>
+            )}
+            {ultimo ? (
+              <Botao variante="primario" icone="carro" onClick={confirmar} disabled={salvando}>
+                {salvando ? "Registrando…" : "Confirmar entrada"}
+              </Botao>
+            ) : (
+              <Botao variante="primario" onClick={avancar} disabled={!config.data}>
+                Continuar
+                <Icone nome="seta" tamanho={16} />
+              </Botao>
+            )}
           </div>
-        )}
-        <div className="flex items-center gap-2">
-          {passo === 0 ? (
-            <Botao variante="fantasma" onClick={() => ref.current?.close()} disabled={salvando}>
-              Cancelar
-            </Botao>
-          ) : (
-            <Botao variante="fantasma" icone="voltar" onClick={() => setPasso((p) => p - 1)} disabled={salvando}>
-              Voltar
-            </Botao>
-          )}
-          <span className="flex-1" />
-          {(passo === 1 || passo === 2) && (
-            <Botao variante="contorno" onClick={pular} disabled={salvando}>
-              Pular
-            </Botao>
-          )}
-          {ultimo ? (
-            <Botao variante="primario" icone="carro" onClick={confirmar} disabled={salvando}>
-              {salvando ? "Registrando…" : "Confirmar entrada"}
-            </Botao>
-          ) : (
-            <Botao variante="primario" onClick={avancar} disabled={!config.data}>
-              Continuar
-              <Icone nome="seta" tamanho={16} />
-            </Botao>
-          )}
-        </div>
-      </footer>
-    </dialog>
+        </>
+      }
+    >
+      {conteudo}
+    </Gaveta>
   );
 }
 
