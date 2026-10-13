@@ -3,52 +3,70 @@
 Projeto do Guilherme para a oficina **D doctor — martelinho de ouro** (Curitiba). Duas partes: a **landing page** publicada e o **painel de gestão** em construção. Tudo em pt-BR.
 
 ## Leia antes de trabalhar
-1. `notas/mapa.md` — estado atual e próximo passo (sempre).
-2. `docs/painel-plano.md` — método, stack, modelo de dados e checklist dos sprints.
-3. `PRODUCT.md` — fatos do produto. Itens `[inferido]`/`[aberto]` **não viram afirmação na UI**.
-4. `DESIGN.md` — tokens e componentes da identidade (amarelo `#F2C200`, preto `#0A0A0A`, papel `#F4F3EE`, Archivo).
-5. `docs/maxpar-estudo.md` — como a Maxpar funciona e o que a oficina controla por fora.
+1. `notas/mapa.md` — estado atual, próximo passo e **Decisões do dono** (sempre).
+2. `docs/painel-execucao.md` — fases, sprints, critérios de pronto, agentes e ritual. Sprint corrente: `notas/sprints/sprint-N.md`.
+3. `docs/painel-design.md` — sistema visual do painel (componentes, densidade, cores de estado, padrões por superfície). **UI/UX é requisito, não acabamento.**
+4. `docs/painel-arquitetura.md` — modelo v2 (§6), estados (§7), integrações (§8), papéis e segurança (§9).
+5. `docs/painel-informacoes.md` — de onde vem cada campo, quem preenche, onde aparece; provisórios (§4–5).
+6. `docs/espec-dono-v1.md` — voz do dono; critérios de aceitação (§10).
+7. `PRODUCT.md` e `DESIGN.md` — fatos e identidade. Itens `[inferido]`/`[aberto]` não viram afirmação na UI.
+8. `docs/maxpar-estudo.md` e, após o G1, `docs/maxpar-g1.md`.
+`docs/painel-plano.md` é histórico.
 
 ## Estrutura (padrão da skill obsidian-codigo)
 ```
-codigo/site/     landing (HTML estático; frames do filme em codigo/site/frames)
-codigo/painel/   painel (Vite + React + TS + Tailwind v4 + Dexie; build → codigo/site/painel)
-codigo/tools/    serve.mjs (servidor local), shot.mjs (captura via CDP), probe.mjs (JS em headless)
-docs/            planos e estudos
-notas/           mapa.md (histórico), status.md (checklist por componente), atualizacoes/
-fotos/           fotos originais da oficina (não padrão, mantida por ser fonte)
-media/           filme-fonte .mp4 (fora do git)
-.claude/agents/  escrivao, revisor-qa, frontend-painel
+codigo/site/          landing (HTML estático; frames do filme em codigo/site/frames)
+codigo/painel/        frontend: Vite + React 19 + TS + Tailwind v4 + TanStack Query + supabase-js; e2e/ (Playwright)
+codigo/compartilhado/ tipos, enums e contratos v2 (painel e worker importam daqui; banco.gerado.ts vem da CLI)
+codigo/supabase/      migrations/, tests/ (pgTAP), functions/ (Edge), seed.sql — rode a CLI de dentro de codigo/
+codigo/worker/        Node 22: fila, backup, leitores Maxpar, Calia (a partir do S5)
+codigo/tools/         serve.mjs (servidor local), shot.mjs (captura via CDP), probe.mjs (JS em headless)
+docs/  notas/ (sprints/ = checklist por sprint)  fotos/  media/ (fora do git; inclui media/g1)
+.claude/agents/       escrivao, revisor-qa, frontend-painel, designer-painel, arquiteto-dados, dominio-regras, testes-e2e, integracao
 ```
 
 ## Comandos
 ```bash
-node codigo/tools/serve.mjs codigo/site 8765      # landing em http://localhost:8765/
-cd codigo/painel && npm run dev                    # painel em http://localhost:5173/ddoctor-site/painel/ (?dev=1 libera o PIN e carrega demo, só em dev)
-cd codigo/painel && npm test && npm run build      # testes + build (sai em codigo/site/painel)
-node codigo/tools/shot.mjs out.png URL 1440 900 9000   # captura headless
+cd codigo && supabase start                 # Postgres/Auth/Storage locais (precisa Docker ou OrbStack)
+cd codigo && supabase db reset              # migrations + seed demo
+cd codigo && supabase test db               # pgTAP (RLS, funções)
+cd codigo && supabase gen types typescript --local > compartilhado/src/banco.gerado.ts
+cd codigo/painel && npm run dev             # painel local em http://localhost:5173/ddoctor-site/painel/ ; VITE_DADOS=supabase|memoria
+cd codigo/painel && npm test -- --run && npm run lint && npm run build
+cd codigo/painel && npx playwright test     # e2e (a partir do S2)
+node codigo/tools/serve.mjs codigo/site 8765
+node codigo/tools/shot.mjs out.png URL 1440 900 9000   # captura headless (usar nas revisões de UI)
 ```
-Deploy: push na `main` → workflow `.github/workflows/pages.yml` builda o painel e publica `codigo/site` em https://guirink.github.io/ddoctor-site/ (painel em `/painel/`).
+Deploy: push na `main` → workflow `.github/workflows/pages.yml` builda o painel e publica `codigo/site` em https://guirink.github.io/ddoctor-site/ (painel em `/painel/`). Produção do banco: `supabase db push` só pelo Guilherme, à mão, após checkpoint e backup.
 
 ## Regras do painel
-- **Operate mode**: clareza, escaneabilidade e consistência acima de expressão. Nada de hero, nada de animação decorativa. Tabela/kanban/formulário bem resolvidos.
-- Tokens só do `DESIGN.md`, expostos no Tailwind como `amarelo`, `preto`, `grafite`, `papel`, `tinta`, `linha`, `alerta`, `ok` (ex.: `bg-amarelo`, `text-tinta-suave`); utilitários `titulo-condensado`, `rotulo`, `faixa-zebrada`. Raio zero; amarelo para ação primária e estado, nunca como fundo de texto longo.
-- Dados passam pela interface `Repositorio` (`codigo/painel/src/dados/repositorio.ts`). Hoje Dexie; Supabase depois. Componentes não falam com Dexie direto.
-- Enum de etapas e nomes do domínio como em `docs/painel-plano.md` §4; rótulos em pt-BR centralizados em `src/dominio/rotulos.ts`.
-- Dados demo sempre marcados `demo: true` e removíveis em um clique.
-- Não inventar fatos da oficina (preços, prazos, seguradoras parceiras). Campo em aberto fica como placeholder claro.
-- Regras de negócio (etapas, prazos, financeiro) em `src/dominio/` com teste Vitest.
+- **UI/UX:** o painel tem de ser bonito, claro e rápido de ler. Toda tela segue `docs/painel-design.md`; toda aba nova passa pelo `designer-painel` (composição antes, crítica com capturas em 390/1366/1920 depois) antes de ir ao dono. Nada de tela "funcional mas feia".
+- **Operate mode** e tokens do `DESIGN.md` (+ adendo Painel): `amarelo`, `preto`, `grafite`, `papel`, `tinta`, `linha`, `alerta`, `ok` no Tailwind; utilitários `titulo-condensado`, `rotulo`, `faixa-zebrada`. Raio zero; amarelo só para ação primária e estado; sem gradiente, sombra ou animação decorativa.
+- **Dados:** telas → hooks de `src/dados/` (TanStack Query) → `Repositorio` → `RepositorioSupabase` ou `RepositorioMemoria`. Telas e componentes nunca importam `@supabase/supabase-js` nem `dexie` (o lint bloqueia).
+- **Esquema** só por migration nova (`arquiteto-dados`); nunca editar migration commitada. Toda tabela nasce com `oficina_id`, RLS, políticas por papel (arq. §9.1) e teste pgTAP.
+- **Segredos:** o front só usa a anon key via `.env.local` (fora do git). `service_role`, credenciais da Maxpar e da Calia nunca no front, no repositório, no chat ou em log. **O repositório é público:** nenhum dado real em seed, fixture, print ou commit.
+- **Demo** só no `seed.sql` (`oficina-demo`) ou no repositório em memória, sempre marcado; nunca no projeto de produção.
+- **Regras de negócio** puras em TS com Vitest (`src/dominio/` ou `codigo/compartilhado/`); dinheiro em centavos; `agora` por parâmetro.
+- **Valores não confirmados** vêm de `config_oficina` e aparecem como "provisório — a confirmar". Não inventar fatos da oficina.
+- **Maxpar:** tudo é hipótese até `docs/maxpar-g1.md`. Nada escreve na Maxpar; nada contorna CAPTCHA ou MFA. Ação no portal vira `pendencia_externa`.
+- Rótulos pt-BR em `src/dominio/rotulos.ts`.
 
 ## Como trabalhar (sprint em loop)
-Cada sprint é um bloco demonstrável. Dentro do sprint, trabalhe em loop até o checklist fechar: implementar → `npm test` → `npm run build` → conferir no navegador → commit. No fim: `revisor-qa` no diff, corrigir, `escrivao` atualiza `notas/` e `Atualização noturna.md`, push, link para o irmão. Checkpoint do cliente entre sprints. Não pule para o próximo sprint sem o checkpoint, a menos que o Guilherme peça.
+Siga `docs/painel-execucao.md` §5: branch `sprint/N-slug` → checklist em `notas/sprints/sprint-N.md` (aprovado pelo Guilherme) → loop tarefa → agente → verificar → commit → `designer-painel` (telas) → `testes-e2e` → `revisor-qa` → `escrivao` → merge e push → checkpoint do dono. Não abrir sprint que dependa de resposta pendente do dono sem o checkpoint, salvo pedido do Guilherme.
 
 ## Agentes
-- `escrivao` — recebe resumos compactos e escreve `notas/mapa.md`, `notas/status.md`, `Atualização noturna.md` (anexando o anterior em `notas/atualizacoes/historico.md`). Nunca lê histórico bruto.
-- `revisor-qa` — revisa o diff do sprint: bugs, regras de negócio, acessibilidade básica, build e testes. Devolve lista ordenada; não edita.
-- `frontend-painel` — constrói telas do painel a partir de uma spec (tela, dados, estados vazio/erro/carregando) seguindo DESIGN.md e as regras acima.
+- `arquiteto-dados` — banco Supabase: migrations, RLS, funções, views, Storage, seed, pgTAP. Único que cria migrations.
+- `dominio-regras` — regras puras em TS + Vitest: estados, semáforo, horas úteis, capacidade, vencimento, aging, estoque, margem, contratos.
+- `frontend-painel` — telas e componentes sobre hooks/Repositorio, seguindo `docs/painel-design.md`.
+- `designer-painel` — UI/UX: compõe a tela antes do código e critica a tela pronta com capturas; corrige apresentação.
+- `testes-e2e` — Playwright por critério de aceitação e por papel, em 390/1366/1920 (a partir do S2).
+- `integracao` — worker, backup, leitores Maxpar, Calia; só com o portão aberto (S5–S7).
+- `revisor-qa` — revisa o diff do sprint e roda tudo; não edita.
+- `escrivao` — mantém `notas/mapa.md` (com Decisões do dono), `notas/status.md` por fase e `Atualização noturna.md`.
 
 ## Observações do ambiente
 - O cache do npm em `~/.npm/_cacache` tem arquivos sem permissão (EACCES). Instale com `npm_config_cache=/tmp/npm-cache npm install` ou corrija as permissões com `sudo chown -R $(id -u):$(id -g) ~/.npm`.
+- Não há Docker no Mac ainda: instalar Docker Desktop ou OrbStack antes do S1 (Supabase local). Até lá, o painel roda com `VITE_DADOS=memoria`.
 
 ## Git
-Commits em pt-BR, imperativo, com `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`. Autor `guiRink <guirink7@gmail.com>`. Nunca commitar `media/`, `node_modules`, `codigo/site/painel/` (gerado no CI).
+Commits em pt-BR, imperativo, com `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Autor `guiRink <guirink7@gmail.com>`. Branches `sprint/N-slug`; commits `Painel S<N>: …`; tag `sprint-N` no merge. Nunca commitar `media/`, `node_modules`, `.env*`, `codigo/site/painel/` (gerado no CI).

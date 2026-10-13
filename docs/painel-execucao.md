@@ -4,6 +4,12 @@
 >
 > **Regra de honestidade:** até o portão G1 (inspeção da conta Maxpar), nada da Maxpar é automático. A Maxpar entra no painel pela **entrada rápida** (digitação em 30 s). Ela faz parte do produto e não é um remendo.
 
+> **Revisão de 12/10/2026 (aprovada pelo Guilherme).**
+> 1. **UI/UX é requisito, não acabamento.** O dono pediu um painel "bonito, com as informações visíveis e fácil de identificar". Entra o agente `designer-painel` (compõe cada tela antes do código e critica a tela pronta com capturas em 390/1366/1920) e o documento `docs/painel-design.md` (sistema visual do painel). Toda aba passa por ele antes de ir ao dono.
+> 2. **Novo sprint SD — Design e telas v2 em memória**, logo depois do S1a e antes do S1. Entrega: `docs/painel-design.md`; tipos/enums v2 em `codigo/compartilhado/`; `Repositorio` v2 com `RepositorioMemoria` (seed fictício coerente) e hooks TanStack Query; shell novo com o menu da espec (Geral, Orçamentos, Agenda, Vistorias, Produção, Funcionários, Estoque, Recebíveis, Financeiro, Ajustes) e as telas principais desenhadas e navegáveis, incluindo a TV e o celular da produção. Motivo: não há Docker no Mac (S1 depende dele), o dono precisa ver e validar as telas cedo, e telas construídas sobre `Repositorio` v2 sobrevivem intactas à troca para o Supabase.
+> 3. **O S1 encolhe para "backend"**: Supabase local, migrations do núcleo, RLS, funções, `RepositorioSupabase`, login por papel. As telas do SD passam a ler do banco sem mudar.
+> 4. **Fase 0 sem reunião longa**: o dono já descreveu a operação (`docs/espec-dono-v1.md`). As lacunas viram um questionário curto para ele responder com calma (`docs/questionario-dono.md`); os provisórios da ficha L01–L29 seguem valendo até a resposta. O G1 (inspeção da conta Maxpar) continua necessário só antes do S5/S6.
+
 ---
 
 ## 1. Resposta direta: um passo só ou vários?
