@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react";
+import { MarcaD } from "./ui/Marca";
 
 /**
  * Trava simples por PIN guardado no navegador. NÃO é segurança: evita que alguém abra a tela
@@ -39,16 +40,16 @@ export function PinGate({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-svh bg-preto text-papel grid place-items-center p-6">
-      <form onSubmit={entrar} className="w-full max-w-sm">
-        <div className="flex items-center gap-3 mb-10">
-          <img src={`${import.meta.env.BASE_URL}logo-mark.svg`} alt="" width={40} height={40} />
+    <div className="min-h-svh bg-papel text-tinta grid place-items-center p-6">
+      <form onSubmit={entrar} className="w-full max-w-sm bg-cartao border border-linha rounded-xl shadow-cartao p-6 sm:p-8">
+        <div className="flex items-center gap-3 mb-8">
+          <MarcaD tamanho={36} />
           <div className="leading-none">
-            <div className="font-bold text-2xl tracking-[-0.02em]">doctor</div>
-            <div className="rotulo text-amarelo mt-1">Painel de gestão</div>
+            <div className="font-semibold text-[18px] tracking-[-0.01em]">D doctor</div>
+            <div className="mt-1 text-[13px] text-tinta-suave">Painel de gestão</div>
           </div>
         </div>
-        <label htmlFor="pin" className="rotulo text-papel-suave block mb-2">
+        <label htmlFor="pin" className="block mb-1.5 text-[13px] font-medium text-tinta-suave">
           PIN de acesso
         </label>
         <input
@@ -58,22 +59,25 @@ export function PinGate({ children }: { children: ReactNode }) {
           autoComplete="one-time-code"
           value={pin}
           onChange={(e) => setPin(e.target.value)}
-          className="w-full min-h-14 px-4 bg-grafite text-papel text-2xl tracking-[0.3em] border border-linha-clara focus:border-amarelo outline-none"
+          className={`w-full h-12 px-4 bg-cartao text-tinta text-[22px] tracking-[0.3em] border outline-none transition-colors duration-150 focus:border-tinta-fraca focus:ring-3 focus:ring-amarelo/30 ${
+            erro ? "border-alerta" : "border-linha-forte"
+          }`}
+          aria-invalid={erro ? true : undefined}
           aria-describedby={erro ? "pin-erro" : undefined}
           autoFocus
         />
         {erro && (
-          <p id="pin-erro" role="alert" className="mt-2 text-sm text-amarelo">
+          <p id="pin-erro" role="alert" className="mt-2 text-[13px] text-alerta">
             {erro}
           </p>
         )}
         <button
           type="submit"
-          className="mt-6 w-full min-h-12 bg-amarelo text-preto font-extrabold uppercase tracking-[0.04em] text-[13px] hover:bg-papel transition-colors"
+          className="mt-5 w-full h-11 rounded-controle bg-amarelo text-preto font-semibold text-[14px] hover:bg-amarelo-escuro transition-colors duration-150"
         >
           Entrar
         </button>
-        <p className="mt-6 text-sm text-papel-suave leading-relaxed">
+        <p className="mt-5 text-[13px] text-tinta-suave leading-relaxed">
           Acesso provisório por PIN. O PIN pode ser trocado em Ajustes depois de entrar.
         </p>
       </form>

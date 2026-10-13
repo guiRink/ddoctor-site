@@ -1,4 +1,5 @@
-// Ícones desenhados no mesmo traço (2 px, cantos retos, grade 24), sem biblioteca externa.
+// Ícones desenhados no mesmo traço (1,75 px, pontas e cantos arredondados, grade 24), sem biblioteca externa.
+// Revisão SE: o traço ficou mais leve e arredondado para combinar com a direção clean.
 const CAMINHOS = {
   geral: "M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z",
   orcamentos: "M5 3h10l4 4v14H5zM15 3v4h4M8 11h8M8 15h8M8 19h5",
@@ -9,7 +10,7 @@ const CAMINHOS = {
   estoque: "M3 8l9-5 9 5v12H3zM3 8h18M9 20v-7h6v7",
   recebiveis: "M3 6h18v12H3zM3 10h18M7 15h4M15 15h2",
   financeiro: "M4 20V10M10 20V4M16 20v-8M22 20H2",
-  ajustes: "M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4",
+  ajustes: "M4 6h8M16 6h4M4 12h2M10 12h10M4 18h10M18 18h2M14 4v4M8 10v4M16 16v4",
   pendencias: "M12 3 2 21h20L12 3zM12 10v5M12 18v.5",
   busca: "M10 4a6 6 0 1 0 0 12 6 6 0 0 0 0-12zM14.5 14.5 20 20",
   sair: "M10 4H4v16h6M14 8l4 4-4 4M8 12h10",
@@ -39,7 +40,18 @@ const CAMINHOS = {
 
 export type NomeIcone = keyof typeof CAMINHOS;
 
-export function Icone({ nome, tamanho = 18, className }: { nome: NomeIcone; tamanho?: number; className?: string }) {
+export function Icone({
+  nome,
+  tamanho = 18,
+  traco = 1.75,
+  className,
+}: {
+  nome: NomeIcone;
+  tamanho?: number;
+  /** Espessura do traço; 2 na TV e em ícones de 14 px ou menos. */
+  traco?: number;
+  className?: string;
+}) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -47,9 +59,9 @@ export function Icone({ nome, tamanho = 18, className }: { nome: NomeIcone; tama
       height={tamanho}
       fill="none"
       stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="square"
-      strokeLinejoin="miter"
+      strokeWidth={traco}
+      strokeLinecap="round"
+      strokeLinejoin="round"
       aria-hidden="true"
       className={className}
     >
