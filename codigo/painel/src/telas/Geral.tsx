@@ -9,11 +9,13 @@ import type { OSVisao } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
 import { veDadosSensiveis } from "../dominio/permissoes";
 import { JANELA, ORIGEM_OS, TIPO_PENDENCIA } from "../dominio/rotulos";
-import { Cartao, Erro, Esqueleto } from "../componentes/ui/Basicos";
+import { BotaoLink, Cartao, Erro, Esqueleto, FaixaIndicadores, Indicador, Vazio } from "../componentes/ui/Basicos";
 import { LinhaCarro, nomePerfil } from "../componentes/ui/Carro";
 import { Placa } from "../componentes/ui/Placa";
 import { Etiqueta, Provisorio, Semaforo } from "../componentes/ui/Estado";
-import { LinhaVazia, MaisItens, Subtitulo, VerTudo } from "../componentes/orcamentos/Blocos";
+import { LinhaVazia, MaisItens, VerTudo } from "../componentes/orcamentos/Blocos";
+import { ProducaoPrevista } from "../componentes/geral/ProducaoPrevista";
+import { CalendarioEntregas } from "../componentes/geral/CalendarioEntregas";
 import { Proveniencia } from "../componentes/ui/Proveniencia";
 import { dataCurta, diaCurto, diaExtenso, ha, hora } from "../componentes/orcamentos/formato";
 import {
@@ -55,7 +57,7 @@ export function Geral() {
     return (
       <>
         <Topo perfil={perfil} agora={agora} />
-        <div className="esqueleto h-[84px] mb-6" />
+        <div className="esqueleto h-[84px] mb-8 rounded-cartao!" />
         <div className="grid gap-6 xl:grid-cols-3">
           <Esqueleto linhas={4} altura="h-16" />
           <Esqueleto linhas={5} altura="h-16" />
@@ -77,19 +79,24 @@ export function Geral() {
     p.pendencias.length +
     p.propostasCalia.length;
   const ultimaLeitura = ultimaLeituraExterna(oss.data);
+  // Planejamento (produção prevista e calendário de entregas): quem gere a produção.
+  const planejamento = papel === "dono" || papel === "gestor";
 
   if (oss.data.length === 0) {
     return (
       <>
         <Topo perfil={perfil} agora={agora} />
         <Cartao>
-          <div className="flex flex-col items-start gap-3 px-6 py-10">
-            <p className="text-[16px] font-bold">Nenhum carro registrado ainda</p>
-            <p className="text-tinta-suave max-w-prose">Comece pelo primeiro atendimento: placa, cliente e peças em 30 segundos.</p>
-            <Link to="/orcamentos/novo" className="inline-flex items-center h-11 px-4 bg-amarelo text-preto font-bold no-underline hover:bg-amarelo-escuro">
-              Novo atendimento
-            </Link>
-          </div>
+          <Vazio
+            icone="carro"
+            titulo="Nenhum carro registrado ainda"
+            texto="Comece pelo primeiro atendimento: placa, cliente e peças em 30 segundos."
+            acao={
+              <BotaoLink para="/orcamentos/novo" variante="primario" icone="mais">
+                Novo atendimento
+              </BotaoLink>
+            }
+          />
         </Cartao>
       </>
     );
@@ -143,6 +150,18 @@ export function Geral() {
           </Coluna>
         </div>
       )}
+
+      {planejamento && (
+        <section aria-labelledby="geral-planejamento" className="mt-10">
+          <h2 id="geral-planejamento" className="titulo text-[18px] text-tinta-suave mb-4">
+            Planejamento
+          </h2>
+          <div className="grid gap-6 items-start xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+            <ProducaoPrevista oss={oss.data} config={config.data} hoje={p.hoje} />
+            <CalendarioEntregas oss={oss.data} hoje={p.hoje} />
+          </div>
+        </section>
+      )}
     </>
   );
 }
@@ -162,8 +181,8 @@ function Topo({ perfil, agora, resumo, direita }: { perfil: Perfil; agora: Marco
         <p className="text-[14px] text-tinta-suave">
           {saudacao(agora)}, {primeiroNome}.
         </p>
-        <h1 className="titulo-condensado text-[32px] mt-1">{diaExtenso(dataNoFuso(agora))}</h1>
-        {resumo && <p className="mt-1.5 text-[14px] font-semibold">{resumo}</p>}
+        <h1 className="titulo-pagina mt-0.5">{diaExtenso(dataNoFuso(agora))}</h1>
+        {resumo && <p className="mt-1 text-[14px] font-medium">{resumo}</p>}
       </div>
       {direita}
     </header>
@@ -173,27 +192,15 @@ function Topo({ perfil, agora, resumo, direita }: { perfil: Perfil; agora: Marco
 // ------------------------------------------------------------------ faixa com os 4 números do dia
 
 function FaixaDoDia({ p }: { p: PainelDoDia }) {
-  const numeros: { rotulo: string; valor: number; para: string; alerta?: boolean }[] = [
-    { rotulo: "Na oficina agora", valor: p.naOficina.length, para: "/orcamentos?estado=na_oficina,pronta" },
-    { rotulo: "Entram hoje", valor: p.entradasHoje.length, para: "/agenda" },
-    { rotulo: "Saem hoje", valor: p.saemHoje.length, para: "/producao?filtro=hoje" },
-    { rotulo: "Atrasados", valor: p.atrasados.filter((a) => a.semaforo === "vermelho").length, para: "/producao?filtro=atrasados", alerta: true },
-  ];
+  const atrasados = p.atrasados.filter((a) => a.semaforo === "vermelho").length;
   return (
-    <nav aria-label="Números do dia" className="grid grid-cols-2 md:grid-cols-4 bg-cartao border border-linha mb-6">
-      {numeros.map((n, i) => (
-        <Link
-          key={n.rotulo}
-          to={n.para}
-          aria-label={`${n.rotulo}: ${n.valor}`}
-          className={`group flex items-baseline justify-between gap-3 px-4 py-3 min-h-16 no-underline text-tinta hover:bg-amarelo-claro transition-colors duration-150 border-linha ${
-            i % 2 === 1 ? "border-l" : ""
-          } ${i >= 2 ? "border-t md:border-t-0" : ""} ${i === 2 ? "md:border-l" : ""}`}
-        >
-          <span className="rotulo text-tinta-suave">{n.rotulo}</span>
-          <span className={`titulo-condensado numero text-[32px] ${n.alerta && n.valor > 0 ? "text-alerta" : ""}`}>{n.valor}</span>
-        </Link>
-      ))}
+    <nav aria-label="Números do dia" className="mb-8">
+      <FaixaIndicadores colunas={4}>
+        <Indicador rotulo="Na oficina agora" valor={p.naOficina.length} para="/orcamentos?estado=na_oficina,pronta" />
+        <Indicador rotulo="Entram hoje" valor={p.entradasHoje.length} para="/agenda" />
+        <Indicador rotulo="Saem hoje" valor={p.saemHoje.length} para="/producao?filtro=hoje" />
+        <Indicador rotulo="Atrasados" valor={atrasados} alerta={atrasados > 0} para="/producao?filtro=atrasados" />
+      </FaixaIndicadores>
     </nav>
   );
 }
@@ -215,12 +222,12 @@ function Coluna({
 }) {
   return (
     <section aria-label={titulo} className={`min-w-0 flex flex-col gap-4 ${className}`}>
-      <h2 className={`flex items-center gap-2.5 titulo-condensado ${destaque ? "text-[24px]" : "text-[20px] text-tinta-suave"}`}>
+      <h2 className={`flex items-center gap-2 h-7 titulo ${destaque ? "text-[18px] text-tinta" : "text-[18px] text-tinta-suave"}`}>
         {titulo}
         {total !== undefined && (
           <span
-            className={`inline-grid place-items-center min-w-7 h-7 px-1.5 text-[14px] font-bold numero tracking-normal ${
-              total > 0 && destaque ? "bg-alerta text-cartao" : "bg-linha text-tinta-suave"
+            className={`inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-[12px] font-semibold numero tracking-normal ${
+              total > 0 && destaque ? "bg-alerta-claro text-alerta" : "bg-cinza-100 text-tinta-suave"
             }`}
           >
             {total}
@@ -245,10 +252,10 @@ function ColunaHoje({ p, agora }: { p: PainelDoDia; agora: MarcoISO }) {
             { nome: JANELA.manha, itens: manha },
             { nome: JANELA.tarde, itens: tarde },
           ].map((j) => (
-            <div key={j.nome}>
-              <Subtitulo>
-                {j.nome} · {j.itens.length}
-              </Subtitulo>
+            <div key={j.nome} className="border-t border-linha first:border-t-0">
+              <Faixa>
+                {j.nome} <span className="text-tinta-fraca">· {j.itens.length}</span>
+              </Faixa>
               {j.itens.length === 0 ? (
                 <LinhaVazia>Sem entrada.</LinhaVazia>
               ) : (
@@ -321,8 +328,8 @@ function ColunaAcao({ p, agora, perfis }: { p: PainelDoDia; agora: MarcoISO; per
     return (
       <Cartao>
         <div className="flex items-center gap-3 px-4 py-6">
-          <span className="inline-block w-2.5 h-2.5 bg-ok" aria-hidden="true" />
-          <p className="font-semibold">Tudo em dia. Nenhum carro atrasado, nenhuma pendência no portal.</p>
+          <span className="inline-block w-2 h-2 rounded-full bg-ok shrink-0" aria-hidden="true" />
+          <p className="font-medium">Tudo em dia. Nenhum carro atrasado, nenhuma pendência no portal.</p>
         </div>
       </Cartao>
     );
@@ -493,9 +500,9 @@ function ColunaDinheiro({ p, agora }: { p: PainelDoDia; agora: MarcoISO }) {
 
 function Total({ valor, para, alerta = false, nota }: { valor: number; para: string; alerta?: boolean; nota?: string }) {
   return (
-    <Link to={para} className="block px-4 py-3 border-b border-linha no-underline text-tinta hover:bg-amarelo-claro transition-colors duration-150">
-      <span className={`block titulo-condensado numero text-[28px] whitespace-nowrap ${alerta ? "text-alerta" : ""}`}>{formatarReais(valor)}</span>
-      {nota && <span className="block mt-1 text-[12px] text-tinta-suave numero">{nota}</span>}
+    <Link to={para} className="block px-4 py-3.5 border-b border-linha last:border-b-0 no-underline text-tinta hover:bg-cinza-50 transition-colors duration-150">
+      <span className={`block text-[26px] font-semibold leading-none tracking-[-0.01em] numero whitespace-nowrap ${alerta ? "text-alerta" : ""}`}>{formatarReais(valor)}</span>
+      {nota && <span className="block mt-2 text-[12px] text-tinta-suave numero">{nota}</span>}
     </Link>
   );
 }
@@ -507,7 +514,7 @@ function LinhaTitulo({ i, hoje, vencido = false }: { i: ItemTitulo; hoje: string
     <>
       <span className="flex items-center justify-between gap-3">
         {i.v ? <Placa placa={i.v.veiculo.placa} /> : <span className="font-semibold truncate">{i.t.descricao}</span>}
-        <span className="font-bold numero whitespace-nowrap">{formatarReais(i.saldo)}</span>
+        <span className="font-semibold numero whitespace-nowrap">{formatarReais(i.saldo)}</span>
       </span>
       <span className="flex items-baseline justify-between gap-3 mt-1 text-[13px]">
         <span className="truncate text-tinta-suave">{i.v ? `${i.v.veiculo.modelo ?? ""} · ${i.t.descricao}` : ""}</span>
@@ -518,13 +525,18 @@ function LinhaTitulo({ i, hoje, vencido = false }: { i: ItemTitulo; hoje: string
   const classe = "block px-4 py-2.5 border-b border-linha last:border-b-0";
   if (!i.v) return <div className={classe}>{conteudo}</div>;
   return (
-    <Link to={ficha(i.v)} className={`${classe} no-underline text-tinta hover:bg-amarelo-claro transition-colors duration-150`}>
+    <Link to={ficha(i.v)} className={`${classe} no-underline text-tinta hover:bg-cinza-50 transition-colors duration-150`}>
       {conteudo}
     </Link>
   );
 }
 
 // ------------------------------------------------------------------ helpers
+
+/** Faixa leve dentro do cartão (Manhã / Tarde): só texto, sem fundo. */
+function Faixa({ children }: { children: ReactNode }) {
+  return <p className="px-4 pt-3 pb-1 text-[12px] font-medium text-tinta-suave numero">{children}</p>;
+}
 
 function origemCurta(v: OSVisao): string {
   return v.atendimentos[0]?.seguradora ?? ORIGEM_OS[v.os.origem];
