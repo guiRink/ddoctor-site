@@ -34,6 +34,7 @@ function os(id: string, estado: EstadoOS, extra: Partial<OSVisao> = {}, osExtra:
     pendencias: [],
     titulos: [],
     fotos: [],
+    custos: [],
     ...extra,
   };
 }

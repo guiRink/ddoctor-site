@@ -3,25 +3,37 @@ import type {
   AtendimentoExterno,
   Baixa,
   CapacidadeDia,
+  CategoriaFinanceira,
+  Centavos,
+  ChecklistItem,
   Cliente,
   ConfigOficina,
+  CustoOS,
   DataISO,
   Despesa,
   EtapaOS,
+  FechamentoCaixa,
+  FormaPagamento,
+  Fornecedor,
   Foto,
   Id,
   Janela,
+  MarcoISO,
   Material,
+  MovimentoEstoque,
   OrcamentoVersao,
   OS,
   Pagador,
   PendenciaExterna,
   Perfil,
+  RecepcaoVeiculo,
+  RegistroAuditoria,
   Tecnica,
   TipoReparo,
   TituloReceber,
   Veiculo,
 } from "@compartilhado/tipos";
+import type { ModoMaoDeObra } from "@compartilhado/dominio/custos";
 
 /**
  * Visão de leitura de uma OS com tudo o que as telas precisam (montada pelo repositório).
@@ -39,24 +51,110 @@ export interface OSVisao {
   pendencias: PendenciaExterna[];
   titulos: TituloReceber[];
   fotos: Foto[];
+  /** Custos lançados (insumos, mão de obra, terceiros, outros). Só dono, gestor e financeiro veem (veCustosOS). */
+  custos: CustoOS[];
 }
 
 export interface NovoAtendimentoRapido {
   placa: string;
+  marca?: string;
   modelo?: string;
   cor?: string;
+  /** Cliente já cadastrado; ausente = cria (ou reaproveita o cliente com o mesmo documento). */
+  clienteId?: Id;
   clienteNome: string;
+  documento?: string; // CPF ou CNPJ, com ou sem máscara
   telefone?: string;
+  whatsapp?: string;
+  email?: string;
   origem: OS["origem"];
   seguradora?: string;
   protocolo?: string;
   pecas: { peca: string; tecnica: Tecnica; valor?: number }[];
   observacoes?: string;
+  recepcao?: RecepcaoVeiculo;
 }
 
 export interface Resultado {
   ok: boolean;
   codigo?: string;
+}
+
+/** Linha da lista de clientes. */
+export interface ClienteResumo {
+  cliente: Cliente;
+  veiculos: Veiculo[];
+  quantidadeOS: number;
+  ultimaOSEm?: MarcoISO; // criadoEm da OS mais recente
+  totalPago: Centavos; // Σ baixas dos títulos das OS do cliente
+}
+
+/** Ficha do cliente: veículos, histórico de OS e totais. */
+export interface ClienteFicha extends ClienteResumo {
+  oss: OSVisao[]; // da mais recente para a mais antiga
+  saldoEmAberto: Centavos; // Σ saldo dos títulos não cancelados das OS do cliente
+}
+
+/** Cliente para criar (sem id) ou editar (com id). Documento e telefones entram com ou sem máscara. */
+export type ClienteEntrada = Omit<Cliente, "id"> & { id?: Id };
+export type VeiculoEntrada = Omit<Veiculo, "id"> & { id?: Id };
+/** Saldo e custo médio só mudam por movimentação; na edição esses campos são ignorados. */
+export type MaterialEntrada = Omit<Material, "id" | "saldoEstimado" | "custoMedio"> & {
+  id?: Id;
+  saldoEstimado?: number;
+  custoMedio?: Centavos;
+};
+export type FornecedorEntrada = Omit<Fornecedor, "id"> & { id?: Id };
+export type CategoriaEntrada = Omit<CategoriaFinanceira, "id"> & { id?: Id };
+export type DespesaEntrada = Omit<Despesa, "id" | "categoria"> & { categoria?: string };
+
+/** Lançamento de custo na OS. O total é calculado pelo domínio (custos.ts). */
+export type NovoCustoOS =
+  | {
+      tipo: "insumo";
+      materialId: Id;
+      quantidade: number;
+      perfilId?: Id; // quem retirou
+      descricao?: string; // padrão: nome do material
+    }
+  | {
+      tipo: "mao_de_obra";
+      descricao: string;
+      perfilId?: Id;
+      modo: ModoMaoDeObra; // hora | minuto | fixo
+      minutos: number; // ignorado em "fixo"
+      valorUnitario: Centavos; // valor da hora, do minuto ou o valor fixo
+    }
+  | {
+      tipo: "terceiro" | "outro";
+      descricao: string;
+      quantidade?: number; // padrão 1
+      unidade?: string;
+      custoUnitario: Centavos;
+      fornecedor?: string;
+      perfilId?: Id;
+    };
+
+export interface PagamentoOS {
+  valor: Centavos;
+  forma: FormaPagamento;
+  recebidoEm: DataISO;
+  parcelas?: number; // crédito parcelado
+  obs?: string;
+}
+
+/** Movimentação manual do estoque (a retirada para OS é feita por lancarCusto). */
+export type MovimentoEntrada = Omit<MovimentoEstoque, "id" | "em" | "tipo"> & {
+  tipo: "entrada_compra" | "consumo_interno" | "ajuste";
+  em?: MarcoISO;
+};
+
+export interface FechamentoEntrada {
+  data: DataISO;
+  contado: Centavos;
+  /** Ausente = valor contado no último fechamento anterior (ou 0). */
+  saldoInicial?: Centavos;
+  obs?: string;
 }
 
 /**
@@ -76,6 +174,36 @@ export interface Repositorio {
   listarDespesas(): Promise<Despesa[]>;
   listarMateriais(): Promise<Material[]>;
   obterConfig(): Promise<ConfigOficina>;
+  listarClientes(): Promise<ClienteResumo[]>;
+  obterCliente(id: Id): Promise<ClienteFicha | null>;
+  listarVeiculos(): Promise<Veiculo[]>;
+  listarCustosOS(osId: Id): Promise<CustoOS[]>;
+  listarMovimentos(): Promise<MovimentoEstoque[]>; // do mais recente para o mais antigo
+  listarFornecedores(): Promise<Fornecedor[]>;
+  listarCategorias(): Promise<CategoriaFinanceira[]>;
+  listarFechamentos(): Promise<FechamentoCaixa[]>; // do mais recente para o mais antigo
+  listarAuditoria(): Promise<RegistroAuditoria[]>; // do mais recente para o mais antigo
+
+  // clientes, veículos e recepção
+  salvarCliente(cliente: ClienteEntrada): Promise<Resultado & { id?: Id }>;
+  salvarVeiculo(veiculo: VeiculoEntrada): Promise<Resultado & { id?: Id }>;
+  salvarRecepcao(osId: Id, recepcao: RecepcaoVeiculo): Promise<Resultado>;
+
+  // custos e pagamentos da OS
+  lancarCusto(osId: Id, custo: NovoCustoOS): Promise<Resultado & { id?: Id }>;
+  removerCusto(custoId: Id): Promise<Resultado>;
+  registrarPagamentoOS(osId: Id, pagamento: PagamentoOS): Promise<Resultado & { id?: Id }>;
+
+  // estoque
+  movimentarEstoque(mov: MovimentoEntrada): Promise<Resultado & { id?: Id }>;
+  salvarMaterial(material: MaterialEntrada): Promise<Resultado & { id?: Id }>;
+  salvarFornecedor(fornecedor: FornecedorEntrada): Promise<Resultado & { id?: Id }>;
+
+  // financeiro e ajustes
+  criarDespesa(despesa: DespesaEntrada): Promise<Resultado & { id?: Id }>;
+  salvarCategoria(categoria: CategoriaEntrada): Promise<Resultado & { id?: Id }>;
+  fecharCaixa(dados: FechamentoEntrada): Promise<Resultado & { id?: Id }>;
+  salvarChecklistConfig(itens: ChecklistItem[]): Promise<Resultado>;
 
   // produção
   iniciarEtapa(etapaId: Id, responsavelId: Id): Promise<Resultado>;
@@ -88,7 +216,7 @@ export interface Repositorio {
   // ciclo da OS
   criarAtendimentoRapido(dados: NovoAtendimentoRapido): Promise<Resultado & { osId?: Id }>;
   registrarAprovacao(osId: Id, evidencia: string): Promise<Resultado>;
-  registrarEntrada(osId: Id, tipoReparoId: Id): Promise<Resultado>;
+  registrarEntrada(osId: Id, tipoReparoId: Id, recepcao?: RecepcaoVeiculo): Promise<Resultado>;
   registrarEntrega(osId: Id): Promise<Resultado>;
 
   // agenda
@@ -100,7 +228,7 @@ export interface Repositorio {
   // pendências e financeiro
   concluirPendencia(pendenciaId: Id): Promise<Resultado>;
   aplicarBaixa(tituloId: Id, baixa: Omit<Baixa, "id">): Promise<Resultado>;
-  pagarDespesa(despesaId: Id, valor: number, pagoEm: DataISO): Promise<Resultado>;
+  pagarDespesa(despesaId: Id, valor: number, pagoEm: DataISO, forma?: FormaPagamento): Promise<Resultado>;
 
   // demonstração
   restaurarDemo(): Promise<void>;

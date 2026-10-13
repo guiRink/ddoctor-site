@@ -1,9 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import type { Baixa, DataISO, Id, Janela } from "@compartilhado/tipos";
+import type { Baixa, ChecklistItem, DataISO, FormaPagamento, Id, Janela, RecepcaoVeiculo } from "@compartilhado/tipos";
 import { ERRO } from "../dominio/rotulos";
 import { repositorioMemoria } from "./repositorioMemoria";
-import type { NovoAtendimentoRapido, Repositorio, Resultado } from "./repositorio";
+import type {
+  CategoriaEntrada,
+  ClienteEntrada,
+  DespesaEntrada,
+  FechamentoEntrada,
+  FornecedorEntrada,
+  MaterialEntrada,
+  MovimentoEntrada,
+  NovoAtendimentoRapido,
+  NovoCustoOS,
+  PagamentoOS,
+  Repositorio,
+  Resultado,
+  VeiculoEntrada,
+} from "./repositorio";
 
 /**
  * Hooks de dados — a ÚNICA forma de uma tela ler ou mudar dados (CLAUDE.md).
@@ -26,6 +40,17 @@ export const useTitulos = () => useQuery({ queryKey: [...CHAVE, "titulos"], quer
 export const useDespesas = () => useQuery({ queryKey: [...CHAVE, "despesas"], queryFn: () => repositorio.listarDespesas() });
 export const useMateriais = () => useQuery({ queryKey: [...CHAVE, "materiais"], queryFn: () => repositorio.listarMateriais() });
 export const useConfig = () => useQuery({ queryKey: [...CHAVE, "config"], queryFn: () => repositorio.obterConfig() });
+export const useClientes = () => useQuery({ queryKey: [...CHAVE, "clientes"], queryFn: () => repositorio.listarClientes() });
+export const useCliente = (id: Id | undefined) =>
+  useQuery({ queryKey: [...CHAVE, "clientes", id], queryFn: () => repositorio.obterCliente(id!), enabled: Boolean(id) });
+export const useVeiculos = () => useQuery({ queryKey: [...CHAVE, "veiculos"], queryFn: () => repositorio.listarVeiculos() });
+export const useCustosOS = (osId: Id | undefined) =>
+  useQuery({ queryKey: [...CHAVE, "custos", osId], queryFn: () => repositorio.listarCustosOS(osId!), enabled: Boolean(osId) });
+export const useMovimentos = () => useQuery({ queryKey: [...CHAVE, "movimentos"], queryFn: () => repositorio.listarMovimentos() });
+export const useFornecedores = () => useQuery({ queryKey: [...CHAVE, "fornecedores"], queryFn: () => repositorio.listarFornecedores() });
+export const useCategorias = () => useQuery({ queryKey: [...CHAVE, "categorias"], queryFn: () => repositorio.listarCategorias() });
+export const useFechamentos = () => useQuery({ queryKey: [...CHAVE, "fechamentos"], queryFn: () => repositorio.listarFechamentos() });
+export const useAuditoria = () => useQuery({ queryKey: [...CHAVE, "auditoria"], queryFn: () => repositorio.listarAuditoria() });
 
 /** Relógio da tela: re-renderiza a cada `ms` para tempos e semáforos andarem sozinhos. */
 export function useAgora(ms = 30_000): string {
@@ -48,7 +73,7 @@ export function mensagemErro(codigo?: string): string {
  */
 export function useAcoes() {
   const qc = useQueryClient();
-  const mut = <A extends unknown[]>(fn: (...args: A) => Promise<Resultado & { osId?: Id }>) =>
+  const mut = <A extends unknown[], R extends Resultado = Resultado & { osId?: Id }>(fn: (...args: A) => Promise<R>) =>
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useMutation({
       mutationFn: (args: A) => fn(...args),
@@ -66,7 +91,7 @@ export function useAcoes() {
     atribuirResponsavel: mut((etapaId: Id, perfilId: Id) => repositorio.atribuirResponsavel(etapaId, perfilId)),
     criarAtendimentoRapido: mut((dados: NovoAtendimentoRapido) => repositorio.criarAtendimentoRapido(dados)),
     registrarAprovacao: mut((osId: Id, evidencia: string) => repositorio.registrarAprovacao(osId, evidencia)),
-    registrarEntrada: mut((osId: Id, tipoReparoId: Id) => repositorio.registrarEntrada(osId, tipoReparoId)),
+    registrarEntrada: mut((osId: Id, tipoReparoId: Id, recepcao?: RecepcaoVeiculo) => repositorio.registrarEntrada(osId, tipoReparoId, recepcao)),
     registrarEntrega: mut((osId: Id) => repositorio.registrarEntrega(osId)),
     agendar: mut((osId: Id, data: DataISO, janela: Janela) => repositorio.agendar(osId, data, janela)),
     reagendar: mut((agendamentoId: Id, data: DataISO, janela: Janela) => repositorio.reagendar(agendamentoId, data, janela)),
@@ -74,7 +99,26 @@ export function useAcoes() {
     marcarNaoCompareceu: mut((agendamentoId: Id) => repositorio.marcarNaoCompareceu(agendamentoId)),
     concluirPendencia: mut((pendenciaId: Id) => repositorio.concluirPendencia(pendenciaId)),
     aplicarBaixa: mut((tituloId: Id, baixa: Omit<Baixa, "id">) => repositorio.aplicarBaixa(tituloId, baixa)),
-    pagarDespesa: mut((despesaId: Id, valor: number, pagoEm: DataISO) => repositorio.pagarDespesa(despesaId, valor, pagoEm)),
+    pagarDespesa: mut((despesaId: Id, valor: number, pagoEm: DataISO, forma?: FormaPagamento) =>
+      repositorio.pagarDespesa(despesaId, valor, pagoEm, forma),
+    ),
+    // clientes, veículos e recepção
+    salvarCliente: mut((cliente: ClienteEntrada) => repositorio.salvarCliente(cliente)),
+    salvarVeiculo: mut((veiculo: VeiculoEntrada) => repositorio.salvarVeiculo(veiculo)),
+    salvarRecepcao: mut((osId: Id, recepcao: RecepcaoVeiculo) => repositorio.salvarRecepcao(osId, recepcao)),
+    // custos e pagamentos da OS
+    lancarCusto: mut((osId: Id, custo: NovoCustoOS) => repositorio.lancarCusto(osId, custo)),
+    removerCusto: mut((custoId: Id) => repositorio.removerCusto(custoId)),
+    registrarPagamentoOS: mut((osId: Id, pagamento: PagamentoOS) => repositorio.registrarPagamentoOS(osId, pagamento)),
+    // estoque
+    movimentarEstoque: mut((mov: MovimentoEntrada) => repositorio.movimentarEstoque(mov)),
+    salvarMaterial: mut((material: MaterialEntrada) => repositorio.salvarMaterial(material)),
+    salvarFornecedor: mut((fornecedor: FornecedorEntrada) => repositorio.salvarFornecedor(fornecedor)),
+    // financeiro e ajustes
+    criarDespesa: mut((despesa: DespesaEntrada) => repositorio.criarDespesa(despesa)),
+    salvarCategoria: mut((categoria: CategoriaEntrada) => repositorio.salvarCategoria(categoria)),
+    fecharCaixa: mut((dados: FechamentoEntrada) => repositorio.fecharCaixa(dados)),
+    salvarChecklistConfig: mut((itens: ChecklistItem[]) => repositorio.salvarChecklistConfig(itens)),
     restaurarDemo: mut(async () => {
       await repositorio.restaurarDemo();
       return { ok: true };

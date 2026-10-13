@@ -7,6 +7,7 @@ import type { Papel } from "@compartilhado/tipos";
 export type Modulo =
   | "geral"
   | "orcamentos"
+  | "clientes"
   | "agenda"
   | "vistorias"
   | "producao"
@@ -16,6 +17,7 @@ export type Modulo =
   | "estoque"
   | "recebiveis"
   | "financeiro"
+  | "relatorios"
   | "ajustes";
 
 export type Acesso = "editar" | "ler" | "proprio" | null;
@@ -23,6 +25,7 @@ export type Acesso = "editar" | "ler" | "proprio" | null;
 const MATRIZ: Record<Modulo, Partial<Record<Papel, Acesso>>> = {
   geral: { dono: "ler", gestor: "ler", recepcao: "ler", financeiro: "ler" },
   orcamentos: { dono: "editar", gestor: "editar", recepcao: "editar", financeiro: "ler" },
+  clientes: { dono: "editar", gestor: "editar", recepcao: "editar", financeiro: "ler" },
   agenda: { dono: "editar", gestor: "editar", recepcao: "editar" },
   vistorias: { dono: "editar", gestor: "editar", recepcao: "editar", producao: "proprio", financeiro: "ler" },
   producao: { dono: "editar", gestor: "editar", recepcao: "ler" },
@@ -32,6 +35,7 @@ const MATRIZ: Record<Modulo, Partial<Record<Papel, Acesso>>> = {
   estoque: { dono: "editar", gestor: "editar", financeiro: "ler" },
   recebiveis: { dono: "editar", gestor: "editar", recepcao: "ler", financeiro: "editar" },
   financeiro: { dono: "editar", gestor: "ler", financeiro: "editar" },
+  relatorios: { dono: "ler", gestor: "ler", financeiro: "ler" },
   ajustes: { dono: "editar", gestor: "editar" },
 };
 
@@ -51,6 +55,14 @@ export function podeEditar(papel: Papel, modulo: Modulo): boolean {
 /** Produção e TV nunca veem valores, telefones nem seguradora (arq. §9.1). */
 export function veDadosSensiveis(papel: Papel): boolean {
   return papel !== "producao" && papel !== "dispositivo";
+}
+
+/**
+ * Custos lançados, resultado e margem da OS: só dono, gestor e financeiro (quem lança custo é quem os vê).
+ * Produção e TV nunca veem custo, margem, valor, documento, telefone nem endereço (veDadosSensiveis).
+ */
+export function veCustosOS(papel: Papel): boolean {
+  return papel === "dono" || papel === "gestor" || papel === "financeiro";
 }
 
 /** Primeira tela de cada papel. */
