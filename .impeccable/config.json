@@ -1,0 +1,44 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font-size",
+        "value": "14px",
+        "createdAt": "2026-10-13T01:50:24.884Z",
+        "reason": "frontend-painel agent: 14px is the body step of the painel type scale documented in docs/painel-design.md §2 (12·13·14·16·20·24·32)"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "12px",
+        "createdAt": "2026-10-13T01:50:44.495Z",
+        "reason": "frontend-painel agent: 12px is a step of the painel type scale documented in docs/painel-design.md §2 (12·13·14·16·20·24·32)"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "16px",
+        "createdAt": "2026-10-13T01:50:44.527Z",
+        "reason": "frontend-painel agent: 16px is a step of the painel type scale documented in docs/painel-design.md §2 (12·13·14·16·20·24·32)"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "20px",
+        "createdAt": "2026-10-13T01:50:44.559Z",
+        "reason": "frontend-painel agent: 20px is a step of the painel type scale documented in docs/painel-design.md §2 (12·13·14·16·20·24·32)"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "24px",
+        "createdAt": "2026-10-13T01:50:44.594Z",
+        "reason": "frontend-painel agent: 24px is a step of the painel type scale documented in docs/painel-design.md §2 (12·13·14·16·20·24·32)"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "32px",
+        "createdAt": "2026-10-13T01:50:44.628Z",
+        "reason": "frontend-painel agent: 32px is a step of the painel type scale documented in docs/painel-design.md §2 (12·13·14·16·20·24·32)"
+      }
+    ]
+  }
+}

@@ -3,6 +3,7 @@ import { normalizarPlaca, placaValida } from "@compartilhado/dominio/placa";
 import { bloquearEtapa, concluirEtapa, dispensarEtapa, gerarEtapas, iniciarEtapa, previsaoEntregaSugerida, retomarEtapa } from "@compartilhado/dominio/os";
 import { podeConfirmar, reagendar as reagendarDominio } from "@compartilhado/dominio/agenda";
 import { aplicarBaixa as aplicarBaixaDominio } from "@compartilhado/dominio/financeiro";
+import { dataNoFuso, somarDias } from "@compartilhado/dominio/fuso";
 import { gerarDemo, type EstadoDemo } from "./demo";
 import type { NovoAtendimentoRapido, OSVisao, Repositorio, Resultado } from "./repositorio";
 
@@ -104,10 +105,8 @@ export const repositorioMemoria: Repositorio = {
   async listarCapacidade(inicio, fim) {
     await pausa();
     const dias: { data: string; vagasEntrada: number; bloqueado?: string }[] = [];
-    const d = new Date(`${inicio}T12:00:00`);
-    const f = new Date(`${fim}T12:00:00`);
-    for (; d <= f; d.setDate(d.getDate() + 1)) {
-      const data = d.toISOString().slice(0, 10);
+    // datas em AAAA-MM-DD somadas no fuso da oficina (sem Date local, que pode pular um dia)
+    for (let data = inicio; data <= fim; data = somarDias(data, 1)) {
       const excecao = estado.capacidades.find((c) => c.data === data);
       dias.push(excecao ?? { data, vagasEntrada: estado.config.capacidadePadrao.vagasEntrada });
     }
@@ -188,7 +187,7 @@ export const repositorioMemoria: Repositorio = {
         seguradora: dados.seguradora,
         idExterno: dados.protocolo,
         statusNormalizado: "aguardando_autorizacao",
-        aberturaEm: momento.slice(0, 10),
+        aberturaEm: dataNoFuso(momento),
         lidoEm: momento,
         estadoConciliacao: "ok",
       });
@@ -292,7 +291,9 @@ export const repositorioMemoria: Repositorio = {
     const os = estado.oss.find((o) => o.id === osId);
     if (!os || os.estado !== "aguardando_agendamento") return { ok: false, codigo: "transicao_invalida" };
     const capacidade = estado.capacidades.find((c) => c.data === data) ?? { data, vagasEntrada: estado.config.capacidadePadrao.vagasEntrada };
-    const r = podeConfirmar(capacidade, estado.agendamentos, agora());
+    // a proposta da própria OS (Calia) não conta como vaga ocupada ao confirmar
+    const propria = estado.agendamentos.find((a) => a.osId === osId && a.estado === "proposto" && a.data === data);
+    const r = podeConfirmar(capacidade, estado.agendamentos, agora(), propria?.id);
     if (!r.ok) return r;
     estado.agendamentos = estado.agendamentos
       .map((a) => (a.osId === osId && a.estado === "proposto" ? ({ ...a, estado: "cancelado", motivoCancelamento: "Substituído por agendamento da recepção" } as Agendamento) : a))

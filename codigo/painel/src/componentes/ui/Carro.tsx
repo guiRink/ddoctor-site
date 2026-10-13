@@ -43,7 +43,7 @@ export function ProgressoEtapas({
         <p className={`mt-1.5 text-[12px] numero ${escuro ? "text-papel-suave" : "text-tinta-suave"}`}>
           {atual ? (
             <>
-              Etapa {atual.ordem} de {total} · <span className={`font-semibold ${escuro ? "text-papel" : "text-tinta"}`}>{atual.nome}</span>
+              Etapa {posicaoNaSequencia(etapas, atual.id)} de {total} · <span className={`font-semibold ${escuro ? "text-papel" : "text-tinta"}`}>{atual.nome}</span>
             </>
           ) : concluidas === total ? (
             "Todas as etapas concluídas"
@@ -54,6 +54,11 @@ export function ProgressoEtapas({
       )}
     </div>
   );
+}
+
+/** Posição da etapa entre as que valem (dispensadas não contam), começando em 1. */
+function posicaoNaSequencia(etapas: EtapaOS[], id: string): number {
+  return etapas.filter((e) => e.estado !== "dispensada").findIndex((e) => e.id === id) + 1;
 }
 
 // ------------------------------------------------------------------ helpers de leitura

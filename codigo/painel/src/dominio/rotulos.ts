@@ -144,6 +144,14 @@ export const ERRO: Record<string, string> = {
   etapas_pendentes: "Ainda há etapas em aberto.",
   sem_itens: "Inclua ao menos uma peça.",
   placa_invalida: "Placa inválida. Use 7 caracteres, como ABC1D23.",
+  valor_invalido: "Informe um valor maior que zero.",
+  conflito_aberto: "Há uma divergência com a Maxpar a resolver antes.",
+  pendencias_abertas: "Ainda há pendências abertas no portal.",
+  etapa_nao_encontrada: "Etapa não encontrada. Atualize a tela.",
+  sem_responsavel: "Defina quem vai fazer a etapa.",
+  agendamento_nao_encontrado: "Agendamento não encontrado. Atualize a tela.",
+  versao_nao_aprovada: "O orçamento ainda não foi aprovado.",
+  sem_pagador: "Defina quem vai pagar.",
 };
 
 export const MENU: { modulo: Modulo; rota: string; nome: string; icone: NomeIcone; grupo: "operacao" | "gestao" | "sistema" }[] = [

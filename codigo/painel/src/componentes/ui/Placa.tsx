@@ -7,10 +7,10 @@ import { normalizarPlaca } from "@compartilhado/dominio/placa";
 type Tamanho = "p" | "m" | "g" | "tv";
 
 const TAMANHOS: Record<Tamanho, { caixa: string; faixa: string; texto: string; letras: string }> = {
-  p: { caixa: "w-[92px] border-[1.5px]", faixa: "h-[7px] text-[5px]", texto: "text-[15px] py-[1px]", letras: "tracking-[0.06em]" },
-  m: { caixa: "w-[116px] border-[1.5px]", faixa: "h-[9px] text-[6px]", texto: "text-[19px] py-[2px]", letras: "tracking-[0.06em]" },
-  g: { caixa: "w-[168px] border-2", faixa: "h-[13px] text-[8px]", texto: "text-[28px] py-[3px]", letras: "tracking-[0.07em]" },
-  tv: { caixa: "w-[230px] border-[3px]", faixa: "h-[18px] text-[11px]", texto: "text-[40px] py-[4px]", letras: "tracking-[0.07em]" },
+  p: { caixa: "w-[96px] border-[1.5px]", faixa: "h-[7px] text-[5px]", texto: "text-[14px] py-[1px]", letras: "tracking-[0.05em]" },
+  m: { caixa: "w-[122px] border-[1.5px]", faixa: "h-[9px] text-[6px]", texto: "text-[18px] py-[2px]", letras: "tracking-[0.05em]" },
+  g: { caixa: "w-[180px] border-2", faixa: "h-[13px] text-[8px]", texto: "text-[27px] py-[3px]", letras: "tracking-[0.05em]" },
+  tv: { caixa: "w-[264px] border-[3px]", faixa: "h-[18px] text-[11px]", texto: "text-[36px] py-[5px]", letras: "tracking-[0.05em]" },
 };
 
 export function Placa({ placa, tamanho = "p", className = "" }: { placa: string; tamanho?: Tamanho; className?: string }) {
