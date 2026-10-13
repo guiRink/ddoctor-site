@@ -11,7 +11,7 @@ import { Semaforo, corSemaforo } from "./Estado";
 // ------------------------------------------------------------------ progresso das etapas
 
 /**
- * Barra segmentada: uma fatia por etapa. Concluída = preto, atual = cor do semáforo,
+ * Barra segmentada: uma fatia por etapa. Concluída = tinta, atual = cor do semáforo,
  * dispensada = hachurada, futura = linha. Abaixo, "Etapa 3 de 5 · Pintura".
  */
 export function ProgressoEtapas({
@@ -32,18 +32,18 @@ export function ProgressoEtapas({
     <div className="min-w-0">
       <div className="flex gap-[3px]" aria-hidden="true">
         {etapas.map((e) => {
-          let cor = escuro ? "bg-grafite-3" : "bg-linha";
-          if (e.estado === "concluida") cor = escuro ? "bg-papel" : "bg-preto";
+          let cor = escuro ? "bg-grafite-3" : "bg-cinza-200";
+          if (e.estado === "concluida") cor = escuro ? "bg-papel" : "bg-tinta";
           else if (e.estado === "dispensada") cor = "hachurado";
           else if (atual && e.id === atual.id) cor = corSemaforo(semaforo === "neutro" ? "verde" : semaforo);
-          return <span key={e.id} className={`h-1.5 flex-1 ${cor}`} />;
+          return <span key={e.id} className={`h-1.5 flex-1 rounded-full ${cor}`} />;
         })}
       </div>
       {mostrarTexto && (
         <p className={`mt-1.5 text-[12px] numero ${escuro ? "text-papel-suave" : "text-tinta-suave"}`}>
           {atual ? (
             <>
-              Etapa {posicaoNaSequencia(etapas, atual.id)} de {total} · <span className={`font-semibold ${escuro ? "text-papel" : "text-tinta"}`}>{atual.nome}</span>
+              Etapa {posicaoNaSequencia(etapas, atual.id)} de {total} · <span className={`font-medium ${escuro ? "text-papel" : "text-tinta"}`}>{atual.nome}</span>
             </>
           ) : concluidas === total ? (
             "Todas as etapas concluídas"
@@ -93,17 +93,17 @@ export function LinhaCarro({ v, para, direita, detalhe }: { v: OSVisao; para?: s
       {/* Em coluna estreita (< 24rem, ex.: celular) o complemento desce para baixo do texto, sem cortar o modelo. */}
       <span className="min-w-0 flex-1 flex flex-col items-start gap-1.5 @sm:flex-row @sm:items-center @sm:gap-3">
         <span className="min-w-0 w-full @sm:flex-1">
-          <span className="block font-semibold truncate">{v.veiculo.modelo ?? "Modelo não informado"}</span>
+          <span className="block font-medium truncate">{v.veiculo.modelo ?? "Modelo não informado"}</span>
           <span className="block text-[13px] leading-snug text-tinta-suave line-clamp-2">{detalhe ?? v.cliente.nome}</span>
         </span>
         {direita && <span className="shrink-0 flex items-center gap-2">{direita}</span>}
       </span>
     </>
   );
-  const classe = "@container flex items-center gap-3 px-4 py-2.5 min-h-14 border-b border-linha last:border-b-0";
+  const classe = "@container flex items-center gap-3 px-4 py-3 min-h-14 border-b border-linha last:border-b-0";
   if (!para) return <div className={classe}>{conteudo}</div>;
   return (
-    <Link to={para} className={`${classe} no-underline text-tinta hover:bg-amarelo-claro transition-colors duration-150`}>
+    <Link to={para} className={`${classe} no-underline text-tinta hover:bg-cinza-50 transition-colors duration-150`}>
       {conteudo}
     </Link>
   );
@@ -133,7 +133,7 @@ export function CartaoOS({
         <Placa placa={v.veiculo.placa} tamanho="m" />
         <Semaforo valor={r.semaforo} texto={r.bloqueada && r.semaforo === "vermelho" ? "Impedido" : undefined} />
       </div>
-      <p className="mt-2.5 font-semibold leading-tight truncate">
+      <p className="mt-3 font-semibold leading-tight truncate">
         {v.veiculo.modelo}
         {v.veiculo.cor && <span className="font-normal text-tinta-suave"> · {v.veiculo.cor}</span>}
       </p>
@@ -142,7 +142,7 @@ export function CartaoOS({
         <ProgressoEtapas etapas={v.etapas} semaforo={r.semaforoAtual} />
       </div>
       {r.bloqueada && r.atual?.bloqueios.at(-1) && (
-        <p className="mt-2 text-[12px] font-semibold text-alerta leading-snug">Impedimento: {r.atual.bloqueios.at(-1)!.motivo}</p>
+        <p className="mt-2 text-[12px] font-medium text-alerta leading-snug">Impedimento: {r.atual.bloqueios.at(-1)!.motivo}</p>
       )}
       <div className="mt-3 pt-3 border-t border-linha flex items-center justify-between gap-2">
         <Responsavel nome={nomePerfil(perfis, r.atual?.responsavelId)} />
@@ -155,7 +155,7 @@ export function CartaoOS({
       {rodape}
     </>
   );
-  const classe = "block bg-cartao border border-linha p-3.5 text-tinta";
+  const classe = "block bg-cartao border border-linha rounded-cartao shadow-cartao p-4 text-tinta";
   if (!para) return <article className={classe}>{corpo}</article>;
   return (
     <Link to={para} className={`${classe} no-underline hover:border-linha-forte transition-colors duration-150`}>

@@ -21,6 +21,7 @@ function visao(id: string, estado: OS["estado"], etapas: EtapaOS[], extra: Parti
     pendencias: [],
     titulos: [],
     fotos: [],
+    custos: [],
   };
 }
 

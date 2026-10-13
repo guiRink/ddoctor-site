@@ -7,7 +7,7 @@ import { useAgora, useConfig, useOSs } from "../dados/hooks";
 import type { OSVisao } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
 import { acesso } from "../dominio/permissoes";
-import { Botao, Erro, Esqueleto, Vazio } from "../componentes/ui/Basicos";
+import { Botao, Contagem, Erro, Esqueleto, SUPERFICIE, Vazio } from "../componentes/ui/Basicos";
 import { Icone } from "../componentes/Icone";
 import { CartaoTarefa, type Retorno } from "../componentes/producao/CartaoTarefa";
 
@@ -66,8 +66,8 @@ export function MinhasTarefas() {
   return (
     <div className="max-w-[560px] mx-auto">
       <header className="mb-5">
-        <h1 className="titulo-condensado text-[32px]">{proprio ? "Minhas tarefas" : `Tarefas de ${alvo.nome.split(" ")[0]}`}</h1>
-        <p className="mt-1.5 text-[14px] text-tinta-suave">
+        <h1 className="titulo-pagina">{proprio ? "Minhas tarefas" : `Tarefas de ${alvo.nome.split(" ")[0]}`}</h1>
+        <p className="mt-1 text-[14px] text-tinta-suave">
           {alvo.nome}
           {alvo.funcao && <> · {alvo.funcao}</>}
           {consulta.data && (
@@ -80,14 +80,15 @@ export function MinhasTarefas() {
         </p>
         {gerencia && (
           <label className="mt-4 flex flex-col gap-1.5">
-            <span className="text-[13px] font-semibold text-tinta-suave">Ver tarefas de</span>
+            <span className="text-[13px] font-medium text-tinta-suave">Ver tarefas de</span>
+            <span className="relative flex">
             <select
               value={alvo.id}
               onChange={(e) => {
                 setRetorno(null);
                 setParams({ de: e.target.value }, { replace: true });
               }}
-              className="h-12 px-3 bg-cartao border border-linha-forte font-semibold text-[16px]"
+              className="appearance-none w-full h-12 pl-3 pr-10 bg-cartao border border-linha-forte shadow-controle font-medium text-[16px] outline-none cursor-pointer focus:border-tinta-fraca focus:ring-[3px] focus:ring-amarelo/30"
             >
               {funcionarios.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -96,6 +97,7 @@ export function MinhasTarefas() {
                 </option>
               ))}
             </select>
+            </span>
           </label>
         )}
       </header>
@@ -104,11 +106,11 @@ export function MinhasTarefas() {
         {retorno && (
           <div
             role={retorno.tipo === "erro" ? "alert" : "status"}
-            className={`flex items-start gap-3 px-4 py-3 text-[16px] font-semibold ${retorno.tipo === "ok" ? "bg-ok-claro text-ok" : "bg-alerta-claro text-alerta"}`}
+            className={`flex items-start gap-3 px-4 py-3 rounded-cartao border text-[16px] font-medium ${retorno.tipo === "ok" ? "bg-ok-claro text-ok border-ok/25" : "bg-alerta-claro text-alerta border-alerta/25"}`}
           >
             <Icone nome={retorno.tipo === "ok" ? "ok" : "alerta"} tamanho={22} className="shrink-0 mt-0.5" />
             <p className="flex-1 leading-snug">{retorno.texto}</p>
-            <button type="button" onClick={() => setRetorno(null)} aria-label="Fechar aviso" className="shrink-0 -m-2 w-11 h-11 grid place-items-center">
+            <button type="button" onClick={() => setRetorno(null)} aria-label="Fechar aviso" className="shrink-0 -m-2 w-11 h-11 grid place-items-center rounded-controle hover:bg-cartao/60">
               <Icone nome="fechar" tamanho={18} />
             </button>
           </div>
@@ -122,7 +124,7 @@ export function MinhasTarefas() {
       ) : (
         <>
           {minhas.length === 0 ? (
-            <div className="bg-cartao border border-linha">
+            <div className={SUPERFICIE}>
               <Vazio
                 titulo={proprio ? "Nada na sua fila agora" : `Nada na fila de ${alvo.nome.split(" ")[0]} agora`}
                 texto={
@@ -149,11 +151,11 @@ export function MinhasTarefas() {
 
           {livres.length > 0 && (
             <section className="mt-8" aria-labelledby="sem-responsavel">
-              <h2 id="sem-responsavel" className="flex items-baseline gap-2 mb-3 pb-2 border-b-2 border-preto">
-                <span className="text-[16px] font-bold">Na fila sem responsável</span>
-                <span className="numero text-tinta-fraca font-semibold">{livres.length}</span>
+              <h2 id="sem-responsavel" className="flex items-center gap-2">
+                <span className="text-[16px] font-semibold">Na fila sem responsável</span>
+                <Contagem n={livres.length} />
               </h2>
-              <p className="mb-3 text-[14px] text-tinta-suave">Quem iniciar fica como responsável.</p>
+              <p className="mt-1 mb-3 text-[14px] text-tinta-suave">Quem iniciar fica como responsável.</p>
               <ul className="m-0 p-0 list-none flex flex-col gap-4">
                 {livres.map((t) => (
                   <li key={t.etapa.id}>

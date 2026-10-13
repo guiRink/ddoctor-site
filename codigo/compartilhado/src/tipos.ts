@@ -36,18 +36,49 @@ export interface ProvenienciaCampo {
 
 // ---------------------------------------------------------------- cliente e veículo
 
+export const TIPOS_PESSOA = ["pf", "pj"] as const;
+export type TipoPessoa = (typeof TIPOS_PESSOA)[number];
+
+export const UFS = [
+  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA",
+  "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+] as const;
+export type UF = (typeof UFS)[number];
+
+export interface Endereco {
+  cep: string; // 8 dígitos, sem máscara
+  logradouro: string;
+  numero: string; // texto: "s/n", "120A"
+  complemento?: string;
+  bairro: string;
+  cidade: string;
+  uf: UF | (string & {});
+}
+
 export interface Cliente {
   id: Id;
   nome: string;
+  tipoPessoa?: TipoPessoa;
+  /** CPF (11) ou CNPJ (14) normalizado: só dígitos (CNPJ alfanumérico: dígitos e letras maiúsculas). */
+  documento?: string;
   telefone?: string; // E.164 sem formatação: +5541999990000
+  whatsapp?: string; // E.164 sem formatação
   email?: string;
+  endereco?: Endereco;
+  observacoes?: string;
   proveniencia?: Record<string, ProvenienciaCampo>;
+  /**
+   * Cadastro de DEMONSTRAÇÃO (seed/repositório em memória). Os telefones têm formato real mas são
+   * inventados: a UI não gera link wa.me/tel: para cliente demo (pode cair num número de verdade).
+   */
+  demo?: boolean;
 }
 
 export interface Veiculo {
   id: Id;
   clienteId?: Id;
   placa: string; // normalizada, 7 caracteres
+  marca?: string;
   modelo?: string;
   cor?: string;
   ano?: number;
@@ -119,9 +150,80 @@ export interface OS {
   entregueEm?: MarcoISO;
   box?: string;
   observacoes?: string;
+  /** Recepção do veículo na entrada (km, combustível, checklist, mapa de avarias). */
+  recepcao?: RecepcaoVeiculo;
   criadoEm: MarcoISO;
   atualizadoEm: MarcoISO;
   demo?: boolean;
+}
+
+// ---------------------------------------------------------------- recepção do veículo
+
+export const NIVEIS_COMBUSTIVEL = ["reserva", "1/4", "1/2", "3/4", "cheio"] as const;
+export type NivelCombustivel = (typeof NIVEIS_COMBUSTIVEL)[number];
+
+export const VISTAS_AVARIA = ["frente", "traseira", "lateral_esquerda", "lateral_direita", "teto"] as const;
+export type VistaAvaria = (typeof VISTAS_AVARIA)[number];
+
+export const TIPOS_AVARIA = ["amassado", "risco", "pintura", "vidro", "outro"] as const;
+export type TipoAvaria = (typeof TIPOS_AVARIA)[number];
+
+export const TAMANHOS_AVARIA = ["p", "m", "g"] as const;
+export type TamanhoAvaria = (typeof TAMANHOS_AVARIA)[number];
+
+export interface Avaria {
+  id: Id;
+  vista: VistaAvaria;
+  x: number; // 0..1 na largura do desenho
+  y: number; // 0..1 na altura do desenho
+  tipo: TipoAvaria;
+  tamanho: TamanhoAvaria;
+  obs?: string;
+}
+
+/** Item do checklist de entrada (cadastro em Ajustes; padrão em CHECKLIST_PADRAO, provisório). */
+export interface ChecklistItem {
+  id: Id;
+  grupo: string;
+  nome: string;
+  ativo: boolean;
+}
+
+export interface RecepcaoVeiculo {
+  km?: number;
+  combustivel?: NivelCombustivel;
+  reclamacao?: string; // relato do cliente
+  obsInternas?: string; // não sai na impressão para o cliente
+  checklist: Record<string, boolean>; // id do ChecklistItem → marcado
+  avarias: Avaria[];
+  /** Primeira gravação da recepção; não muda depois (carimbarRecepcao). */
+  registradaEm?: MarcoISO;
+  registradaPor?: Id;
+  /** Última regravação (ausente se nunca foi editada). */
+  atualizadaEm?: MarcoISO;
+  atualizadaPor?: Id;
+}
+
+// ---------------------------------------------------------------- custos da OS
+
+export const TIPOS_CUSTO_OS = ["insumo", "mao_de_obra", "terceiro", "outro"] as const;
+export type TipoCustoOS = (typeof TIPOS_CUSTO_OS)[number];
+
+export interface CustoOS {
+  id: Id;
+  osId: Id;
+  tipo: TipoCustoOS;
+  descricao: string;
+  quantidade: number;
+  unidade?: string;
+  custoUnitario: Centavos;
+  total: Centavos; // quantidade × custoUnitario, arredondado ao centavo (ou custoMaoDeObra)
+  materialId?: Id; // insumo retirado do estoque
+  perfilId?: Id; // funcionário que retirou ou apontou
+  minutos?: number; // mão de obra
+  fornecedor?: string; // terceirização
+  lancadoEm: MarcoISO;
+  lancadoPor?: Id;
 }
 
 // ---------------------------------------------------------------- orçamento
@@ -298,11 +400,17 @@ export interface Pagador {
 export const ESTADOS_TITULO = ["previsto", "emitido", "parcial", "recebido", "cancelado"] as const;
 export type EstadoTitulo = (typeof ESTADOS_TITULO)[number];
 
+export const FORMAS_PAGAMENTO = ["pix", "dinheiro", "debito", "credito", "boleto", "transferencia", "seguradora"] as const;
+export type FormaPagamento = (typeof FORMAS_PAGAMENTO)[number];
+
 export interface Baixa {
   id: Id;
   valor: Centavos;
   recebidoEm: DataISO;
-  forma: string;
+  /** Uma de FORMAS_PAGAMENTO; texto livre antigo ("Pix", "Transferência") continua aceito — use normalizarFormaPagamento. */
+  forma: FormaPagamento | (string & {});
+  parcelas?: number; // crédito parcelado
+  obs?: string;
 }
 
 export interface TituloReceber {
@@ -318,26 +426,97 @@ export interface TituloReceber {
   baixas: Baixa[];
 }
 
+export interface CategoriaFinanceira {
+  id: Id;
+  nome: string;
+  tipo: "receita" | "despesa";
+  ativa: boolean;
+}
+
 export interface Despesa {
   id: Id;
-  categoria: string;
+  categoria: string; // nome (compatibilidade); prefira categoriaId
+  categoriaId?: Id;
   descricao: string;
   fornecedor?: string;
   valorPrevisto: Centavos;
   vencimento: DataISO;
   pagoEm?: DataISO;
   valorPago?: Centavos;
+  formaPagamento?: FormaPagamento;
+  obs?: string;
+}
+
+export interface FechamentoCaixa {
+  id: Id;
+  data: DataISO;
+  saldoInicial: Centavos;
+  contado: Centavos;
+  entradasDinheiro: Centavos;
+  saidasDinheiro: Centavos;
+  esperado: Centavos; // saldoInicial + entradas − saídas (só dinheiro)
+  diferenca: Centavos; // contado − esperado (negativo = falta)
+  obs?: string;
+  fechadoPor?: Id;
+  fechadoEm: MarcoISO;
+}
+
+// ---------------------------------------------------------------- estoque
+
+export interface Fornecedor {
+  id: Id;
+  nome: string;
+  documento?: string; // só dígitos
+  telefone?: string;
+  email?: string;
+  obs?: string;
+  /** Fornecedor de DEMONSTRAÇÃO: telefone inventado; a UI não gera link tel:/wa.me para ele. */
+  demo?: boolean;
 }
 
 export interface Material {
   id: Id;
   nome: string;
+  codigo?: string;
+  marca?: string;
   categoria: string;
   unidade: string;
   saldoEstimado: number;
   saldoMinimo: number;
   ultimaConferenciaEm?: DataISO;
   custoMedio: Centavos;
+  fornecedorId?: Id;
+  ativo?: boolean; // ausente = ativo
+}
+
+export const TIPOS_MOVIMENTO_ESTOQUE = ["entrada_compra", "saida_os", "consumo_interno", "ajuste"] as const;
+export type TipoMovimentoEstoque = (typeof TIPOS_MOVIMENTO_ESTOQUE)[number];
+
+export interface MovimentoEstoque {
+  id: Id;
+  materialId: Id;
+  tipo: TipoMovimentoEstoque;
+  quantidade: number; // sempre positiva; o sentido vem do tipo (ajuste: campo `sentido`)
+  /** Só em "ajuste": soma ("mais") ou subtrai ("menos") do saldo. */
+  sentido?: "mais" | "menos";
+  custoUnitario?: Centavos; // obrigatório em entrada_compra
+  osId?: Id;
+  perfilId?: Id; // quem retirou
+  fornecedorId?: Id;
+  obs?: string; // motivo, obrigatório em ajuste
+  em: MarcoISO;
+}
+
+// ---------------------------------------------------------------- auditoria
+
+export interface RegistroAuditoria {
+  id: Id;
+  em: MarcoISO;
+  perfilId?: Id;
+  acao: string; // ex.: "criar", "editar", "baixa", "ajuste_prazo"
+  entidade: string; // ex.: "os", "titulo_receber", "material"
+  entidadeId?: Id;
+  resumo: string; // frase legível: "Baixa de R$ 300,00 no título #12"
 }
 
 // ---------------------------------------------------------------- configuração
@@ -345,7 +524,9 @@ export interface Material {
 export interface ConfigOficina {
   expediente: { diasSemana: number[]; inicio: string; fim: string; sabadoFim?: string }; // diasSemana: 0=dom … 6=sáb
   semaforo: { laranjaAntesHoras: number; vermelhoBloqueioHoras: number };
-  capacidadePadrao: { vagasEntrada: number; carrosSimultaneos: number };
+  capacidadePadrao: { vagasEntrada: number; carrosSimultaneos: number; pecasDia?: number };
+  /** Itens do checklist de entrada; ausente = CHECKLIST_PADRAO (provisório). */
+  checklist?: ChecklistItem[];
   provisorio: boolean;
 }
 

@@ -20,37 +20,56 @@
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
-/* Tokens — docs/painel-design.md §2 */
+/* Tokens — docs/painel-design.md §2 (revisão SE: direção clean, 13/10/2026).
+   Os NOMES ficam (as telas usam); os VALORES mudaram. */
 @theme {
+  /* marca: amarelo só para ação primária, item ativo, foco e "hoje" */
   --color-amarelo: #f2c200;
   --color-amarelo-escuro: #d9a800;
-  --color-amarelo-claro: #fdf3c4;
-  --color-preto: #0a0a0a;
-  --color-grafite: #15161a;
-  --color-grafite-2: #1e2025;
-  --color-grafite-3: #2a2d33;
-  --color-papel: #f4f3ee;
-  --color-cartao: #ffffff;
-  --color-tinta: #0a0a0a;
-  --color-tinta-suave: rgba(10, 10, 10, 0.66);
-  --color-tinta-fraca: rgba(10, 10, 10, 0.45);
-  --color-linha: rgba(10, 10, 10, 0.1);
-  --color-linha-forte: rgba(10, 10, 10, 0.22);
-  --color-linha-clara: rgba(244, 243, 238, 0.14);
-  --color-papel-suave: rgba(244, 243, 238, 0.7);
-  --color-papel-fraco: rgba(244, 243, 238, 0.45);
-  --color-ok: #1e7f45;
-  --color-ok-claro: #e3f2e9;
-  --color-atencao: #c75b00;
-  --color-atencao-claro: #fcebd8;
-  --color-alerta: #c8321e;
-  --color-alerta-claro: #fbe4e0;
+  --color-amarelo-claro: #fef7d6;
+  --color-amarelo-tinta: #7a5c00; /* texto sobre amarelo-claro */
+
+  /* neutros claros */
+  --color-papel: #f7f7f5; /* fundo da aplicação */
+  --color-cartao: #ffffff; /* superfícies: cartões, tabelas, barra lateral, topo */
+  --color-cinza-50: #fafaf9; /* hover de linha de tabela/lista */
+  --color-cinza-100: #f2f2ef; /* hover de menu, trilho de segmentos, pílula neutra */
+  --color-cinza-200: #e8e7e3; /* item ativo do menu, avatar */
+  --color-tinta: #111111;
+  --color-tinta-suave: #6b6b6b;
+  --color-tinta-fraca: #8c8c87;
+  --color-linha: #e7e5e0;
+  --color-linha-forte: #d5d3cd;
+
+  /* escuros (TV, galeria, botão escuro) */
+  --color-preto: #111111;
+  --color-grafite: #1a1a1a;
+  --color-grafite-2: #1f1f1f;
+  --color-grafite-3: #2e2e2e;
+  --color-linha-clara: rgba(255, 255, 255, 0.1);
+  --color-papel-suave: rgba(247, 247, 245, 0.72);
+  --color-papel-fraco: rgba(247, 247, 245, 0.5);
+
+  /* estados (sóbrios): texto escuro da cor sobre tint claro */
+  --color-ok: #1f7a4a;
+  --color-ok-claro: #eaf5ee;
+  --color-atencao: #b45309;
+  --color-atencao-claro: #fdf1e2;
+  --color-alerta: #b93a2c;
+  --color-alerta-claro: #fcedeb;
   --color-maxpar: #2f4a7a;
+  --color-maxpar-claro: #eaeff7;
 
   --font-sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
 
-  --radius-*: initial;
-  --radius-none: 0;
+  /* raio: 8 cartões, 6 controles e etiquetas retangulares; pílulas em rounded-full */
+  --radius-cartao: 8px;
+  --radius-controle: 6px;
+
+  /* sombra só como profundidade, nunca enfeite */
+  --shadow-cartao: 0 1px 2px rgba(17, 17, 17, 0.04);
+  --shadow-controle: 0 1px 1px rgba(17, 17, 17, 0.04);
+  --shadow-flutuante: 0 12px 32px -12px rgba(17, 17, 17, 0.2), 0 2px 6px rgba(17, 17, 17, 0.05);
 
   --ease-saida: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -65,29 +84,64 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
-  body { margin: 0; min-width: 320px; font-size: 14px; line-height: 1.45; }
+  body { margin: 0; min-width: 320px; font-size: 14px; line-height: 1.5; }
   ::selection { background: var(--color-amarelo); color: var(--color-preto); }
-  :focus-visible { outline: 2px solid var(--color-amarelo); outline-offset: 2px; }
+  :focus-visible { outline: 2px solid var(--color-amarelo-escuro); outline-offset: 2px; }
   input, select, textarea, button { font: inherit; color: inherit; }
+  /* campos ganham o raio de controle sem precisar de classe (as telas não usam rounded-*) */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { border-radius: var(--radius-controle); }
+  input[type="checkbox"], input[type="radio"] { accent-color: var(--color-tinta); }
+  input::placeholder, textarea::placeholder { color: var(--color-tinta-fraca); }
   button { cursor: pointer; }
   button:disabled { cursor: not-allowed; }
-  html { scrollbar-color: var(--color-linha-forte) transparent; }
+  html { scrollbar-color: var(--color-linha-forte) transparent; scrollbar-width: thin; }
   h1, h2, h3, h4 { margin: 0; }
   p { margin: 0; }
 }
 
+/* Select com seta (padrão único): a seta nativa some e entra um chevron 16 px `tinta-suave` a 10 px da borda.
+   Fica FORA de @layer de propósito: vence o `px-*` das telas, para o texto nunca passar por baixo da seta.
+   Nenhum select desenha a própria seta (docs/painel-design.md §3 "Select com seta"). */
+select:not([multiple]):not([size]) {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6b6b' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px 16px;
+  padding-right: 34px;
+  cursor: pointer;
+}
+select:not([multiple]):not([size]):disabled { cursor: not-allowed; }
+
+/* Título limpo (Archivo largura normal). O nome antigo fica por compatibilidade:
+   as telas que usam `titulo-condensado` já recebem o título novo. O tamanho vem da tela. */
+@utility titulo {
+  font-weight: 650;
+  font-variation-settings: "wdth" 100;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+}
 @utility titulo-condensado {
-  font-weight: 800;
-  font-variation-settings: "wdth" 84;
-  letter-spacing: -0.02em;
-  line-height: 1;
+  font-weight: 650;
+  font-variation-settings: "wdth" 100;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+}
+/* Título de página: 24 px / 650. */
+@utility titulo-pagina {
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
 }
 
+/* Rótulo de campo, de grupo e de cabeçalho de tabela: 12 px / 500, sentence case, sem caixa-alta. */
 @utility rotulo {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
   font-variant-numeric: tabular-nums;
 }
 
@@ -96,22 +150,25 @@
   font-feature-settings: "tnum" 1;
 }
 
+/* Substituída na revisão SE: a faixa zebrada virou uma linha amarela fina (sem hachura). */
 @utility faixa-zebrada {
-  background: repeating-linear-gradient(-45deg, var(--color-amarelo) 0 10px, var(--color-preto) 10px 20px);
+  background: var(--color-amarelo);
 }
 
 @utility hachurado {
-  background: repeating-linear-gradient(-45deg, var(--color-linha) 0 4px, transparent 4px 8px);
+  background: repeating-linear-gradient(-45deg, var(--color-linha-forte) 0 2px, transparent 2px 6px);
 }
 
+/* Menus e painéis que flutuam. */
 @utility elevacao {
-  box-shadow: 0 8px 24px -12px rgba(10, 10, 10, 0.35);
+  box-shadow: var(--shadow-flutuante);
 }
 
 /* Esqueleto de carregamento */
-@keyframes pulso { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+@keyframes pulso { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 @utility esqueleto {
-  background: var(--color-linha);
+  background: var(--color-cinza-100);
+  border-radius: var(--radius-controle);
   animation: pulso 1.4s ease-in-out infinite;
 }
 

@@ -1,16 +1,19 @@
-import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useState, type ReactNode } from "react";
+import { Link, useHref, useParams, useSearchParams } from "react-router-dom";
 import type { ConfigOficina, EtapaOS, FaseVistoria, MarcoISO, OrcamentoVersao, Pagador, Perfil } from "@compartilhado/tipos";
+import { itensChecklist } from "@compartilhado/dominio/config";
 import { formatarReais } from "@compartilhado/dominio/dinheiro";
+import { formatarDocumento } from "@compartilhado/dominio/documento";
 import { estadoTitulo, saldoTitulo, valorAprovado } from "@compartilhado/dominio/financeiro";
 import { dataNoFuso, diferencaDias } from "@compartilhado/dominio/fuso";
 import { formatarPlaca } from "@compartilhado/dominio/placa";
+import { progressoChecklist } from "@compartilhado/dominio/recepcao";
 import { semaforoEtapa, semaforoOS } from "@compartilhado/dominio/semaforo";
 import { formatarDuracao, tempoBloqueada, tempoEmExecucao, tempoEmFila } from "@compartilhado/dominio/tempos";
 import { mensagemErro, useAcoes, useAgora, useConfig, useOS, usePagadores, usePerfis, useTiposReparo } from "../dados/hooks";
 import type { OSVisao } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
-import { podeEditar, veDadosSensiveis } from "../dominio/permissoes";
+import { podeEditar, podeVer, veCustosOS, veDadosSensiveis } from "../dominio/permissoes";
 import {
   ESTADO_ETAPA,
   ESTADO_OS,
@@ -27,18 +30,39 @@ import { Botao, BotaoLink, Campo, Cartao, Erro, Esqueleto, Responsavel, Vazio } 
 import { ProgressoEtapas, nomePerfil } from "../componentes/ui/Carro";
 import { Etiqueta, Provisorio, Semaforo } from "../componentes/ui/Estado";
 import { Placa } from "../componentes/ui/Placa";
+import { BarraAbas, ContagemAba, classeAba } from "../componentes/ui/Abas";
+import { CLASSE_TH } from "../componentes/ui/Tabela";
 import { Icone } from "../componentes/Icone";
 import { LinhaVazia, VerTudo } from "../componentes/orcamentos/Blocos";
 import { ProximaAcao } from "../componentes/orcamentos/ProximaAcao";
 import { Proveniencia } from "../componentes/ui/Proveniencia";
 import { dataCurta, diaCurto, ha, marcoCurto, telefoneLegivel } from "../componentes/orcamentos/formato";
 import { LIMITE_VISTORIA_DIAS } from "../componentes/orcamentos/selecoes";
+import { AbaCustos } from "../componentes/os/AbaCustos";
+import { AbaPagamentos } from "../componentes/os/AbaPagamentos";
+import { AbaRecepcao } from "../componentes/os/AbaRecepcao";
+import { AbaResultado } from "../componentes/os/AbaResultado";
+import { NivelCombustivelTexto } from "../componentes/recepcao/FormRecepcao";
+import { kmLegivel, nomeCarro } from "../componentes/os/formato";
+import { NumeroDemo } from "../componentes/clientes/Comuns";
+import { contatoClicavel } from "@compartilhado/dominio/clientes";
 
 /**
- * Ficha da OS (docs/painel-design.md §5): cabeçalho com Placa grande, estado e próxima ação;
- * corpo em duas colunas — Orçamento, Produção e Fotos à esquerda; cliente, atendimento externo,
- * pendências no portal e recebíveis à direita.
+ * Ficha da OS (docs/painel-design.md §5, revisão SE): cabeçalho com Placa grande, carro, cliente,
+ * estado e Próxima ação; abas Visão geral · Recepção · Custos · Resultado · Pagamentos.
+ * Custos e Resultado só para dono, gestor e financeiro (veCustosOS); Pagamentos só para quem vê dinheiro.
+ * A aba fica na URL (?aba=custos) para poder ser linkada.
  */
+type Aba = "geral" | "recepcao" | "custos" | "resultado" | "pagamentos";
+
+const NOMES_ABA: Record<Aba, string> = {
+  geral: "Visão geral",
+  recepcao: "Recepção",
+  custos: "Custos",
+  resultado: "Resultado",
+  pagamentos: "Pagamentos",
+};
+
 export function FichaOS() {
   const { id } = useParams();
   const { perfil } = useSessao();
@@ -48,9 +72,11 @@ export function FichaOS() {
   const perfis = usePerfis();
   const tipos = useTiposReparo();
   const pagadores = usePagadores();
+  const [params, setParams] = useSearchParams();
+  const hrefImprimir = useHref(`/orcamentos/${id}/imprimir`);
 
   const voltar = (
-    <Link to="/orcamentos" className="inline-flex items-center gap-1.5 h-11 -mt-3 mb-1 text-[13px] font-semibold text-tinta-suave no-underline hover:text-tinta">
+    <Link to="/orcamentos" className="inline-flex items-center gap-1.5 h-11 text-[13px] font-medium text-tinta-suave no-underline hover:text-tinta">
       <Icone nome="voltar" tamanho={16} />
       Orçamentos
     </Link>
@@ -60,7 +86,7 @@ export function FichaOS() {
   if (consulta.isError || apoioComErro) {
     return (
       <>
-        {voltar}
+        <div className="-mt-3 mb-2">{voltar}</div>
         <Erro
           mensagem="Não consegui carregar esta OS."
           onTentar={() => [consulta, config, perfis, tipos, pagadores].forEach((c) => c.refetch())}
@@ -72,15 +98,16 @@ export function FichaOS() {
   if (consulta.isPending || !config.data || !perfis.data || !tipos.data || (!pagadores.data && !pagadores.isError && veDadosSensiveis(perfil.papel))) {
     return (
       <>
-        {voltar}
-        <div className="flex gap-4 items-center mb-6">
-          <div className="esqueleto w-[168px] h-[60px]" />
+        <div className="-mt-3 mb-2">{voltar}</div>
+        <div className="flex gap-5 items-center mb-6">
+          <div className="esqueleto w-[180px] h-[62px]" />
           <div className="flex-1 max-w-sm flex flex-col gap-2">
-            <div className="esqueleto h-6" />
+            <div className="esqueleto h-7" />
             <div className="esqueleto h-4 w-2/3" />
           </div>
         </div>
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="esqueleto h-11 mb-6" />
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
           <Esqueleto linhas={5} altura="h-14" />
           <Esqueleto linhas={4} altura="h-14" />
         </div>
@@ -90,7 +117,7 @@ export function FichaOS() {
   if (consulta.data === null) {
     return (
       <>
-        {voltar}
+        <div className="-mt-3 mb-2">{voltar}</div>
         <Cartao>
           <Vazio
             icone="busca"
@@ -104,31 +131,72 @@ export function FichaOS() {
   }
 
   const v = consulta.data;
-  const sensivel = veDadosSensiveis(perfil.papel);
-  const podeAgir = podeEditar(perfil.papel, "orcamentos");
+  const papel = perfil.papel;
+  const sensivel = veDadosSensiveis(papel);
+  const custos = veCustosOS(papel);
+  const podeAgir = podeEditar(papel, "orcamentos");
   const estado = ESTADO_OS[v.os.estado];
   const semaforo = v.etapas.length ? semaforoOS(v.os, v.etapas, agora, config.data) : "neutro";
   const ativo = !["encerrada", "cancelada"].includes(v.os.estado);
+  const carro = nomeCarro(v.veiculo) || "Modelo não informado";
+
+  const abas: Aba[] = ["geral", "recepcao"];
+  if (custos) abas.push("custos", "resultado");
+  if (sensivel) abas.push("pagamentos");
+  const pedida = params.get("aba") as Aba | null;
+  const aba: Aba = pedida && abas.includes(pedida) ? pedida : "geral";
+  const irPara = (a: Aba) => {
+    const p = new URLSearchParams(params);
+    if (a === "geral") p.delete("aba");
+    else p.set("aba", a);
+    setParams(p, { replace: true });
+  };
 
   return (
     <>
-      {voltar}
+      <div className="flex items-center justify-between gap-3 -mt-3 mb-2">
+        {voltar}
+        <Botao
+          tamanho="denso"
+          variante="contorno"
+          icone="documento"
+          onClick={() => window.open(hrefImprimir, "_blank", "noopener")}
+          aria-label={`Imprimir ${v.os.estado === "rascunho" || v.os.estado === "aguardando_aprovacao" ? "orçamento" : "ordem de serviço"} (abre em nova aba)`}
+        >
+          Imprimir
+        </Botao>
+      </div>
 
-      {/* ---------------- cabeçalho: placa, carro, estado e próxima ação */}
-      <header className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] items-start mb-6">
-        <div className="flex flex-col sm:flex-row items-start gap-x-5 gap-y-3 min-w-0">
-          <Placa placa={v.veiculo.placa} tamanho="g" />
+      {/* ---------------- cabeçalho: placa, carro, cliente, estado e próxima ação */}
+      <header className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] items-start mb-6">
+        <div className="flex flex-col sm:flex-row items-start gap-x-6 gap-y-4 min-w-0">
+          <Placa placa={v.veiculo.placa} tamanho="g" className="sm:mt-1" />
           <div className="min-w-0 flex-1">
-            <h1 className="titulo-condensado text-[32px] break-words">
-              {v.veiculo.modelo ?? "Modelo não informado"}
-              {v.veiculo.cor && <span className="text-tinta-suave font-bold"> · {v.veiculo.cor}</span>}
-            </h1>
-            <p className="mt-1.5 text-[14px] text-tinta-suave">
-              <span className="font-semibold text-tinta">{v.cliente.nome}</span>
-              <span className="numero"> · OS {v.os.numero}</span> · {ORIGEM_OS[v.os.origem]}
-              {v.atendimentos[0] && ` · ${v.atendimentos[0].seguradora}`}
+            <h1 className="titulo text-[24px] break-words">{carro}</h1>
+            <p className="mt-1 text-[14px] text-tinta-suave numero">
+              {[v.veiculo.cor, v.veiculo.ano].filter(Boolean).join(" · ")}
+              {(v.veiculo.cor || v.veiculo.ano) && " · "}
+              OS {v.os.numero}
             </p>
-            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            <p className="mt-2 text-[14px] flex flex-wrap items-center gap-x-2 gap-y-1">
+              <Icone nome="pessoa" tamanho={16} className="text-tinta-fraca" />
+              {podeVer(papel, "clientes") ? (
+                <Link to={`/clientes/${v.cliente.id}`} className="font-medium text-tinta underline decoration-linha-forte underline-offset-4 hover:decoration-tinta">
+                  {v.cliente.nome}
+                </Link>
+              ) : (
+                <span className="font-medium">{v.cliente.nome}</span>
+              )}
+              <span className="text-tinta-fraca" aria-hidden="true">·</span>
+              <span className="text-tinta-suave">{ORIGEM_OS[v.os.origem]}</span>
+              {sensivel && v.atendimentos[0] && (
+                <>
+                  <span className="text-tinta-fraca" aria-hidden="true">·</span>
+                  <span className="text-tinta-suave">{v.atendimentos[0].seguradora}</span>
+                </>
+              )}
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <Etiqueta tom={estado.tom}>{estado.texto}</Etiqueta>
               {v.os.estado === "na_oficina" && <Semaforo valor={semaforo} />}
               {v.os.prioridade > 0 && <Etiqueta tom="alerta">{v.os.prioridade === 2 ? "Urgente" : "Prioridade alta"}</Etiqueta>}
@@ -139,53 +207,129 @@ export function FichaOS() {
         <ProximaAcao key={v.os.id} v={v} podeAgir={podeAgir} tipos={tipos.data} />
       </header>
 
-      {/* ---------------- corpo */}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] items-start">
-        <div className="flex flex-col gap-6 min-w-0">
-          <SecaoOrcamento v={v} sensivel={sensivel} />
-          <SecaoProducao v={v} agora={agora} config={config.data} perfis={perfis.data} semaforo={semaforo} />
-          <SecaoFotos v={v} perfis={perfis.data} />
+      {/* ---------------- abas */}
+      <BarraAbas rotulo="Seções da OS" chave={aba}>
+          {abas.map((a) => {
+            const ativa = a === aba;
+            const contagem = a === "custos" ? v.custos.length : undefined;
+            return (
+              <li key={a}>
+                <button
+                  type="button"
+                  onClick={() => irPara(a)}
+                  aria-current={ativa ? "page" : undefined}
+                  className={classeAba(ativa)}
+                >
+                  {NOMES_ABA[a]}
+                  {a === "recepcao" && !v.os.recepcao && v.os.estado === "na_oficina" && (
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-atencao" aria-label="(pendente)" />
+                  )}
+                  {contagem !== undefined && contagem > 0 && (
+                    <ContagemAba n={contagem} ativa={ativa} />
+                  )}
+                </button>
+              </li>
+            );
+          })}
+      </BarraAbas>
+
+      {aba === "recepcao" && <AbaRecepcao key={v.os.id} v={v} config={config.data} perfis={perfis.data} tipos={tipos.data} podeAgir={podeAgir} />}
+      {aba === "custos" && custos && <AbaCustos
+          v={v}
+          perfis={perfis.data}
+          podeLancarInsumos={custos && podeEditar(papel, "estoque")}
+          podeLancarServicos={custos && podeEditar(papel, "orcamentos")}
+        />}
+      {aba === "resultado" && custos && <AbaResultado v={v} onIrCustos={() => irPara("custos")} />}
+      {aba === "pagamentos" && sensivel && (
+        <AbaPagamentos
+          v={v}
+          agora={agora}
+          pagadores={pagadores.data ?? []}
+          podeRegistrar={podeEditar(papel, "orcamentos") || podeEditar(papel, "recebiveis")}
+        />
+      )}
+
+      {aba === "geral" && (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] items-start">
+          <div className="flex flex-col gap-6 min-w-0">
+            <SecaoOrcamento v={v} sensivel={sensivel} />
+            <SecaoProducao v={v} agora={agora} config={config.data} perfis={perfis.data} semaforo={semaforo} />
+            <SecaoFotos v={v} perfis={perfis.data} />
+          </div>
+          <div className="flex flex-col gap-6 min-w-0">
+            <SecaoCliente v={v} sensivel={sensivel} agora={agora} />
+            {v.os.recepcao && <SecaoRecepcaoResumo v={v} config={config.data} onAbrir={() => irPara("recepcao")} />}
+            {v.atendimentos.map((at) => (
+              <Cartao key={at.id} titulo="Atendimento externo" acao={<Proveniencia fonte={at.fonte} lidoEm={at.lidoEm} agora={agora} podeDesatualizar={ativo} />}>
+                {at.estadoConciliacao !== "ok" && (
+                  <p role="alert" className="px-4 py-2.5 bg-alerta-claro text-alerta text-[13px] font-medium border-b border-alerta/20">
+                    {at.estadoConciliacao === "conflito" ? "Dados do portal divergem dos dados da oficina. Resolver antes de agendar." : "Vínculo com o portal ainda não conferido."}
+                  </p>
+                )}
+                <dl className="m-0 px-4 py-1">
+                  {sensivel && <Campo nome="Seguradora">{at.seguradora}</Campo>}
+                  <Campo nome="Protocolo">{at.idExterno && <span className="numero font-medium select-all">{at.idExterno}</span>}</Campo>
+                  {at.numeroSinistro && <Campo nome="Sinistro"><span className="numero">{at.numeroSinistro}</span></Campo>}
+                  <Campo nome="Produto">{at.produto}</Campo>
+                  <Campo nome="Status">
+                    <Etiqueta tom={STATUS_EXTERNO[at.statusNormalizado].tom}>{STATUS_EXTERNO[at.statusNormalizado].texto}</Etiqueta>
+                    {at.statusBruto && <span className="block mt-1 text-[12px] text-tinta-suave">No portal: “{at.statusBruto}”</span>}
+                  </Campo>
+                  <Campo nome="Abertura">{at.aberturaEm && <span className="numero">{diaCurto(at.aberturaEm)}</span>}</Campo>
+                  <Campo nome="Limite da vistoria">{at.limiteVistoriaEm && <LimiteVistoria data={at.limiteVistoriaEm} hoje={dataNoFuso(agora)} antesDaEntrada={["rascunho", "aguardando_aprovacao", "aguardando_agendamento", "agendada"].includes(v.os.estado)} />}</Campo>
+                  <Campo nome="Previsão no portal">{at.previsaoPortal && <span className="numero">{diaCurto(at.previsaoPortal)}</span>}</Campo>
+                </dl>
+              </Cartao>
+            ))}
+            {(v.atendimentos.length > 0 || v.pendencias.length > 0) && <SecaoPendencias v={v} agora={agora} perfis={perfis.data} podeAgir={podeAgir} />}
+            {sensivel && v.titulos.length > 0 && <SecaoRecebiveis v={v} agora={agora} pagadores={pagadores.data ?? []} onAbrir={() => irPara("pagamentos")} />}
+            {v.os.observacoes && (
+              <Cartao titulo="Observações">
+                <p className="px-4 py-3 text-[14px] whitespace-pre-line break-words">{v.os.observacoes}</p>
+              </Cartao>
+            )}
+          </div>
         </div>
-        <div className="flex flex-col gap-6 min-w-0">
-          <SecaoCliente v={v} sensivel={sensivel} agora={agora} />
-          {v.atendimentos.map((at) => (
-            <Cartao
-              key={at.id}
-              titulo="Atendimento externo"
-            >
-              <p className="px-4 pt-3">
-                <Proveniencia fonte={at.fonte} lidoEm={at.lidoEm} agora={agora} podeDesatualizar={ativo} />
-              </p>
-              {at.estadoConciliacao !== "ok" && (
-                <p role="alert" className="px-4 py-2.5 bg-alerta-claro text-alerta text-[13px] font-semibold">
-                  {at.estadoConciliacao === "conflito" ? "Dados do portal divergem dos dados da oficina. Resolver antes de agendar." : "Vínculo com o portal ainda não conferido."}
-                </p>
-              )}
-              <dl className="px-4 py-1">
-                <Campo nome="Seguradora">{at.seguradora}</Campo>
-                <Campo nome="Protocolo">{at.idExterno && <span className="numero font-semibold select-all">{at.idExterno}</span>}</Campo>
-                {at.numeroSinistro && <Campo nome="Sinistro"><span className="numero">{at.numeroSinistro}</span></Campo>}
-                <Campo nome="Produto">{at.produto}</Campo>
-                <Campo nome="Status">
-                  <Etiqueta tom={STATUS_EXTERNO[at.statusNormalizado].tom}>{STATUS_EXTERNO[at.statusNormalizado].texto}</Etiqueta>
-                  {at.statusBruto && <span className="block mt-1 text-[12px] text-tinta-suave">No portal: “{at.statusBruto}”</span>}
-                </Campo>
-                <Campo nome="Abertura">{at.aberturaEm && <span className="numero">{diaCurto(at.aberturaEm)}</span>}</Campo>
-                <Campo nome="Limite da vistoria">{at.limiteVistoriaEm && <LimiteVistoria data={at.limiteVistoriaEm} hoje={dataNoFuso(agora)} antesDaEntrada={["rascunho", "aguardando_aprovacao", "aguardando_agendamento", "agendada"].includes(v.os.estado)} />}</Campo>
-                <Campo nome="Previsão no portal">{at.previsaoPortal && <span className="numero">{diaCurto(at.previsaoPortal)}</span>}</Campo>
-              </dl>
-            </Cartao>
-          ))}
-          {(v.atendimentos.length > 0 || v.pendencias.length > 0) && <SecaoPendencias v={v} agora={agora} perfis={perfis.data} podeAgir={podeAgir} />}
-          {sensivel && v.titulos.length > 0 && <SecaoRecebiveis v={v} agora={agora} pagadores={pagadores.data ?? []} />}
-          {v.os.observacoes && (
-            <Cartao titulo="Observações">
-              <p className="px-4 py-3 text-[14px] whitespace-pre-line break-words">{v.os.observacoes}</p>
-            </Cartao>
-          )}
-        </div>
-      </div>
+      )}
     </>
+  );
+}
+
+// ------------------------------------------------------------------ recepção (resumo na visão geral)
+
+function SecaoRecepcaoResumo({ v, config, onAbrir }: { v: OSVisao; config: ConfigOficina; onAbrir: () => void }) {
+  const rec = v.os.recepcao!;
+  const prog = progressoChecklist(rec.checklist, itensChecklist(config));
+  return (
+    <Cartao titulo="Recepção" acao={<LinkAba onClick={onAbrir} rotulo="Abrir a recepção">Detalhes</LinkAba>}>
+      <dl className="m-0 px-4 py-1">
+        <Campo nome="Quilometragem">{rec.km !== undefined ? <span className="numero">{kmLegivel(rec.km)}</span> : undefined}</Campo>
+        <Campo nome="Combustível"><NivelCombustivelTexto nivel={rec.combustivel} /></Campo>
+        <Campo nome="Checklist">
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <span className="numero">{prog.marcados} de {prog.total}</span>
+            {!prog.completo && <Etiqueta tom="atencao">Incompleto</Etiqueta>}
+          </span>
+        </Campo>
+        <Campo nome="Avarias"><span className="numero">{rec.avarias.length === 0 ? "Nenhuma" : rec.avarias.length}</span></Campo>
+      </dl>
+    </Cartao>
+  );
+}
+
+/** "Ver tudo" que troca de aba (mesmo visual do VerTudo). */
+function LinkAba({ onClick, rotulo, children }: { onClick: () => void; rotulo: string; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={rotulo}
+      className="inline-flex items-center gap-1 min-h-11 -my-2 px-1 text-[13px] font-medium text-tinta-suave hover:text-tinta hover:underline underline-offset-4 shrink-0"
+    >
+      {children}
+      <Icone nome="seta" tamanho={14} />
+    </button>
   );
 }
 
@@ -219,7 +363,7 @@ function Versao({ ver, sensivel, vigente }: { ver: OrcamentoVersao; sensivel: bo
   return (
     <div className={`min-w-0 ${vigente ? "" : "opacity-80"}`}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-3 border-b border-linha">
-        <p className="font-bold">
+        <p className="font-semibold">
           Versão {ver.numeroVersao} · {externo ? "externa" : "interna"}
         </p>
         <Etiqueta tom={est.tom}>{est.texto}</Etiqueta>
@@ -243,11 +387,11 @@ function Versao({ ver, sensivel, vigente }: { ver: OrcamentoVersao; sensivel: bo
         <table className="w-full border-collapse text-[14px]">
           <caption className="sr-only">Peças da versão {ver.numeroVersao}</caption>
           <thead>
-            <tr className="text-left border-b border-linha bg-papel">
-              <th scope="col" className="rotulo text-tinta-suave px-4 h-9">Peça</th>
-              <th scope="col" className="rotulo text-tinta-suave px-3 hidden sm:table-cell">Técnica</th>
-              {sensivel && <th scope="col" className="rotulo text-tinta-suave px-3 text-right">Valor</th>}
-              <th scope="col" className="rotulo text-tinta-suave px-4 text-right">Situação</th>
+            <tr className="text-left">
+              <th scope="col" className={`${CLASSE_TH} pl-4`}>Peça</th>
+              <th scope="col" className={`${CLASSE_TH} hidden sm:table-cell`}>Técnica</th>
+              {sensivel && <th scope="col" className={`${CLASSE_TH} text-right`}>Valor</th>}
+              <th scope="col" className={`${CLASSE_TH} pr-4 text-right`}>Situação</th>
             </tr>
           </thead>
           <tbody>
@@ -256,7 +400,7 @@ function Versao({ ver, sensivel, vigente }: { ver: OrcamentoVersao; sensivel: bo
               return (
                 <tr key={it.id} className="border-b border-linha last:border-b-0 align-middle">
                   <td className="px-4 py-2.5">
-                    <span className={`block font-semibold break-words ${it.statusItem === "negado" ? "line-through decoration-alerta/60 text-tinta-suave" : ""}`}>{it.peca}</span>
+                    <span className={`block font-medium break-words ${it.statusItem === "negado" ? "line-through decoration-alerta/60 text-tinta-suave" : ""}`}>{it.peca}</span>
                     <span className="block text-[12px] text-tinta-suave sm:hidden">{TECNICA[it.tecnica]}</span>
                     {it.descricao && <span className="block text-[12px] text-tinta-suave">{it.descricao}</span>}
                   </td>
@@ -272,7 +416,7 @@ function Versao({ ver, sensivel, vigente }: { ver: OrcamentoVersao; sensivel: bo
         </table>
       )}
       {sensivel && (
-        <dl className="px-4 py-2 border-t border-linha bg-papel/60">
+        <dl className="m-0 px-4 py-2 border-t border-linha bg-cinza-50">
           {ver.estado === "aprovado" ? (
             <Total nome={externo ? "Autorizado" : "Aprovado"} forte>
               {formatarReais(aprovado)}
@@ -293,11 +437,11 @@ function Versao({ ver, sensivel, vigente }: { ver: OrcamentoVersao; sensivel: bo
   );
 }
 
-function Total({ nome, forte = false, children }: { nome: string; forte?: boolean; children: React.ReactNode }) {
+function Total({ nome, forte = false, children }: { nome: string; forte?: boolean; children: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1">
-      <dt className={`text-[13px] ${forte ? "font-bold" : "text-tinta-suave"}`}>{nome}</dt>
-      <dd className={`m-0 numero whitespace-nowrap ${forte ? "text-[16px] font-bold" : ""}`}>{children}</dd>
+      <dt className={`text-[13px] ${forte ? "font-semibold" : "text-tinta-suave"}`}>{nome}</dt>
+      <dd className={`m-0 numero whitespace-nowrap ${forte ? "text-[16px] font-semibold" : ""}`}>{children}</dd>
     </div>
   );
 }
@@ -364,17 +508,17 @@ function LinhaEtapa({ e, agora, config, perfis }: { e: EtapaOS; agora: MarcoISO;
   return (
     <li
       className={`grid grid-cols-[28px_minmax(0,1fr)_auto] sm:grid-cols-[28px_minmax(0,1.2fr)_minmax(0,1fr)_auto] gap-x-3 gap-y-1 items-center px-4 py-3 border-b border-linha last:border-b-0 ${
-        ativa ? "bg-amarelo-claro/50" : ""
+        ativa ? "bg-amarelo-claro/60" : ""
       }`}
     >
-      <span className={`numero font-bold text-[13px] ${e.estado === "concluida" ? "text-ok" : "text-tinta-suave"}`}>{e.ordem}</span>
+      <span className={`numero font-semibold text-[13px] ${e.estado === "concluida" ? "text-ok" : "text-tinta-suave"}`}>{e.ordem}</span>
       <span className="min-w-0">
-        <span className={`block font-semibold ${e.estado === "dispensada" ? "line-through text-tinta-fraca" : ""}`}>{e.nome}</span>
+        <span className={`block font-medium ${e.estado === "dispensada" ? "line-through text-tinta-fraca" : ""}`}>{e.nome}</span>
         <span className="block text-[12px] text-tinta-suave numero">
           {tempos.length ? tempos.join(" · ") : e.estado === "dispensada" ? e.motivoDispensa ?? "Dispensada" : `prazo ${e.prazoHoras} h`}
           {e.pecasPrevistas !== undefined && ` · peças ${e.pecasFeitas ?? 0}/${e.pecasPrevistas}`}
         </span>
-        {motivo && <span className="block text-[12px] font-semibold text-alerta">Impedimento: {motivo}</span>}
+        {motivo && <span className="block text-[12px] font-medium text-alerta">Impedimento: {motivo}</span>}
       </span>
       <span className="hidden sm:block min-w-0">
         <Responsavel nome={nomePerfil(perfis, e.responsavelId)} />
@@ -401,7 +545,7 @@ function SecaoFotos({ v, perfis }: { v: OSVisao; perfis: Perfil[] }) {
       {v.fotos.length === 0 ? (
         <LinhaVazia>
           Nenhuma foto ainda. As fotos de entrada (panorâmica com placa e cada peça) são tiradas em{" "}
-          <Link to={`/vistorias?os=${v.os.id}`} className="font-semibold text-tinta underline underline-offset-4">
+          <Link to={`/vistorias?os=${v.os.id}`} className="font-medium text-tinta underline underline-offset-4">
             Vistorias
           </Link>
           .
@@ -424,9 +568,9 @@ function SecaoFotos({ v, perfis }: { v: OSVisao; perfis: Perfil[] }) {
                           src={f.url}
                           alt={f.legenda ?? `Foto de ${FASE_VISTORIA[fase].toLowerCase()}`}
                           loading="lazy"
-                          className="block w-[136px] h-[96px] object-cover bg-linha border border-linha"
+                          className="block w-[136px] h-[96px] object-cover bg-cinza-100 border border-linha rounded-controle"
                         />
-                        <span className="block mt-1 text-[12px] font-semibold truncate">{f.legenda ?? "Sem legenda"}</span>
+                        <span className="block mt-1.5 text-[12px] font-medium truncate">{f.legenda ?? "Sem legenda"}</span>
                         <span className="block text-[11px] text-tinta-suave numero truncate">
                           {marcoCurto(f.tiradaEm)} · {f.origem === "maxpar" ? "Maxpar" : nomePerfil(perfis, f.autorId) ?? "—"}
                         </span>
@@ -454,23 +598,30 @@ function SecaoCliente({ v, sensivel, agora }: { v: OSVisao; sensivel: boolean; a
           <Proveniencia fonte={prov.fonte} lidoEm={prov.lidoEm} agora={agora} podeDesatualizar={false} />
         </p>
       )}
-      <dl className="px-4 py-1">
+      <dl className="m-0 px-4 py-1">
         <Campo nome="Cliente">{v.cliente.nome}</Campo>
+        {sensivel && v.cliente.documento && (
+          <Campo nome={v.cliente.documento.length > 11 ? "CNPJ" : "CPF"}>
+            <span className="numero select-all">{formatarDocumento(v.cliente.documento)}</span>
+          </Campo>
+        )}
         {sensivel && (
           <Campo nome="Telefone">
-            {v.cliente.telefone ? (
-              <a href={`tel:${v.cliente.telefone}`} className="inline-flex items-center gap-1.5 min-h-11 -my-2.5 font-semibold text-tinta numero underline underline-offset-4">
+            {v.cliente.telefone && !contatoClicavel(v.cliente, v.cliente.telefone) ? (
+              <NumeroDemo texto={telefoneLegivel(v.cliente.telefone)} />
+            ) : v.cliente.telefone ? (
+              <a href={`tel:${v.cliente.telefone}`} className="inline-flex items-center gap-1.5 min-h-11 -my-2.5 font-medium text-tinta numero underline decoration-linha-forte underline-offset-4 hover:decoration-tinta">
                 <Icone nome="telefone" tamanho={16} />
                 {telefoneLegivel(v.cliente.telefone)}
               </a>
             ) : (
-              <span className="text-alerta font-semibold">Sem telefone</span>
+              <span className="text-alerta font-medium">Sem telefone</span>
             )}
           </Campo>
         )}
         {sensivel && v.cliente.email && <Campo nome="E-mail"><span className="break-all">{v.cliente.email}</span></Campo>}
-        <Campo nome="Placa"><span className="numero font-semibold select-all">{formatarPlaca(v.veiculo.placa)}</span></Campo>
-        <Campo nome="Modelo">{v.veiculo.modelo}</Campo>
+        <Campo nome="Placa"><span className="numero font-medium select-all">{formatarPlaca(v.veiculo.placa)}</span></Campo>
+        <Campo nome="Modelo">{nomeCarro(v.veiculo) || undefined}</Campo>
         <Campo nome="Cor">{v.veiculo.cor}</Campo>
         {v.veiculo.ano && <Campo nome="Ano"><span className="numero">{v.veiculo.ano}</span></Campo>}
       </dl>
@@ -519,7 +670,7 @@ function SecaoPendencias({ v, agora, perfis, podeAgir }: { v: OSVisao; agora: Ma
         <ul>
           {abertas.map((p) => (
             <li key={p.id} className="px-4 py-3 border-b border-linha last:border-b-0">
-              <p className={`font-bold ${p.tipo === "reenviar_documentacao" ? "text-alerta" : ""}`}>{TIPO_PENDENCIA[p.tipo]}</p>
+              <p className={`font-semibold ${p.tipo === "reenviar_documentacao" ? "text-alerta" : ""}`}>{TIPO_PENDENCIA[p.tipo]}</p>
               <p className="mt-0.5 text-[13px] text-tinta-suave break-words">{p.descricao}</p>
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[12px] text-tinta-suave numero">
@@ -540,7 +691,7 @@ function SecaoPendencias({ v, agora, perfis, podeAgir }: { v: OSVisao; agora: Ma
                 )}
               </div>
               {erro?.id === p.id && (
-                <p role="alert" className="mt-2 text-[13px] font-semibold text-alerta">
+                <p role="alert" className="mt-2 text-[13px] font-medium text-alerta">
                   {erro.texto}
                 </p>
               )}
@@ -549,8 +700,8 @@ function SecaoPendencias({ v, agora, perfis, podeAgir }: { v: OSVisao; agora: Ma
         </ul>
       )}
       {feitas.length > 0 && (
-        <div className="px-4 py-2.5 border-t border-linha bg-papel/60">
-          <p className="rotulo text-tinta-fraca mb-1">Feitas</p>
+        <div className="px-4 py-2.5 border-t border-linha bg-cinza-50">
+          <p className="rotulo text-tinta-suave mb-1">Feitas</p>
           <ul className="flex flex-col gap-0.5">
             {feitas.map((p) => (
               <li key={p.id} className="flex items-baseline justify-between gap-3 text-[13px] text-tinta-suave">
@@ -567,10 +718,10 @@ function SecaoPendencias({ v, agora, perfis, podeAgir }: { v: OSVisao; agora: Ma
 
 // ------------------------------------------------------------------ recebíveis da OS
 
-function SecaoRecebiveis({ v, agora, pagadores }: { v: OSVisao; agora: MarcoISO; pagadores: Pagador[] }) {
+function SecaoRecebiveis({ v, agora, pagadores, onAbrir }: { v: OSVisao; agora: MarcoISO; pagadores: Pagador[]; onAbrir: () => void }) {
   const hoje = dataNoFuso(agora);
   return (
-    <Cartao titulo="Recebíveis da OS" contagem={v.titulos.length} acao={<VerTudo para="/recebiveis" rotulo="Abrir recebíveis">Recebíveis</VerTudo>}>
+    <Cartao titulo="Recebíveis da OS" contagem={v.titulos.length} acao={<LinkAba onClick={onAbrir} rotulo="Abrir os pagamentos da OS">Pagamentos</LinkAba>}>
       <ul>
         {v.titulos.map((t) => {
           const est = ESTADO_TITULO[estadoTitulo(t, hoje)];
@@ -579,10 +730,10 @@ function SecaoRecebiveis({ v, agora, pagadores }: { v: OSVisao; agora: MarcoISO;
             <li key={t.id} className="px-4 py-3 border-b border-linha last:border-b-0">
               <div className="flex items-start justify-between gap-3">
                 <span className="min-w-0">
-                  <span className="block font-semibold break-words">{t.descricao}</span>
+                  <span className="block font-medium break-words">{t.descricao}</span>
                   <span className="block text-[12px] text-tinta-suave">{pagadores.find((p) => p.id === t.pagadorId)?.nome ?? "Pagador não informado"}</span>
                 </span>
-                <span className="font-bold numero whitespace-nowrap">{formatarReais(t.valor)}</span>
+                <span className="font-semibold numero whitespace-nowrap">{formatarReais(t.valor)}</span>
               </div>
               <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
                 <Etiqueta tom={est.tom}>{est.texto}</Etiqueta>

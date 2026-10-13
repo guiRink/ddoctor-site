@@ -5,7 +5,7 @@ import { formatarDuracao, tempoBloqueada, tempoEmExecucao, tempoEmFila } from "@
 import type { OSVisao } from "../../dados/repositorio";
 import { mensagemErro, useAcoes } from "../../dados/hooks";
 import { ESTADO_ETAPA, TECNICA } from "../../dominio/rotulos";
-import { Botao } from "../ui/Basicos";
+import { Botao, SUPERFICIE } from "../ui/Basicos";
 import { Etiqueta, Semaforo } from "../ui/Estado";
 import { Placa } from "../ui/Placa";
 import { formatarPrazo } from "./quadro";
@@ -75,11 +75,8 @@ export function CartaoTarefa({
 
   const proxima = [...v.etapas].sort((a, b) => a.ordem - b.ordem).find((e) => e.ordem > etapa.ordem && e.estado !== "dispensada");
 
-  const faixa = etapa.estado === "em_execucao" ? "bg-amarelo" : bloqueada ? "bg-alerta" : "bg-linha-forte";
-
   return (
-    <article aria-labelledby={`${id}-titulo`} className="bg-cartao border border-linha">
-      <div className={`h-1.5 ${faixa}`} aria-hidden="true" />
+    <article aria-labelledby={`${id}-titulo`} className={`${SUPERFICIE} overflow-hidden`}>
       <div className="p-4">
         <div className="flex items-start justify-between gap-3">
           <Placa placa={placa} tamanho="m" />
@@ -89,7 +86,7 @@ export function CartaoTarefa({
           {v.veiculo.modelo ?? "Modelo não informado"}
           {v.veiculo.cor && <span className="font-normal text-tinta-suave"> · {v.veiculo.cor}</span>}
         </p>
-        <h3 id={`${id}-titulo`} className="mt-2 titulo-condensado text-[32px]">
+        <h3 id={`${id}-titulo`} className="mt-1.5 titulo text-[28px]">
           {etapa.nome}
         </h3>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -113,11 +110,11 @@ export function CartaoTarefa({
         </dl>
 
         {bloqueio ? (
-          <p className="mt-4 px-3 py-2.5 bg-alerta-claro text-alerta text-[14px] font-semibold leading-snug">Impedimento: {bloqueio.motivo}</p>
+          <p className="mt-4 px-3 py-2.5 rounded-controle bg-alerta-claro text-alerta text-[14px] font-medium leading-snug">Impedimento: {bloqueio.motivo}</p>
         ) : (
           pecas.length > 0 && (
-            <div className="mt-4 px-3 py-2.5 bg-papel">
-              <p className="rotulo text-tinta-suave">Serviço no carro</p>
+            <div className="mt-4 px-3 py-2.5 rounded-controle bg-cinza-50 border border-linha">
+              <p className="text-[13px] font-medium text-tinta-suave">Serviço no carro</p>
               <ul className="mt-1 m-0 p-0 list-none text-[14px] leading-snug">
                 {pecas.map((p) => (
                   <li key={p.peca}>
@@ -133,7 +130,7 @@ export function CartaoTarefa({
       {podeAgir && (
         <div className="px-4 pb-4">
           {erro && (
-            <p role="alert" className="mb-3 px-3 py-2.5 bg-alerta-claro text-alerta text-[14px] font-semibold">
+            <p role="alert" className="mb-3 px-3 py-2.5 rounded-controle bg-alerta-claro text-alerta text-[14px] font-medium">
               {erro}
             </p>
           )}
@@ -213,8 +210,8 @@ export function CartaoTarefa({
 function Dado({ nome, valor, alerta = false }: { nome: string; valor: string; alerta?: boolean }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[12px] text-tinta-fraca">{nome}</dt>
-      <dd className={`m-0 text-[16px] font-semibold ${alerta ? "text-alerta" : ""}`}>{valor}</dd>
+      <dt className="text-[13px] text-tinta-suave">{nome}</dt>
+      <dd className={`m-0 mt-0.5 text-[16px] font-semibold ${alerta ? "text-alerta" : ""}`}>{valor}</dd>
     </div>
   );
 }
@@ -254,12 +251,12 @@ function FormConcluir({
   }
 
   return (
-    <form onSubmit={enviar} className="flex flex-col gap-4 border-t-2 border-preto pt-4">
-      <p className="text-[16px] font-bold">Concluir {etapa.nome}</p>
+    <form onSubmit={enviar} className="flex flex-col gap-4 border-t border-linha pt-4">
+      <p className="text-[16px] font-semibold">Concluir {etapa.nome}</p>
 
       {pedeContagem && (
         <div>
-          <label htmlFor={`${id}-pecas`} className="block text-[14px] font-semibold mb-2">
+          <label htmlFor={`${id}-pecas`} className="block text-[14px] font-medium mb-2">
             Quantas peças você fez?
             {etapa.pecasPrevistas !== undefined && <span className="font-normal text-tinta-suave"> ({etapa.pecasPrevistas} previstas)</span>}
           </label>
@@ -268,7 +265,7 @@ function FormConcluir({
               type="button"
               aria-label="Uma peça a menos"
               onClick={() => setPecas(String(Math.max(0, (Number.isFinite(n) ? n : 0) - 1)))}
-              className="w-14 shrink-0 grid place-items-center bg-cartao border border-linha-forte text-[24px] font-bold hover:border-preto"
+              className="w-14 shrink-0 grid place-items-center rounded-l-controle bg-cartao border border-linha-forte text-[24px] font-medium hover:bg-cinza-50 transition-colors duration-150"
             >
               −
             </button>
@@ -280,25 +277,27 @@ function FormConcluir({
               step={1}
               value={pecas}
               onChange={(e) => setPecas(e.target.value)}
-              className="flex-1 min-w-0 text-center text-[24px] font-bold numero bg-cartao border-y border-linha-forte focus:border-preto outline-none"
+              className="relative flex-1 min-w-0 rounded-none text-center text-[24px] font-semibold numero bg-cartao border-y border-linha-forte outline-none focus:z-10 focus:ring-[3px] focus:ring-amarelo/30"
             />
             <button
               type="button"
               aria-label="Uma peça a mais"
               onClick={() => setPecas(String((Number.isFinite(n) ? n : 0) + 1))}
-              className="w-14 shrink-0 grid place-items-center bg-cartao border border-linha-forte text-[24px] font-bold hover:border-preto"
+              className="w-14 shrink-0 grid place-items-center rounded-r-controle bg-cartao border border-linha-forte text-[24px] font-medium hover:bg-cinza-50 transition-colors duration-150"
             >
               +
             </button>
           </div>
-          {!pecasOk && <p className="mt-1.5 text-[13px] text-alerta font-semibold">Informe um número inteiro de peças.</p>}
+          {!pecasOk && <p className="mt-1.5 text-[13px] text-alerta font-medium">Informe um número inteiro de peças.</p>}
         </div>
       )}
 
       {etapa.exigeFoto && (
-        <label className={`flex items-center gap-3 min-h-14 px-3 border cursor-pointer ${foto ? "border-preto bg-amarelo-claro" : "border-linha-forte bg-cartao"}`}>
-          <input type="checkbox" checked={foto} onChange={(e) => setFoto(e.target.checked)} className="w-6 h-6 shrink-0 accent-preto" />
-          <span className="text-[16px] font-semibold leading-snug">Tirei a foto do serviço pronto</span>
+        <label
+          className={`flex items-center gap-3 min-h-14 px-3 rounded-controle border cursor-pointer transition-colors duration-150 ${foto ? "border-amarelo-escuro bg-amarelo-claro" : "border-linha-forte bg-cartao"}`}
+        >
+          <input type="checkbox" checked={foto} onChange={(e) => setFoto(e.target.checked)} className="w-6 h-6 shrink-0" />
+          <span className="text-[16px] font-medium leading-snug">Tirei a foto do serviço pronto</span>
         </label>
       )}
       {etapa.exigeFoto && !foto && <p className="-mt-2 text-[13px] text-tinta-suave">Esta etapa exige foto. Tire a foto antes de concluir.</p>}
@@ -332,23 +331,23 @@ function FormImpedimento({ ocupado, onVoltar, onConfirmar }: { ocupado: boolean;
   }
 
   return (
-    <form onSubmit={enviar} className="flex flex-col gap-4 border-t-2 border-preto pt-4">
+    <form onSubmit={enviar} className="flex flex-col gap-4 border-t border-linha pt-4">
       <fieldset className="m-0 p-0 border-0 min-w-0">
-        <legend className="text-[16px] font-bold mb-3">O que está impedindo?</legend>
+        <legend className="text-[16px] font-semibold mb-3">O que está impedindo?</legend>
         <div className="flex flex-col gap-2">
           {MOTIVOS_IMPEDIMENTO.map((m) => (
             <label
               key={m}
-              className={`flex items-center gap-3 min-h-12 px-3 border cursor-pointer ${motivo === m ? "border-preto bg-amarelo-claro" : "border-linha-forte bg-cartao"}`}
+              className={`flex items-center gap-3 min-h-12 px-3 rounded-controle border cursor-pointer transition-colors duration-150 ${motivo === m ? "border-amarelo-escuro bg-amarelo-claro" : "border-linha-forte bg-cartao hover:bg-cinza-50"}`}
             >
-              <input type="radio" name={`${id}-motivo`} value={m} checked={motivo === m} onChange={() => setMotivo(m)} className="w-5 h-5 shrink-0 accent-preto" />
-              <span className="text-[16px] font-semibold">{m}</span>
+              <input type="radio" name={`${id}-motivo`} value={m} checked={motivo === m} onChange={() => setMotivo(m)} className="w-5 h-5 shrink-0" />
+              <span className="text-[16px] font-medium">{m}</span>
             </label>
           ))}
         </div>
       </fieldset>
       <div>
-        <label htmlFor={`${id}-texto`} className="block text-[14px] font-semibold mb-2">
+        <label htmlFor={`${id}-texto`} className="block text-[14px] font-medium mb-2">
           {outro ? "Descreva o impedimento" : "Detalhe (opcional)"}
         </label>
         <textarea
@@ -358,7 +357,7 @@ function FormImpedimento({ ocupado, onVoltar, onConfirmar }: { ocupado: boolean;
           rows={2}
           required={outro}
           placeholder={outro ? "O que aconteceu?" : "Ex.: moldura da porta"}
-          className="w-full px-3 py-2.5 bg-cartao border border-linha-forte focus:border-preto outline-none resize-y text-[16px]"
+          className="w-full px-3 py-2.5 bg-cartao border border-linha-forte focus:border-tinta-fraca focus:ring-[3px] focus:ring-amarelo/30 outline-none resize-y text-[16px]"
         />
       </div>
       <Botao type="submit" variante="secundario" tamanho="grande" icone="bloqueio" className="w-full" disabled={!pode}>

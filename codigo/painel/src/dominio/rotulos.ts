@@ -1,4 +1,12 @@
 import type {
+  FormaPagamento,
+  NivelCombustivel,
+  TamanhoAvaria,
+  TipoAvaria,
+  TipoCustoOS,
+  TipoMovimentoEstoque,
+  TipoPessoa,
+  VistaAvaria,
   EstadoAgendamento,
   EstadoEtapa,
   EstadoOS,
@@ -129,6 +137,90 @@ export const PAPEL: Record<Papel, string> = {
 
 export const JANELA = { manha: "Manhã", tarde: "Tarde" } as const;
 
+export const FORMA_PAGAMENTO: Record<FormaPagamento, string> = {
+  pix: "Pix",
+  dinheiro: "Dinheiro",
+  debito: "Cartão de débito",
+  credito: "Cartão de crédito",
+  boleto: "Boleto",
+  transferencia: "Transferência",
+  seguradora: "Seguradora",
+};
+
+export const TIPO_PESSOA: Record<TipoPessoa, string> = { pf: "Pessoa física", pj: "Pessoa jurídica" };
+
+export const TIPO_CUSTO_OS: Record<TipoCustoOS, string> = {
+  insumo: "Insumo do estoque",
+  mao_de_obra: "Mão de obra",
+  terceiro: "Terceirizado",
+  outro: "Outro custo",
+};
+
+export const TIPO_MOVIMENTO_ESTOQUE: Record<TipoMovimentoEstoque, string> = {
+  entrada_compra: "Entrada (compra)",
+  saida_os: "Retirada para OS",
+  consumo_interno: "Consumo interno",
+  ajuste: "Ajuste",
+};
+
+export const NIVEL_COMBUSTIVEL: Record<NivelCombustivel, string> = {
+  reserva: "Reserva",
+  "1/4": "1/4",
+  "1/2": "1/2",
+  "3/4": "3/4",
+  cheio: "Cheio",
+};
+
+export const VISTA_AVARIA: Record<VistaAvaria, string> = {
+  frente: "Frente",
+  traseira: "Traseira",
+  lateral_esquerda: "Lateral esquerda",
+  lateral_direita: "Lateral direita",
+  teto: "Teto",
+};
+
+export const TIPO_AVARIA: Record<TipoAvaria, string> = {
+  amassado: "Amassado",
+  risco: "Risco",
+  pintura: "Pintura",
+  vidro: "Vidro",
+  outro: "Outro",
+};
+
+export const TAMANHO_AVARIA: Record<TamanhoAvaria, string> = { p: "Pequeno", m: "Médio", g: "Grande" };
+
+/** Ações gravadas na auditoria (RegistroAuditoria.acao) → texto da tela de Auditoria. */
+export const ACAO_AUDITORIA: Record<string, string> = {
+  criar: "Criou",
+  editar: "Editou",
+  aprovar: "Aprovou",
+  agendar: "Agendou",
+  reagendar: "Reagendou",
+  cancelar: "Cancelou",
+  nao_compareceu: "Não compareceu",
+  entrada: "Entrada",
+  entrega: "Entrega",
+  recepcao: "Recepção",
+  baixa: "Recebimento",
+  pagar: "Pagou",
+  concluir: "Concluiu",
+  atribuir: "Atribuiu",
+  fechar_caixa: "Fechou o caixa",
+  iniciada: "Iniciou etapa",
+  "concluída": "Concluiu etapa",
+  impedida: "Impedimento",
+  retomada: "Retomou etapa",
+  dispensada: "Dispensou etapa",
+  lancar_custo: "Lançou custo",
+  remover_custo: "Removeu custo",
+  entrada_compra: "Entrada no estoque",
+  consumo_interno: "Consumo interno",
+  ajuste: "Ajuste de estoque",
+};
+
+/** Rótulo da ação; ação desconhecida vira "Texto com espaços". */
+export const rotuloAcao = (a: string): string => ACAO_AUDITORIA[a] ?? a.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+
 /** Códigos de erro do domínio/banco → mensagem para a pessoa. */
 export const ERRO: Record<string, string> = {
   sem_vaga: "Não há vaga nesse período. Escolha outro dia ou outro período.",
@@ -155,11 +247,50 @@ export const ERRO: Record<string, string> = {
   agendamento_nao_encontrado: "Agendamento não encontrado. Atualize a tela.",
   versao_nao_aprovada: "O orçamento ainda não foi aprovado.",
   sem_pagador: "Defina quem vai pagar.",
+  // sprint SE: clientes, recepção, custos, estoque, caixa
+  nome_obrigatorio: "Informe o nome.",
+  descricao_obrigatoria: "Informe a descrição.",
+  documento_invalido: "CPF ou CNPJ inválido. Confira os números.",
+  documento_duplicado: "Já existe um cadastro com esse CPF ou CNPJ.",
+  telefone_invalido: "Telefone inválido. Use DDD e número, como (41) 99999-0000.",
+  email_invalido: "E-mail inválido.",
+  cep_invalido: "CEP inválido. Use 8 números.",
+  placa_duplicada: "Já existe um veículo com essa placa.",
+  ano_invalido: "Ano do veículo inválido.",
+  cliente_nao_encontrado: "Cliente não encontrado. Atualize a tela.",
+  veiculo_nao_encontrado: "Veículo não encontrado. Atualize a tela.",
+  os_nao_encontrada: "Ordem de serviço não encontrada. Atualize a tela.",
+  km_invalido: "Quilometragem inválida.",
+  posicao_invalida: "Marque a avaria dentro do desenho do carro.",
+  checklist_invalido: "Cada item do checklist precisa de grupo e nome, sem repetir.",
+  material_nao_encontrado: "Material não encontrado. Atualize a tela.",
+  material_inativo: "Esse material está inativo e não pode sair do estoque.",
+  material_divergente: "O movimento não é desse material.",
+  saldo_insuficiente: "Quantidade maior que o saldo em estoque.",
+  quantidade_invalida: "Informe uma quantidade maior que zero.",
+  custo_obrigatorio: "Informe o custo unitário da compra.",
+  sentido_obrigatorio: "Diga se o ajuste soma ou tira do estoque.",
+  unidade_obrigatoria: "Informe a unidade (L, kg, un…).",
+  tipo_invalido: "Tipo de movimentação inválido. A retirada para OS é feita na ficha da OS.",
+  fornecedor_nao_encontrado: "Fornecedor não encontrado. Atualize a tela.",
+  custo_nao_encontrado: "Custo não encontrado. Atualize a tela.",
+  minutos_invalidos: "Informe os minutos trabalhados.",
+  forma_invalida: "Escolha a forma de pagamento.",
+  parcelas_invalidas: "Número de parcelas inválido.",
+  despesa_nao_encontrada: "Despesa não encontrada. Atualize a tela.",
+  categoria_invalida: "Escolha uma categoria de despesa válida.",
+  categoria_duplicada: "Já existe uma categoria com esse nome.",
+  caixa_ja_fechado: "O caixa deste dia já foi fechado. Lance com a data de hoje.",
+  data_invalida: "Data inválida. Confira dia, mês e ano.",
+  data_futura: "Essa data ainda não chegou. Use hoje ou um dia que já passou.",
+  os_quitada: "Esta OS já está quitada.",
+  os_fechada: "Esta OS já foi entregue, encerrada ou cancelada; a recepção não pode mais ser alterada.",
 };
 
 export const MENU: { modulo: Modulo; rota: string; nome: string; icone: NomeIcone; grupo: "operacao" | "gestao" | "sistema" }[] = [
   { modulo: "geral", rota: "/geral", nome: "Geral", icone: "geral", grupo: "operacao" },
   { modulo: "orcamentos", rota: "/orcamentos", nome: "Orçamentos", icone: "orcamentos", grupo: "operacao" },
+  { modulo: "clientes", rota: "/clientes", nome: "Clientes", icone: "pessoa", grupo: "operacao" },
   { modulo: "agenda", rota: "/agenda", nome: "Agenda", icone: "agenda", grupo: "operacao" },
   { modulo: "producao", rota: "/producao", nome: "Produção", icone: "producao", grupo: "operacao" },
   { modulo: "minhas_tarefas", rota: "/producao/eu", nome: "Minhas tarefas", icone: "celular", grupo: "operacao" },
@@ -168,6 +299,7 @@ export const MENU: { modulo: Modulo; rota: string; nome: string; icone: NomeIcon
   { modulo: "estoque", rota: "/estoque", nome: "Estoque", icone: "estoque", grupo: "gestao" },
   { modulo: "recebiveis", rota: "/recebiveis", nome: "Recebíveis", icone: "recebiveis", grupo: "gestao" },
   { modulo: "financeiro", rota: "/financeiro", nome: "Financeiro", icone: "financeiro", grupo: "gestao" },
+  { modulo: "relatorios", rota: "/relatorios", nome: "Relatórios", icone: "documento", grupo: "gestao" },
   { modulo: "tv", rota: "/producao/tv", nome: "Quadro da TV", icone: "tv", grupo: "sistema" },
   { modulo: "ajustes", rota: "/ajustes", nome: "Ajustes", icone: "ajustes", grupo: "sistema" },
 ];

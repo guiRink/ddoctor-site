@@ -8,7 +8,8 @@ import type { OSVisao } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
 import { podeEditar } from "../dominio/permissoes";
 import { ESTADO_TITULO } from "../dominio/rotulos";
-import { Botao, CabecalhoPagina, Vazio } from "../componentes/ui/Basicos";
+import { rotuloForma } from "../componentes/financeiro/formato";
+import { Botao, CabecalhoPagina, SUPERFICIE, Vazio } from "../componentes/ui/Basicos";
 import { Etiqueta, Provisorio } from "../componentes/ui/Estado";
 import { EstadoConsultas } from "../componentes/gestao/Consultas";
 import { PlacaOS, Retorno } from "../componentes/gestao/Comuns";
@@ -30,11 +31,12 @@ type FiltroPagador = "todos" | Pagador["tipo"];
 
 const FECHADO = new Set(["recebido", "cancelado"]);
 
-const COR_FAIXA: Record<FaixaAging, { faixa: string; texto: string }> = {
-  a_vencer: { faixa: "bg-linha-forte", texto: "text-tinta-suave" },
-  "0_30": { faixa: "bg-atencao", texto: "text-atencao" },
-  "31_60": { faixa: "bg-alerta", texto: "text-alerta" },
-  "61_mais": { faixa: "bg-alerta", texto: "text-alerta" },
+// Cor só quando há título na faixa: ponto + rótulo na cor do atraso (sem faixa colorida na borda).
+const COR_FAIXA: Record<FaixaAging, { ponto?: string; texto: string }> = {
+  a_vencer: { texto: "text-tinta-suave" },
+  "0_30": { ponto: "bg-atencao", texto: "text-atencao" },
+  "31_60": { ponto: "bg-alerta", texto: "text-alerta" },
+  "61_mais": { ponto: "bg-alerta", texto: "text-alerta" },
 };
 
 export function Recebiveis() {
@@ -120,7 +122,7 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
       />
 
       {/* ---------------- faixa de aging (elemento dominante) */}
-      <section aria-label="Saldo em aberto por atraso" className="grid grid-cols-2 lg:grid-cols-4 bg-cartao border border-linha">
+      <section aria-label="Saldo em aberto por atraso" className={`grid grid-cols-2 lg:grid-cols-4 ${SUPERFICIE} overflow-hidden`}>
         {FAIXAS.map((f, i) => {
           const ativo = faixa === f;
           const { total, quantidade } = aging[f];
@@ -130,20 +132,22 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
               type="button"
               aria-pressed={ativo}
               onClick={() => escolherFaixa(f)}
-              className={`relative text-left px-4 md:px-5 pt-5 pb-4 min-h-[112px] transition-colors duration-150 border-linha ${
+              className={`relative text-left px-4 py-3.5 min-h-[100px] transition-colors duration-150 border-linha focus-visible:outline-offset-[-2px] ${
                 i % 2 === 1 ? "border-l" : ""
               } ${i >= 2 ? "border-t lg:border-t-0" : ""} ${i === 2 ? "lg:border-l" : ""} ${
-                ativo ? "bg-amarelo-claro outline-2 outline-preto -outline-offset-2" : "hover:bg-papel"
+                ativo ? "bg-cinza-100" : "hover:bg-cinza-50"
               }`}
             >
-              <span aria-hidden="true" className={`absolute left-0 right-0 top-0 h-1 ${quantidade ? COR_FAIXA[f].faixa : "bg-linha"}`} />
-              <span className={`rotulo block ${quantidade ? COR_FAIXA[f].texto : "text-tinta-suave"}`}>{FAIXA_AGING[f].texto}</span>
-              <span className="block mt-2 text-[20px] md:text-[24px] font-bold numero leading-none whitespace-nowrap">
+              <span className={`flex items-center gap-1.5 text-[13px] font-medium ${quantidade ? COR_FAIXA[f].texto : "text-tinta-suave"}`}>
+                {quantidade > 0 && COR_FAIXA[f].ponto && <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full shrink-0 ${COR_FAIXA[f].ponto}`} />}
+                {FAIXA_AGING[f].texto}
+              </span>
+              <span className="block mt-1 text-[24px] md:text-[28px] font-semibold tracking-[-0.02em] md:tracking-[-0.01em] numero leading-none whitespace-nowrap">
                 {formatarReais(total)}
               </span>
-              <span className="block mt-1.5 text-[13px] text-tinta-suave numero">
+              <span className="block mt-1.5 text-[12px] text-tinta-suave numero">
                 {quantidade} {quantidade === 1 ? "título" : "títulos"}
-                {ativo && <span className="font-semibold text-tinta"> · filtrando</span>}
+                {ativo && <span className="font-medium text-tinta"> · filtrando</span>}
               </span>
             </button>
           );
@@ -196,7 +200,7 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
       </div>
 
       {titulos.length === 0 ? (
-        <div className="bg-cartao border border-linha">
+        <div className={SUPERFICIE}>
           <Vazio
             icone="recebiveis"
             titulo="Nenhum título ainda"
@@ -204,7 +208,7 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
           />
         </div>
       ) : lista.length === 0 ? (
-        <div className="bg-cartao border border-linha">
+        <div className={SUPERFICIE}>
           <Vazio
             icone="filtro"
             titulo="Nenhum título com esses filtros"
@@ -250,7 +254,7 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
                         <PlacaOS v={v} />
                       </Td>
                       <Td className="min-w-[180px]">
-                        <span className="block font-semibold leading-snug">{t.descricao}</span>
+                        <span className="block font-medium leading-snug">{t.descricao}</span>
                         {v && (
                           <span className="block text-[12px] text-tinta-suave numero">
                             OS {v.os.numero}
@@ -274,7 +278,7 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
                       </Td>
                       <Td numero>{formatarReais(t.valor)}</Td>
                       <Td numero>
-                        <span className="block font-bold">{formatarReais(saldo)}</span>
+                        <span className="block font-semibold">{formatarReais(saldo)}</span>
                         {recebido > 0 && saldo > 0 && <span className="block text-[12px] text-tinta-suave">recebido {formatarReais(recebido)}</span>}
                       </Td>
                       <Td>
@@ -285,7 +289,7 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
                       </Td>
                     </Linha>
                     {estaAberto && (
-                      <tr className="bg-amarelo-claro border-b border-linha">
+                      <tr className="bg-cinza-50 border-b border-linha">
                         <td colSpan={9} className="px-3 pb-4 pt-1">
                           <PainelTitulo titulo={t} hoje={hoje} podeReceber={podeReceber} onFechar={() => setAberto(null)} />
                         </td>
@@ -306,26 +310,26 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
               const pagador = porPagador.get(t.pagadorId);
               const estaAberto = aberto === t.id;
               return (
-                <li key={t.id} className={`border border-linha p-3.5 ${estaAberto ? "bg-amarelo-claro" : "bg-cartao"}`}>
+                <li key={t.id} className={`${SUPERFICIE} p-4`}>
                   <div className="flex items-start justify-between gap-2">
                     <PlacaOS v={v} />
                     <Etiqueta tom={ESTADO_TITULO[est].tom}>{ESTADO_TITULO[est].texto}</Etiqueta>
                   </div>
-                  <p className="mt-2 font-semibold leading-snug">{t.descricao}</p>
+                  <p className="mt-2.5 font-medium leading-snug">{t.descricao}</p>
                   <p className="text-[13px] text-tinta-suave">
                     {pagador ? TIPO_PAGADOR[pagador.tipo] : "—"}
                     {t.nfNumero ? ` · NF ${t.nfNumero}` : " · sem NF"}
                   </p>
                   <dl className="mt-3 grid grid-cols-2 gap-3">
                     <div>
-                      <dt className="rotulo text-tinta-fraca">Vencimento</dt>
+                      <dt className="text-[12px] text-tinta-suave">Vencimento</dt>
                       <dd className="m-0 numero">
                         <Vencimento titulo={t} hoje={hoje} />
                       </dd>
                     </div>
                     <div className="text-right">
-                      <dt className="rotulo text-tinta-fraca">Saldo</dt>
-                      <dd className="m-0 numero font-bold text-[16px]">{formatarReais(saldo)}</dd>
+                      <dt className="text-[12px] text-tinta-suave">Saldo</dt>
+                      <dd className="m-0 numero font-semibold text-[16px]">{formatarReais(saldo)}</dd>
                       {saldo !== t.valor && <dd className="m-0 numero text-[12px] text-tinta-suave">de {formatarReais(t.valor)}</dd>}
                     </div>
                   </dl>
@@ -357,11 +361,11 @@ function Vencimento({ titulo, hoje }: { titulo: TituloReceber; hoje: string }) {
     <>
       <span className="block">{dataCurta(titulo.vencimento, hoje.slice(0, 4))}</span>
       {!fechado && atraso > 0 && (
-        <span className="block text-[12px] font-semibold text-alerta">
+        <span className="block text-[12px] font-medium text-alerta">
           há {atraso} {atraso === 1 ? "dia" : "dias"}
         </span>
       )}
-      {!fechado && atraso === 0 && <span className="block text-[12px] font-semibold text-atencao">vence hoje</span>}
+      {!fechado && atraso === 0 && <span className="block text-[12px] font-medium text-atencao">vence hoje</span>}
       {!fechado && atraso < 0 && atraso >= -7 && (
         <span className="block text-[12px] text-tinta-suave">
           em {-atraso} {atraso === -1 ? "dia" : "dias"}
@@ -439,9 +443,9 @@ function PainelTitulo({ titulo, hoje, podeReceber, onFechar }: { titulo: TituloR
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] bg-cartao border border-linha p-4">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] bg-cartao border border-linha rounded-cartao shadow-cartao p-4">
       <div className="min-w-0">
-        <h3 className="rotulo text-tinta-suave mb-2">Baixas registradas</h3>
+        <h3 className="text-[13px] font-semibold mb-2">Baixas registradas</h3>
         {titulo.baixas.length === 0 ? (
           <p className="text-[13px] text-tinta-suave">Nenhuma baixa ainda.</p>
         ) : (
@@ -449,14 +453,14 @@ function PainelTitulo({ titulo, hoje, podeReceber, onFechar }: { titulo: TituloR
             {titulo.baixas.map((b) => (
               <li key={b.id} className="flex items-center justify-between gap-3 py-1.5 border-b border-linha last:border-b-0 text-[13px]">
                 <span className="numero">
-                  {dataCurta(b.recebidoEm, hoje.slice(0, 4))} · {b.forma}
+                  {dataCurta(b.recebidoEm, hoje.slice(0, 4))} · {rotuloForma(b.forma)}
                 </span>
                 <span className="numero font-semibold">{formatarReais(b.valor)}</span>
               </li>
             ))}
             <li className="flex items-center justify-between gap-3 pt-2 text-[13px]">
               <span className="text-tinta-suave">Saldo</span>
-              <span className="numero font-bold">{formatarReais(saldo)}</span>
+              <span className="numero font-semibold">{formatarReais(saldo)}</span>
             </li>
           </ul>
         )}
@@ -464,10 +468,10 @@ function PainelTitulo({ titulo, hoje, podeReceber, onFechar }: { titulo: TituloR
 
       {podeFormulario ? (
         <form onSubmit={registrar} aria-label="Registrar recebimento" className="min-w-0">
-          <h3 className="rotulo text-tinta-suave mb-2">Registrar recebimento</h3>
+          <h3 className="text-[13px] font-semibold mb-2">Registrar recebimento</h3>
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="flex flex-col gap-1" htmlFor={`${id}-valor`}>
-              <span className="text-[13px] font-semibold">Valor (R$)</span>
+              <span className="text-[13px] font-medium text-tinta-suave">Valor (R$)</span>
               <input
                 id={`${id}-valor`}
                 inputMode="decimal"
@@ -479,16 +483,18 @@ function PainelTitulo({ titulo, hoje, podeReceber, onFechar }: { titulo: TituloR
               />
             </label>
             <label className="flex flex-col gap-1" htmlFor={`${id}-data`}>
-              <span className="text-[13px] font-semibold">Recebido em</span>
+              <span className="text-[13px] font-medium text-tinta-suave">Recebido em</span>
               <input id={`${id}-data`} type="date" value={data} max={hoje} onChange={(e) => setData(e.target.value)} className={`${CLASSE_CAMPO} numero`} />
             </label>
             <label className="flex flex-col gap-1" htmlFor={`${id}-forma`}>
-              <span className="text-[13px] font-semibold">Forma</span>
-              <select id={`${id}-forma`} value={forma} onChange={(e) => setForma(e.target.value)} className={CLASSE_CAMPO}>
-                {FORMAS_RECEBIMENTO.map((f) => (
-                  <option key={f}>{f}</option>
-                ))}
-              </select>
+              <span className="text-[13px] font-medium text-tinta-suave">Forma</span>
+              <span className="relative flex">
+                <select id={`${id}-forma`} value={forma} onChange={(e) => setForma(e.target.value)} className={`${CLASSE_CAMPO} appearance-none pr-8 cursor-pointer`}>
+                  {FORMAS_RECEBIMENTO.map((f) => (
+                    <option key={f}>{f}</option>
+                  ))}
+                </select>
+              </span>
             </label>
           </div>
           <p id={`${id}-dica`} className="mt-1.5 text-[12px] text-tinta-suave">

@@ -7,6 +7,9 @@ import { ProvedorSessao, useSessao } from "./dados/sessao";
 import { podeVer, telaInicial, type Modulo } from "./dominio/permissoes";
 import { Agenda } from "./telas/Agenda";
 import { Ajustes } from "./telas/Ajustes";
+import { Clientes } from "./telas/Clientes";
+import { FichaCliente } from "./telas/FichaCliente";
+import { ImprimirOS } from "./telas/ImprimirOS";
 import { Estoque } from "./telas/Estoque";
 import { FichaOS } from "./telas/FichaOS";
 import { Financeiro } from "./telas/Financeiro";
@@ -18,6 +21,7 @@ import { Orcamentos } from "./telas/Orcamentos";
 import { Producao } from "./telas/Producao";
 import { ProducaoTV } from "./telas/ProducaoTV";
 import { Recebiveis } from "./telas/Recebiveis";
+import { Relatorios } from "./telas/Relatorios";
 import { Vistorias } from "./telas/Vistorias";
 
 /** Barra de acesso por papel na interface (a barreira real é a RLS no S1). */
@@ -40,6 +44,7 @@ export default function App() {
       <ProvedorSessao>
         <HashRouter>
           <Routes>
+            <Route path="/orcamentos/:id/imprimir" element={<Protegida modulo="orcamentos"><ImprimirOS /></Protegida>} />
             <Route path="/producao/tv" element={<Protegida modulo="tv"><ProducaoTV /></Protegida>} />
             <Route element={<Layout />}>
               <Route index element={<Inicio />} />
@@ -47,6 +52,8 @@ export default function App() {
               <Route path="/orcamentos" element={<Protegida modulo="orcamentos"><Orcamentos /></Protegida>} />
               <Route path="/orcamentos/novo" element={<Protegida modulo="orcamentos"><NovoAtendimento /></Protegida>} />
               <Route path="/orcamentos/:id" element={<Protegida modulo="orcamentos"><FichaOS /></Protegida>} />
+              <Route path="/clientes" element={<Protegida modulo="clientes"><Clientes /></Protegida>} />
+              <Route path="/clientes/:id" element={<Protegida modulo="clientes"><FichaCliente /></Protegida>} />
               <Route path="/agenda" element={<Protegida modulo="agenda"><Agenda /></Protegida>} />
               <Route path="/producao" element={<Protegida modulo="producao"><Producao /></Protegida>} />
               <Route path="/producao/eu" element={<Protegida modulo="minhas_tarefas"><MinhasTarefas /></Protegida>} />
@@ -55,6 +62,7 @@ export default function App() {
               <Route path="/estoque" element={<Protegida modulo="estoque"><Estoque /></Protegida>} />
               <Route path="/recebiveis" element={<Protegida modulo="recebiveis"><Recebiveis /></Protegida>} />
               <Route path="/financeiro" element={<Protegida modulo="financeiro"><Financeiro /></Protegida>} />
+              <Route path="/relatorios" element={<Protegida modulo="relatorios"><Relatorios /></Protegida>} />
               <Route path="/ajustes" element={<Protegida modulo="ajustes"><Ajustes /></Protegida>} />
               <Route path="*" element={<Inicio />} />
             </Route>

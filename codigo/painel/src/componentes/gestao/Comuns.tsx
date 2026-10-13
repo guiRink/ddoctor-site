@@ -34,10 +34,10 @@ export function AcaoFutura({ texto, quando }: { texto: string; quando: string })
 export function Numero({ rotulo, valor, frase, tom }: { rotulo: string; valor: ReactNode; frase: ReactNode; tom?: "alerta" | "ok" }) {
   const cor = tom === "alerta" ? "text-alerta" : tom === "ok" ? "text-ok" : "text-tinta";
   return (
-    <div className="min-w-0 bg-cartao px-5 py-4">
-      <dt className="rotulo text-tinta-suave">{rotulo}</dt>
+    <div className="min-w-0 bg-cartao px-4 py-3.5">
+      <dt className="text-[13px] font-medium text-tinta-suave">{rotulo}</dt>
       <dd className="m-0">
-        <span className={`block mt-1.5 text-[24px] font-bold numero leading-none whitespace-nowrap ${cor}`}>{valor}</span>
+        <span className={`block mt-1 text-[24px] font-semibold tracking-[-0.01em] numero leading-none whitespace-nowrap ${cor}`}>{valor}</span>
         <span className="block mt-2 text-[13px] text-tinta-suave leading-snug">{frase}</span>
       </dd>
     </div>
@@ -48,13 +48,13 @@ export function Numero({ rotulo, valor, frase, tom }: { rotulo: string; valor: R
 export function Retorno({ erro, ok }: { erro?: string; ok?: string }) {
   if (erro)
     return (
-      <p role="alert" className="text-[13px] font-semibold text-alerta">
+      <p role="alert" className="text-[13px] font-medium text-alerta">
         {erro}
       </p>
     );
   if (ok)
     return (
-      <p role="status" className="text-[13px] font-semibold text-ok">
+      <p role="status" className="text-[13px] font-medium text-ok">
         {ok}
       </p>
     );

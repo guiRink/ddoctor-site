@@ -40,15 +40,15 @@ export function Proveniencia({
   const tom = desatualizado
     ? "bg-alerta-claro text-alerta"
     : fonte === "manual"
-      ? "bg-papel text-tinta-suave border border-linha"
-      : "bg-[#E7ECF5] text-maxpar";
+      ? "bg-cinza-100 text-tinta-suave"
+      : "bg-maxpar-claro text-maxpar";
   return (
     <span
-      className={`inline-flex items-center gap-1 h-6 px-2 text-[11px] font-semibold leading-none numero whitespace-nowrap ${tom} ${className}`}
+      className={`inline-flex items-center gap-1 h-6 px-2 rounded-controle text-[12px] font-medium leading-none numero whitespace-nowrap ${tom} ${className}`}
       title={fonte === "manual" ? "Digitado no painel" : "Lido do portal"}
     >
       {texto}
-      {desatualizado && <span className="font-bold">· desatualizado</span>}
+      {desatualizado && <span className="font-semibold">· desatualizado</span>}
     </span>
   );
 }

@@ -61,7 +61,7 @@ export function PainelOS({
       className="fixed z-40 inset-x-0 bottom-0 top-16 md:left-auto md:w-[420px] bg-cartao border-l border-linha elevacao flex flex-col"
     >
       <header className="flex items-center justify-between gap-3 px-5 h-14 border-b border-linha shrink-0">
-        <p className="rotulo text-tinta-suave numero">OS {v.os.numero}</p>
+        <p className="text-[13px] font-medium text-tinta-suave numero">OS {v.os.numero}</p>
         <Botao variante="fantasma" tamanho="denso" icone="fechar" onClick={onFechar} aria-label="Fechar painel do carro" />
       </header>
 
@@ -76,7 +76,7 @@ export function PainelOS({
               <Semaforo valor={r.semaforo} texto={r.bloqueada && r.semaforo === "vermelho" ? "Impedido" : undefined} />
             )}
           </div>
-          <h2 ref={titulo} id={idTitulo} tabIndex={-1} className="mt-3 text-[20px] font-bold leading-tight outline-none">
+          <h2 ref={titulo} id={idTitulo} tabIndex={-1} className="mt-3 text-[20px] font-semibold tracking-[-0.01em] leading-tight outline-none">
             {v.veiculo.modelo ?? "Modelo não informado"}
             {v.veiculo.cor && <span className="font-normal text-tinta-suave"> · {v.veiculo.cor}</span>}
           </h2>
@@ -100,7 +100,7 @@ export function PainelOS({
             {r.bloqueio > 0 && <Dado nome="Impedida" valor={formatarDuracao(r.bloqueio)} />}
           </dl>
           {bloqueioAberto && (
-            <p className="mt-4 px-3 py-2.5 bg-alerta-claro text-alerta text-[13px] font-semibold leading-snug">
+            <p className="mt-4 px-3 py-2.5 rounded-controle bg-alerta-claro text-alerta text-[13px] font-medium leading-snug">
               <Icone nome="bloqueio" tamanho={14} className="inline -mt-0.5 mr-1.5" />
               Impedimento desde {formatarPrazo(bloqueioAberto.inicioEm, agora)}: {bloqueioAberto.motivo}
             </p>
@@ -109,12 +109,12 @@ export function PainelOS({
 
         {/* etapas */}
         <section className="px-5 py-4" aria-labelledby={`${idTitulo}-etapas`}>
-          <h3 id={`${idTitulo}-etapas`} className="rotulo text-tinta-suave mb-2">
+          <h3 id={`${idTitulo}-etapas`} className="text-[14px] font-semibold mb-2">
             Etapas
           </h3>
           <div aria-live="polite" className="empty:hidden mb-3">
             {aviso && (
-              <p role={aviso.tipo === "erro" ? "alert" : "status"} className={`px-3 py-2 text-[13px] font-semibold ${aviso.tipo === "ok" ? "bg-ok-claro text-ok" : "bg-alerta-claro text-alerta"}`}>
+              <p role={aviso.tipo === "erro" ? "alert" : "status"} className={`px-3 py-2 rounded-controle text-[13px] font-medium ${aviso.tipo === "ok" ? "bg-ok-claro text-ok" : "bg-alerta-claro text-alerta"}`}>
                 {aviso.texto}
               </p>
             )}
@@ -210,9 +210,9 @@ function LinhaEtapa({
           : undefined;
 
   return (
-    <li className={`py-3 border-b border-linha ${atual ? "bg-amarelo-claro -mx-5 px-5" : ""}`}>
+    <li className={`py-3 border-b border-linha ${atual ? "bg-amarelo-claro/70 -mx-5 px-5" : ""}`}>
       <div className="flex items-start gap-3">
-        <span className={`inline-grid place-items-center w-6 h-6 shrink-0 text-[12px] font-bold numero ${atual ? "bg-amarelo text-preto" : fechada ? "bg-preto text-papel" : "bg-papel text-tinta-suave"}`}>
+        <span className={`inline-grid place-items-center w-6 h-6 shrink-0 rounded-full text-[12px] font-semibold numero ${atual ? "bg-amarelo text-preto" : fechada ? "bg-tinta text-cartao" : "bg-cinza-100 text-tinta-suave"}`}>
           {etapa.ordem}
         </span>
         <div className="min-w-0 flex-1">
@@ -233,12 +233,13 @@ function LinhaEtapa({
                 <label htmlFor={idCampo} className="sr-only">
                   Responsável por {etapa.nome}
                 </label>
+                <span className="relative flex min-w-0 flex-1">
                 <select
                   id={idCampo}
                   value={etapa.responsavelId ?? ""}
                   onChange={(e) => atribuir(e.target.value)}
                   disabled={acoes.atribuirResponsavel.isPending}
-                  className="h-9 min-w-0 flex-1 px-2 bg-cartao border border-linha-forte text-[13px] font-semibold"
+                  className="appearance-none h-9 w-full min-w-0 pl-2.5 pr-8 bg-cartao cursor-pointer border border-linha-forte shadow-controle text-[13px] font-medium outline-none hover:border-tinta-fraca focus:border-tinta-fraca focus:ring-[3px] focus:ring-amarelo/30 transition-colors duration-150"
                 >
                   <option value="" disabled>
                     Sem responsável
@@ -250,6 +251,7 @@ function LinhaEtapa({
                     </option>
                   ))}
                 </select>
+                </span>
               </>
             ) : (
               <Responsavel nome={nomeResp} />
@@ -263,7 +265,7 @@ function LinhaEtapa({
 
           {dispensando && (
             <form onSubmit={dispensar} className="mt-3 flex flex-col gap-2">
-              <label htmlFor={`${idCampo}-motivo`} className="text-[13px] font-semibold">
+              <label htmlFor={`${idCampo}-motivo`} className="text-[13px] font-medium text-tinta-suave">
                 Por que a etapa {etapa.nome} não se aplica?
               </label>
               <textarea
@@ -274,7 +276,7 @@ function LinhaEtapa({
                 rows={2}
                 autoFocus
                 placeholder="Ex.: dano só de martelinho, sem funilaria"
-                className="px-3 py-2 bg-cartao border border-linha-forte focus:border-preto outline-none resize-y"
+                className="px-3 py-2 bg-cartao border border-linha-forte focus:border-tinta-fraca focus:ring-[3px] focus:ring-amarelo/30 outline-none resize-y"
               />
               <div className="flex gap-2">
                 <Botao type="submit" tamanho="denso" variante="perigo" disabled={!motivo.trim() || acoes.dispensarEtapa.isPending}>

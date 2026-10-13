@@ -4,14 +4,15 @@ import { etapaAtual, progressoEtapas } from "@compartilhado/dominio/semaforo";
 import { mensagemErro, useAcoes } from "../../dados/hooks";
 import type { OSVisao } from "../../dados/repositorio";
 import { JANELA } from "../../dominio/rotulos";
-import { Botao, BotaoLink } from "../ui/Basicos";
-import { Provisorio } from "../ui/Estado";
+import { Botao, BotaoLink, SUPERFICIE } from "../ui/Basicos";
 import { Icone } from "../Icone";
+import { ReceberCarro } from "../recepcao/ReceberCarro";
 import { diaCurto } from "./formato";
 
 /**
  * Próxima ação da OS conforme o estado (arq. §7.2). O botão primário é a única ação em amarelo da ficha.
- * Os formulários abrem aqui mesmo, ao lado do botão, para a ação e o resultado ficarem juntos.
+ * Aprovação e entrega abrem aqui mesmo, ao lado do botão; a entrada abre o fluxo "Receber o carro"
+ * (painel lateral com dados, checklist e avarias).
  */
 type Painel = null | "aprovacao" | "entrada" | "entrega";
 
@@ -21,7 +22,6 @@ export function ProximaAcao({ v, podeAgir, tipos }: { v: OSVisao; podeAgir: bool
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
   const [evidencia, setEvidencia] = useState("");
-  const [tipoId, setTipoId] = useState(v.os.tipoReparoId ?? "");
   const idBase = useId();
   const { os } = v;
 
@@ -47,7 +47,7 @@ export function ProximaAcao({ v, podeAgir, tipos }: { v: OSVisao; podeAgir: bool
     }
   }
 
-  const ocupado = acoes.registrarAprovacao.isPending || acoes.registrarEntrada.isPending || acoes.registrarEntrega.isPending;
+  const ocupado = acoes.registrarAprovacao.isPending || acoes.registrarEntrega.isPending;
 
   // ---------------------------------------------------------------- texto e botões por estado
   let texto: ReactNode = null;
@@ -81,8 +81,8 @@ export function ProximaAcao({ v, podeAgir, tipos }: { v: OSVisao; podeAgir: bool
           <BotaoLink para={`/agenda?os=${os.id}`} variante="primario" icone="agenda">
             Agendar
           </BotaoLink>
-          <Botao variante="contorno" icone="carro" onClick={() => abrir("entrada")} aria-expanded={painel === "entrada"}>
-            Registrar entrada
+          <Botao variante="contorno" icone="carro" onClick={() => abrir("entrada")} aria-haspopup="dialog">
+            Receber o carro
           </Botao>
         </>
       );
@@ -93,8 +93,8 @@ export function ProximaAcao({ v, podeAgir, tipos }: { v: OSVisao; podeAgir: bool
         : "Entrada agendada.";
       botoes = (
         <>
-          <Botao variante="primario" icone="carro" onClick={() => abrir("entrada")} aria-expanded={painel === "entrada"}>
-            Registrar entrada
+          <Botao variante="primario" icone="carro" onClick={() => abrir("entrada")} aria-haspopup="dialog">
+            Receber o carro
           </Botao>
           <BotaoLink para={`/agenda?os=${os.id}`} variante="contorno" icone="agenda">
             Ver na agenda
@@ -140,14 +140,6 @@ export function ProximaAcao({ v, podeAgir, tipos }: { v: OSVisao; podeAgir: bool
     }
     executar(() => acoes.registrarAprovacao.mutateAsync([os.id, evidencia.trim()]), "Aprovação registrada. O carro entrou na fila de agendamento.");
   }
-  function enviarEntrada(e: FormEvent) {
-    e.preventDefault();
-    if (!tipoId) {
-      setErro(mensagemErro("sem_tipo_reparo"));
-      return;
-    }
-    executar(() => acoes.registrarEntrada.mutateAsync([os.id, tipoId]), "Entrada registrada. As etapas já estão na Produção.");
-  }
   function enviarEntrega(e: FormEvent) {
     e.preventDefault();
     executar(() => acoes.registrarEntrega.mutateAsync([os.id]), "Entrega registrada.");
@@ -156,16 +148,16 @@ export function ProximaAcao({ v, podeAgir, tipos }: { v: OSVisao; podeAgir: bool
   const idErro = `${idBase}-erro`;
 
   return (
-    <section aria-label="Próxima ação" className="bg-cartao border border-linha p-4 min-w-0">
-      <p className="rotulo text-tinta-suave">Próxima ação</p>
+    <section aria-label="Próxima ação" className={`${SUPERFICIE} p-4 min-w-0`}>
+      <p className="text-[13px] font-medium text-tinta-suave">Próxima ação</p>
       <p className="mt-1.5 text-[14px] leading-snug">{texto}</p>
-      {podeAgir && botoes && painel === null && <div className="mt-3 flex flex-wrap gap-2">{botoes}</div>}
+      {podeAgir && botoes && (painel === null || painel === "entrada") && <div className="mt-3 flex flex-wrap gap-2">{botoes}</div>}
       {!podeAgir && botoes && <p className="mt-2 text-[13px] text-tinta-fraca">Seu papel só consulta esta ficha.</p>}
 
       {painel === "aprovacao" && (
         <form onSubmit={enviarAprovacao} className="mt-3 flex flex-col gap-3" noValidate>
           <div>
-            <label htmlFor={`${idBase}-ev`} className="block text-[13px] font-bold mb-1.5">
+            <label htmlFor={`${idBase}-ev`} className="block text-[13px] font-medium text-tinta-suave mb-1.5">
               Como a aprovação foi confirmada?
             </label>
             <textarea
@@ -177,7 +169,7 @@ export function ProximaAcao({ v, podeAgir, tipos }: { v: OSVisao; podeAgir: bool
               aria-invalid={Boolean(erro)}
               aria-describedby={erro ? idErro : undefined}
               placeholder={os.origem === "particular" ? "Ex.: Cliente aprovou pelo WhatsApp às 14h" : "Ex.: Vi a autorização no portal às 14h"}
-              className="w-full px-3 py-2 bg-cartao border border-linha-forte focus:border-preto outline-none placeholder:text-tinta-fraca"
+              className="w-full px-3 py-2 bg-cartao border border-linha-forte focus:border-tinta-fraca focus:ring-[3px] focus:ring-amarelo/30 outline-none placeholder:text-tinta-fraca"
             />
           </div>
           <Rodape erro={erro} idErro={idErro} ocupado={ocupado} confirmar="Confirmar aprovação" onCancelar={() => abrir(null)} />
@@ -185,43 +177,15 @@ export function ProximaAcao({ v, podeAgir, tipos }: { v: OSVisao; podeAgir: bool
       )}
 
       {painel === "entrada" && (
-        <form onSubmit={enviarEntrada} className="mt-3 flex flex-col gap-3" noValidate>
-          <fieldset aria-describedby={erro ? idErro : undefined}>
-            <legend className="text-[13px] font-bold mb-1.5">Tipo de reparo (gera as etapas)</legend>
-            <div className="flex flex-col border border-linha">
-              {tipos.map((t) => (
-                <label
-                  key={t.id}
-                  className={`flex items-start gap-3 px-3 py-2.5 min-h-11 border-b border-linha last:border-b-0 cursor-pointer ${
-                    tipoId === t.id ? "bg-amarelo-claro" : "hover:bg-papel"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name={`${idBase}-tipo`}
-                    value={t.id}
-                    checked={tipoId === t.id}
-                    onChange={() => setTipoId(t.id)}
-                    className="mt-1 accent-preto w-4 h-4"
-                  />
-                  <span className="min-w-0">
-                    <span className="block font-semibold">
-                      {t.nome}
-                      {t.provisorio && (
-                        <span className="ml-2 text-[12px] font-normal text-tinta-suave">
-                          <Provisorio>modelo provisório</Provisorio>
-                        </span>
-                      )}
-                    </span>
-                    <span className="block text-[12px] text-tinta-suave">{t.etapas.map((e) => e.nome).join(" → ")}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          <p className="text-[12px] text-tinta-suave">Depois, tire as fotos de entrada em Vistorias.</p>
-          <Rodape erro={erro} idErro={idErro} ocupado={ocupado} confirmar="Confirmar entrada" onCancelar={() => abrir(null)} />
-        </form>
+        <ReceberCarro
+          v={v}
+          tipos={tipos}
+          onFechar={() => setPainel(null)}
+          onConcluido={(msg) => {
+            setPainel(null);
+            setAviso(msg);
+          }}
+        />
       )}
 
       {painel === "entrega" && (
@@ -235,8 +199,8 @@ export function ProximaAcao({ v, podeAgir, tipos }: { v: OSVisao; podeAgir: bool
       )}
 
       {aviso && (
-        <p role="status" className="mt-3 flex items-center gap-2 text-[13px] font-semibold text-ok">
-          <Icone nome="ok" tamanho={16} />
+        <p role="status" className="mt-3 flex items-start gap-2 text-[13px] font-medium text-ok">
+          <Icone nome="ok" tamanho={16} className="mt-0.5 shrink-0" />
           {aviso}
         </p>
       )}
@@ -260,7 +224,7 @@ function Rodape({
   return (
     <>
       {erro && (
-        <p id={idErro} role="alert" className="text-[13px] font-semibold text-alerta">
+        <p id={idErro} role="alert" className="text-[13px] font-medium text-alerta">
           {erro}
         </p>
       )}

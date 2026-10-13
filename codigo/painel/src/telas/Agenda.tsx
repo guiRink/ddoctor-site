@@ -7,7 +7,8 @@ import type { Resultado } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
 import { podeEditar, podeVer, veDadosSensiveis } from "../dominio/permissoes";
 import { JANELA } from "../dominio/rotulos";
-import { Botao, CabecalhoPagina, Cartao, Erro, Esqueleto } from "../componentes/ui/Basicos";
+import { CabecalhoPagina, Cartao, Erro, Esqueleto } from "../componentes/ui/Basicos";
+import { SeletorPeriodo } from "../componentes/ui/Periodo";
 import { Provisorio } from "../componentes/ui/Estado";
 import { Icone } from "../componentes/Icone";
 import { FilaAgendamento } from "../componentes/agenda/Fila";
@@ -62,7 +63,7 @@ export function Agenda() {
   const consultas = [oss, ags, cap, config];
   const carregando = consultas.some((c) => c.isPending);
   const falhou = consultas.some((c) => c.isError);
-  const ocupado = [acoes.agendar, acoes.reagendar, acoes.cancelarAgendamento, acoes.marcarNaoCompareceu, acoes.registrarEntrada].some((m) => m.isPending);
+  const ocupado = [acoes.agendar, acoes.reagendar, acoes.cancelarAgendamento, acoes.marcarNaoCompareceu].some((m) => m.isPending);
 
   // ?os=ID vindo da ficha: agenda o carro da fila ou abre o agendamento existente (uma vez por id;
   // ajuste de estado durante o render, sem efeito).
@@ -140,18 +141,17 @@ export function Agenda() {
   }
 
   // ------------------------------------------------------------ estados de tela
-  const tam = largo ? "denso" : "padrao";
   const navegacao = (
-    <div className="flex items-center gap-2">
-      <Botao variante="contorno" tamanho={tam} icone="voltar" aria-label="Semana anterior" onClick={() => irPara(somarDias(semana, -7))} />
-      <p className="min-w-[124px] text-center font-bold numero" aria-live="polite">
-        {diaMes(semana)} – {diaMes(fimSemana)}
-      </p>
-      <Botao variante="contorno" tamanho={tam} icone="seta" aria-label="Próxima semana" onClick={() => irPara(somarDias(semana, 7))} />
-      <Botao variante="contorno" tamanho={tam} onClick={() => irPara(inicioDaSemana(hoje))} disabled={semana === inicioDaSemana(hoje)}>
-        Hoje
-      </Botao>
-    </div>
+    <SeletorPeriodo
+      rotulo="Semana"
+      texto={`${diaMes(semana)} – ${diaMes(fimSemana)}`}
+      onAnterior={() => irPara(somarDias(semana, -7))}
+      onProximo={() => irPara(somarDias(semana, 7))}
+      rotuloAnterior="Semana anterior"
+      rotuloProximo="Próxima semana"
+      larguraTexto="min-w-[124px]"
+      atalho={semana !== inicioDaSemana(hoje) ? { texto: "Hoje", onClick: () => irPara(inicioDaSemana(hoje)) } : undefined}
+    />
   );
 
   const capacidadePadrao = config.data?.capacidadePadrao;
@@ -166,7 +166,7 @@ export function Agenda() {
       {config.data?.provisorio ? (
         <>
           <Provisorio>{plural(capacidadePadrao.vagasEntrada, "entrada", "entradas")} por dia</Provisorio>{" "}
-          <span className="text-[12px] text-atencao font-semibold">(provisório — a confirmar)</span>
+          <span className="text-[12px] text-atencao font-medium">(provisório — a confirmar)</span>
         </>
       ) : (
         `${plural(capacidadePadrao.vagasEntrada, "entrada", "entradas")} por dia`
@@ -203,9 +203,10 @@ export function Agenda() {
           onNaoCompareceu={() =>
             executar(() => acoes.marcarNaoCompareceu.mutateAsync([agSelecionado.id]), `${nomeCarro} marcado como não compareceu. Voltou para a fila.`)
           }
-          onRegistrarEntrada={(tipoId) =>
-            executar(() => acoes.registrarEntrada.mutateAsync([vSelecionado.os.id, tipoId]), `Entrada de ${nomeCarro} registrada. O carro já está na Produção.`)
-          }
+          onEntradaRegistrada={(mensagem) => {
+            setAviso({ tom: "ok", texto: mensagem });
+            setModo(null);
+          }}
         />
       ) : modo.tipo !== "ver" ? (
         <PainelEscolha
@@ -225,15 +226,15 @@ export function Agenda() {
   const blocoAviso = aviso && (
     <div
       role={aviso.tom === "alerta" ? "alert" : "status"}
-      className={`flex items-start justify-between gap-3 px-4 py-3 mb-4 border ${
-        aviso.tom === "ok" ? "bg-ok-claro text-ok border-ok/30" : "bg-alerta-claro text-alerta border-alerta/30"
+      className={`flex items-start justify-between gap-3 px-4 py-3 mb-4 rounded-cartao border ${
+        aviso.tom === "ok" ? "bg-ok-claro text-ok border-ok/25" : "bg-alerta-claro text-alerta border-alerta/25"
       }`}
     >
-      <p className="font-semibold flex items-center gap-2">
+      <p className="font-medium flex items-center gap-2">
         <Icone nome={aviso.tom === "ok" ? "ok" : "alerta"} />
         {aviso.texto}
       </p>
-      <button type="button" onClick={() => setAviso(null)} aria-label="Fechar aviso" className="shrink-0 -my-1 inline-grid place-items-center w-8 h-8 hover:bg-cartao/60">
+      <button type="button" onClick={() => setAviso(null)} aria-label="Fechar aviso" className="shrink-0 -my-1 inline-grid place-items-center w-8 h-8 rounded-controle hover:bg-cartao/60">
         <Icone nome="fechar" tamanho={16} />
       </button>
     </div>
@@ -300,7 +301,7 @@ export function Agenda() {
       <CabecalhoPagina titulo="Agenda" resumo={resumo} acoes={navegacao} />
       {blocoAviso}
       {capacidadePadrao && naOficina >= capacidadePadrao.carrosSimultaneos && (
-        <p className="mb-4 px-4 py-2.5 bg-atencao-claro text-atencao font-semibold text-[13px] border border-atencao/30">
+        <p className="mb-4 px-4 py-2.5 rounded-cartao bg-atencao-claro text-atencao font-medium text-[13px] border border-atencao/25">
           {plural(naOficina, "carro", "carros")} na oficina — limite de {capacidadePadrao.carrosSimultaneos}{" "}
           <span className="font-normal">(provisório — a confirmar). Agendar continua possível; é só um aviso.</span>
         </p>
@@ -310,7 +311,7 @@ export function Agenda() {
         <div className="min-w-0 flex flex-col gap-3">
           {!largo && painel}
           {escolha && vSelecionado && (
-            <p className="px-4 py-2.5 bg-amarelo-claro border border-amarelo-escuro text-[13px] font-semibold">
+            <p className="px-4 py-2.5 rounded-cartao bg-amarelo-claro border border-amarelo/60 text-amarelo-tinta text-[13px] font-medium">
               {escolha === "agendar" ? "Agendando" : "Reagendando"} {nomeCarro}: escolha um período com vaga.
             </p>
           )}

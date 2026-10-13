@@ -1,31 +1,28 @@
-# Atualização noturna — 12/10/2026
+# Atualização noturna — 13/10/2026
 
 ## Precisa de você
-- [L09] Tipos de reparo e etapas (questionário 1.1) — trava o Sprint 3 (provisório em uso: 4 tipos de `docs/painel-informacoes.md` §4)
-- [L18] Planilha financeira atual (questionário 5.1) — trava o Sprint 4 (provisório em uso: campos de informações §3.8–3.9)
-- Decidir se a produção pode "pegar" etapas livres na fila (`docs/qa-sprintSD.md` item 6)
-- Instalar Docker Desktop ou OrbStack no Mac — pré-requisito do Sprint 1
-- Mandar ao dono o link do painel (PIN 3316) e o questionário, e combinar o checkpoint das telas
+- [L34] Guardar CPF/CNPJ do cliente? Conflita com o provisório "CPF não armazenado" (L19) — decidir antes de o Sprint 1 criar a coluna (provisório em uso: guardado e validado no demo)
+- [L30] Capacidade de 10 peças/dia (veio do sistema do concorrente) — confirmar com o dono (provisório em uso: 10)
+- [L35] O caixa do dia fechado pode ser reaberto? [L36] Valor da hora de mão de obra — trava o custo real da OS no Sprint 4
+- [L09] Tipos de reparo e etapas — trava o Sprint 3 · [L18] Planilha financeira — trava o Sprint 4
+- Mostrar o painel ao irmão (checkpoint), instalar Docker Desktop ou OrbStack, mandar o questionário ao dono (ainda sem as decisões L30–L36)
 
 ## Onde estamos
-Fase 0 · Sprint SD fechado (checklist completo) · Portões: G1 ❌ · G2 ❌ · G3 ❌ · G4 ❌
+Fase 0 · Sprint SE — 13 de 13 tarefas (merge, tag e publicação aguardam o checkpoint) · Portões: G1 ❌ · G2 ❌ · G3 ❌ · G4 ❌
 
 ## O que mudou
-- Plano de execução aprovado; novo sprint SD fechado antes do S1, com tag `sprint-SD`, mesclado na `main`.
-- 14 telas navegáveis em memória (Geral até Ajustes, TV e celular) sobre domínio compartilhado com 133 testes e 21 carros fictícios; a placa Mercosul identifica cada carro.
-- Revisão QA e crítica visual aplicadas (bug da OS devolvida à fila, protocolo duplicado e agenda em data passada corrigidos).
-- Publicado em https://guirink.github.io/ddoctor-site/painel/; questionário do dono criado em `docs/questionario-dono.md`.
+- Visual clean em todas as telas (fundo claro, barra lateral clara, raio 8/6, amarelo só em ação, ativo, foco e "hoje"); placa Mercosul mantida, TV escura.
+- Novo frente ao ERP do concorrente (`docs/concorrente-analise.md`): Clientes com CPF/CNPJ, Receber o carro em 4 passos com mapa de avarias, Ficha da OS com Custos, Resultado e Pagamentos, impressão A4, Estoque completo, caixa do dia, Relatórios, produção prevista.
+- 295 testes, lint sem erros, build ok; QA em `docs/qa-sprintSE.md` com correções aplicadas; demo v3, tudo fictício.
 
 ## Decisões que eu tomei sozinho (provisórias, a confirmar)
-- Semáforo da OS só em "na oficina", com limiar absoluto de 8 h úteis — porquê: sem etapas confirmadas pelo dono (L09) não há limiar relativo.
-- Bloqueio fica vermelho após 4 h úteis; feriados não contam — porquê: valores sugeridos da ficha (L10, L11).
-- Mão de obra da Maxpar líquida da franquia — porquê: o estudo da Maxpar indica isso; questionário e domínio alinhados (L20), a confirmar com o dono.
-- Os demais itens L01–L29 seguem com o valor sugerido do questionário (tabela em [[mapa]]).
+- Capacidade de 10 peças/dia — porquê: valor visto no sistema do concorrente (L30).
+- Checklist padrão de 21 itens, categorias financeiras de receita, estoque parado a partir de 90 dias — porquê: ponto de partida editável em Ajustes (L31–L33).
+- Guardar CPF/CNPJ do cliente — porquê: o cadastro PF/PJ do concorrente exige; contradiz a L19 e pede decisão de LGPD (L34).
 
 ## O que ficou pela metade
-- Sem banco real, login individual nem fotos reais (S1/S3).
-- Ações ainda sem suporte: ajustar prazo com motivo, reordenar prioridade, bloqueio de agenda, edição em Ajustes, compras de estoque, lançar despesa, exportar CSV.
-- Próximo: checkpoint do dono sobre as telas, depois S1 (Supabase local, RLS, login por papel, `listarProducao`).
+- Para o S1: `listarProducao()` sem dados pessoais, custos fora da `OSVisao` e tabelas novas no banco (`custo_os`, `fornecedor`, `categoria_financeira`, `fechamento_caixa`, recepção/avarias, `baixa.parcelas`).
+- Merge, tag `sprint-SE` e publicação; reabertura do caixa (L35) e hora de mão de obra (L36) indefinidos.
 
 ---
 Detalhe completo: [[mapa]] · histórico: [[historico]]

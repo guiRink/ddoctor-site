@@ -3,10 +3,10 @@ import { Link } from "react-router-dom";
 import type { Agendamento, DataISO, Janela, MarcoISO, TipoReparo } from "@compartilhado/tipos";
 import type { OSVisao } from "../../dados/repositorio";
 import { JANELA } from "../../dominio/rotulos";
-import { Botao } from "../ui/Basicos";
-import { Provisorio } from "../ui/Estado";
+import { Botao, SUPERFICIE } from "../ui/Basicos";
 import { Placa } from "../ui/Placa";
 import { Icone } from "../Icone";
+import { ReceberCarro } from "../recepcao/ReceberCarro";
 import { diaCurto, plural, telefoneBR } from "./formato";
 import { EstadoAgendamento } from "./Grade";
 import type { Vaga } from "./modelo";
@@ -29,16 +29,16 @@ function Moldura({ titulo, onFechar, children }: { titulo: string; onFechar: () 
     ref.current?.focus({ preventScroll: false });
   }, [titulo]);
   return (
-    <section aria-labelledby="painel-agenda-titulo" className="bg-cartao border border-preto">
-      <header className="flex items-center justify-between gap-3 pl-4 pr-1 h-12 bg-preto text-papel">
-        <h2 id="painel-agenda-titulo" ref={ref} tabIndex={-1} className="text-[15px] font-bold outline-none">
+    <section aria-labelledby="painel-agenda-titulo" className={`${SUPERFICIE} overflow-hidden`}>
+      <header className="flex items-center justify-between gap-3 pl-4 pr-1.5 h-12 border-b border-linha">
+        <h2 id="painel-agenda-titulo" ref={ref} tabIndex={-1} className="text-[15px] font-semibold outline-none">
           {titulo}
         </h2>
         <button
           type="button"
           onClick={onFechar}
           aria-label="Fechar painel"
-          className="inline-grid place-items-center w-11 h-11 text-papel-suave hover:text-papel"
+          className="inline-grid place-items-center w-9 h-9 rounded-controle text-tinta-suave hover:text-tinta hover:bg-cinza-100 transition-colors duration-150"
         >
           <Icone nome="fechar" />
         </button>
@@ -60,7 +60,7 @@ function CabecalhoCarro({ v, veSensiveis }: { v: OSVisao; veSensiveis: boolean }
         <p className="text-[13px] text-tinta-suave break-words">{v.cliente.nome}</p>
         {veSensiveis && (
           <p className="text-[13px] numero">
-            {v.cliente.telefone ? telefoneBR(v.cliente.telefone) : <span className="text-atencao font-semibold">Sem telefone — pedir à Maxpar</span>}
+            {v.cliente.telefone ? telefoneBR(v.cliente.telefone) : <span className="text-atencao font-medium">Sem telefone — pedir à Maxpar</span>}
           </p>
         )}
       </div>
@@ -74,8 +74,8 @@ function ListaVagas({ vagas, verbo, ocupado, onEscolher }: { vagas: Vaga[]; verb
   }
   return (
     <div>
-      <p className="rotulo text-tinta-suave mb-1.5">Próximas vagas</p>
-      <ul className="border border-linha divide-y divide-linha">
+      <p className="text-[13px] font-medium text-tinta-suave mb-1.5">Próximas vagas</p>
+      <ul className="border border-linha rounded-cartao overflow-hidden divide-y divide-linha">
         {vagas.map((vg) => (
           <li key={`${vg.data}-${vg.janela}`}>
             <button
@@ -83,9 +83,9 @@ function ListaVagas({ vagas, verbo, ocupado, onEscolher }: { vagas: Vaga[]; verb
               disabled={ocupado}
               onClick={() => onEscolher(vg.data, vg.janela)}
               aria-label={`${verbo}: ${diaCurto(vg.data)}, ${JANELA[vg.janela].toLowerCase()} (${plural(vg.restantes, "vaga livre", "vagas livres")})`}
-              className="w-full flex items-center justify-between gap-3 px-3 h-11 text-left hover:bg-amarelo-claro transition-colors duration-150 disabled:opacity-40"
+              className="w-full flex items-center justify-between gap-3 px-3 h-11 text-left hover:bg-cinza-50 transition-colors duration-150 disabled:opacity-40"
             >
-              <span className="font-semibold numero">
+              <span className="font-medium numero">
                 {diaCurto(vg.data)} · {JANELA[vg.janela]}
               </span>
               <span className="text-[12px] text-tinta-suave numero">{plural(vg.restantes, "vaga", "vagas")}</span>
@@ -123,7 +123,7 @@ export function PainelEscolha({
       <CabecalhoCarro v={v} veSensiveis={veSensiveis} />
       {atual && (
         <p className="text-[13px]">
-          <span className="rotulo text-tinta-suave block">Horário atual</span>
+          <span className="text-[13px] font-medium text-tinta-suave block">Horário atual</span>
           <span className="font-semibold numero">
             {diaCurto(atual.data)} · {JANELA[atual.janela]}
           </span>
@@ -156,7 +156,7 @@ export function PainelAgendamento({
   onConfirmarProposta,
   onCancelar,
   onNaoCompareceu,
-  onRegistrarEntrada,
+  onEntradaRegistrada,
   onFechar,
 }: {
   ag: Agendamento;
@@ -173,19 +173,17 @@ export function PainelAgendamento({
   onConfirmarProposta: () => void;
   onCancelar: (motivo: string) => void;
   onNaoCompareceu: () => void;
-  onRegistrarEntrada: (tipoId: string) => void;
+  /** Depois que "Receber o carro" registrou a entrada (com a mensagem de sucesso). */
+  onEntradaRegistrada: (mensagem: string) => void;
   onFechar: () => void;
 }) {
   const [sub, setSub] = useState<Sub>(null);
   const [motivo, setMotivo] = useState("");
   const [faltaMotivo, setFaltaMotivo] = useState(false);
-  const [tipoId, setTipoId] = useState(v.os.tipoReparoId ?? "");
   const idMotivo = useId();
-  const idTipo = useId();
   const idDicas = useId();
   const confirmado = ag.estado === "confirmado";
   const futuro = ag.data > hoje;
-  const tipoEscolhido = tipos.find((t) => t.id === tipoId);
 
   function cancelar(e: FormEvent) {
     e.preventDefault();
@@ -196,40 +194,35 @@ export function PainelAgendamento({
     onCancelar(motivo.trim());
   }
 
-  function entrada(e: FormEvent) {
-    e.preventDefault();
-    if (tipoId) onRegistrarEntrada(tipoId);
-  }
-
   return (
     <Moldura titulo={confirmado ? "Carro agendado" : "Horário proposto"} onFechar={onFechar}>
       <CabecalhoCarro v={v} veSensiveis={veSensiveis} />
 
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[13px]">
-        <dt className="rotulo text-tinta-suave self-center">Quando</dt>
+        <dt className="text-[13px] font-medium text-tinta-suave self-center">Quando</dt>
         <dd className="m-0 font-semibold numero">
           {diaCurto(ag.data)} · {JANELA[ag.janela]}
         </dd>
-        <dt className="rotulo text-tinta-suave self-center">Estado</dt>
+        <dt className="text-[13px] font-medium text-tinta-suave self-center">Estado</dt>
         <dd className="m-0">
           <EstadoAgendamento ag={ag} agora={agora} />
         </dd>
-        <dt className="rotulo text-tinta-suave self-center">Marcado por</dt>
+        <dt className="text-[13px] font-medium text-tinta-suave self-center">Marcado por</dt>
         <dd className="m-0">{ORIGEM[ag.origem]}</dd>
       </dl>
 
       {podeAbrirFicha && (
-        <Link to={`/orcamentos/${v.os.id}`} className="text-[13px] font-semibold text-tinta underline underline-offset-4 decoration-linha-forte hover:decoration-preto self-start">
+        <Link to={`/orcamentos/${v.os.id}`} className="text-[13px] font-medium text-tinta underline underline-offset-4 decoration-linha-forte hover:decoration-tinta self-start">
           Abrir ficha da OS {v.os.numero}
         </Link>
       )}
 
-      {podeEditar && sub === null && (
-        <div className="flex flex-col gap-2 pt-1 border-t border-linha">
+      {podeEditar && (sub === null || sub === "entrada") && (
+        <div className="flex flex-col gap-2 pt-4 border-t border-linha">
           {confirmado ? (
             <>
-              <Botao variante="primario" icone="carro" onClick={() => setSub("entrada")} disabled={ocupado}>
-                Registrar entrada
+              <Botao variante="primario" icone="carro" onClick={() => setSub("entrada")} disabled={ocupado} aria-haspopup="dialog">
+                Receber o carro
               </Botao>
               <Botao variante="contorno" icone="agenda" onClick={onReagendar} disabled={ocupado}>
                 Reagendar
@@ -260,54 +253,21 @@ export function PainelAgendamento({
       )}
 
       {sub === "entrada" && (
-        <form onSubmit={entrada} className="flex flex-col gap-3 pt-3 border-t border-linha">
-          <div>
-            <label htmlFor={idTipo} className="rotulo text-tinta-suave block mb-1">
-              Tipo de reparo
-            </label>
-            <select
-              id={idTipo}
-              required
-              value={tipoId}
-              onChange={(e) => setTipoId(e.target.value)}
-              className="w-full h-11 px-3 bg-cartao border border-linha-forte focus:border-preto outline-none"
-            >
-              <option value="">Escolha…</option>
-              {tipos.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nome}
-                  {t.provisorio ? " (provisório)" : ""}
-                </option>
-              ))}
-            </select>
-            {tipoEscolhido && (
-              <p className="mt-1.5 text-[12px] text-tinta-suave">
-                Gera {plural(tipoEscolhido.etapas.length, "etapa", "etapas")}: {tipoEscolhido.etapas.map((e) => e.nome).join(" → ")}
-                {tipoEscolhido.provisorio && (
-                  <>
-                    {" "}
-                    · <Provisorio>modelo provisório — a confirmar</Provisorio>
-                  </>
-                )}
-              </p>
-            )}
-          </div>
-          <p className="text-[12px] text-tinta-suave">O carro entra na Produção agora, com a primeira etapa na fila. Faça a vistoria de entrada.</p>
-          <div className="flex flex-wrap gap-2">
-            <Botao type="submit" variante="primario" disabled={!tipoId || ocupado}>
-              Confirmar entrada
-            </Botao>
-            <Botao variante="fantasma" onClick={() => setSub(null)}>
-              Voltar
-            </Botao>
-          </div>
-        </form>
+        <ReceberCarro
+          v={v}
+          tipos={tipos}
+          onFechar={() => setSub(null)}
+          onConcluido={(msg) => {
+            setSub(null);
+            onEntradaRegistrada(msg);
+          }}
+        />
       )}
 
       {sub === "cancelar" && (
         <form onSubmit={cancelar} noValidate className="flex flex-col gap-3 pt-3 border-t border-linha">
           <div>
-            <label htmlFor={idMotivo} className="rotulo text-tinta-suave block mb-1">
+            <label htmlFor={idMotivo} className="text-[13px] font-medium text-tinta-suave block mb-1.5">
               Motivo (obrigatório)
             </label>
             <input
@@ -321,7 +281,7 @@ export function PainelAgendamento({
               aria-invalid={faltaMotivo}
               aria-describedby={faltaMotivo ? `${idMotivo}-erro` : undefined}
               autoComplete="off"
-              className={`w-full h-11 px-3 bg-cartao border outline-none ${faltaMotivo ? "border-alerta" : "border-linha-forte focus:border-preto"}`}
+              className={`w-full h-11 md:h-10 px-3 bg-cartao border outline-none ${faltaMotivo ? "border-alerta focus:ring-[3px] focus:ring-alerta/20" : "border-linha-forte focus:border-tinta-fraca focus:ring-[3px] focus:ring-amarelo/30"}`}
             />
             <datalist id={`${idMotivo}-lista`}>
               {MOTIVOS_SUGERIDOS.map((m) => (
@@ -329,7 +289,7 @@ export function PainelAgendamento({
               ))}
             </datalist>
             {faltaMotivo && (
-              <p id={`${idMotivo}-erro`} className="mt-1 text-[12px] font-semibold text-alerta">
+              <p id={`${idMotivo}-erro`} className="mt-1 text-[12px] font-medium text-alerta">
                 Informe o motivo.
               </p>
             )}

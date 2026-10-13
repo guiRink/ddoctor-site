@@ -7,7 +7,7 @@ import type { OSVisao } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
 import { acesso, podeVer } from "../dominio/permissoes";
 import { ESTADO_OS } from "../dominio/rotulos";
-import { Botao, CabecalhoPagina, Cartao, Erro, Esqueleto, Vazio } from "../componentes/ui/Basicos";
+import { Botao, CabecalhoPagina, Cartao, Erro, Esqueleto, SUPERFICIE, Vazio } from "../componentes/ui/Basicos";
 import { Etiqueta } from "../componentes/ui/Estado";
 import { Placa } from "../componentes/ui/Placa";
 import { Icone } from "../componentes/Icone";
@@ -89,7 +89,7 @@ export function Vistorias() {
         <label htmlFor="filtro-vistorias" className="sr-only">
           Filtrar por placa, modelo, cliente ou número da OS
         </label>
-        <div className="flex items-center h-11 bg-cartao border border-linha-forte focus-within:border-preto">
+        <div className="flex items-center h-11 md:h-10 bg-cartao border border-linha-forte rounded-controle transition-[border-color,box-shadow] duration-150 focus-within:border-tinta-fraca focus-within:ring-[3px] focus-within:ring-amarelo/30">
           <span className="pl-3 text-tinta-fraca">
             <Icone nome="busca" tamanho={16} />
           </span>
@@ -99,7 +99,7 @@ export function Vistorias() {
             onChange={(e) => setFiltro(e.target.value)}
             placeholder="Placa, modelo ou cliente"
             autoComplete="off"
-            className="flex-1 min-w-0 h-full px-2.5 bg-transparent outline-none placeholder:text-tinta-fraca"
+            className="flex-1 min-w-0 h-full px-2.5 bg-transparent outline-none placeholder:text-tinta-fraca focus-visible:outline-none"
           />
         </div>
       </div>
@@ -124,14 +124,14 @@ export function Vistorias() {
                 <Link
                   to={`/vistorias?os=${v.os.id}`}
                   aria-current={ativo ? "true" : undefined}
-                  className={`flex items-center gap-3 pl-3 pr-3 py-2.5 min-h-16 no-underline text-tinta border-l-4 transition-colors duration-150 ${
-                    ativo ? "border-l-amarelo bg-amarelo-claro" : "border-l-transparent hover:bg-amarelo-claro"
+                  className={`flex items-center gap-3 px-4 py-3 min-h-16 no-underline text-tinta transition-colors duration-150 ${
+                    ativo ? "bg-cinza-100" : "hover:bg-cinza-50"
                   }`}
                 >
                   <Miniatura f={u} />
                   <span className="min-w-0 flex-1">
                     <Placa placa={v.veiculo.placa} tamanho="p" />
-                    <span className="block mt-1 text-[13px] font-semibold leading-tight truncate" title={v.veiculo.modelo}>
+                    <span className="block mt-1.5 text-[13px] font-medium leading-tight truncate" title={v.veiculo.modelo}>
                       {v.veiculo.modelo ?? "Modelo não informado"}
                     </span>
                     <span className="block text-[12px] text-tinta-suave numero leading-tight">
@@ -173,12 +173,12 @@ export function Vistorias() {
     const v = selecionado;
     const estado = ESTADO_OS[v.os.estado];
     detalhe = (
-      <section aria-labelledby="vistoria-carro" className="bg-cartao border border-linha">
+      <section aria-labelledby="vistoria-carro" className={`${SUPERFICIE} overflow-hidden`}>
         <header className="flex flex-wrap items-start justify-between gap-4 p-4 border-b border-linha">
           <div className="flex items-start gap-4 min-w-0">
             <Placa placa={v.veiculo.placa} tamanho="m" />
             <div className="min-w-0">
-              <h2 id="vistoria-carro" className="text-[20px] font-bold leading-tight break-words">
+              <h2 id="vistoria-carro" className="text-[20px] font-semibold tracking-[-0.01em] leading-tight break-words">
                 {v.veiculo.modelo ?? "Modelo não informado"}
                 {v.veiculo.cor && <span className="font-normal text-tinta-suave"> · {v.veiculo.cor}</span>}
               </h2>
@@ -188,7 +188,7 @@ export function Vistorias() {
               <div className="mt-2 flex flex-wrap items-center gap-3">
                 <Etiqueta tom={estado.tom}>{estado.texto}</Etiqueta>
                 {podeVer(perfil.papel, "orcamentos") && (
-                  <Link to={`/orcamentos/${v.os.id}`} className="text-[13px] font-semibold text-tinta underline underline-offset-4 decoration-linha-forte hover:decoration-preto">
+                  <Link to={`/orcamentos/${v.os.id}`} className="text-[13px] font-medium text-tinta underline underline-offset-4 decoration-linha-forte hover:decoration-tinta">
                     Abrir ficha
                   </Link>
                 )}
@@ -218,8 +218,8 @@ export function Vistorias() {
         <CabecalhoPagina titulo="Vistorias" resumo={osParam ? undefined : resumo} />
         {osParam ? (
           <div className="flex flex-col gap-3">
-            <Link to="/vistorias" className="inline-flex items-center gap-2 h-11 self-start font-semibold no-underline text-tinta">
-              <Icone nome="voltar" /> Voltar à lista
+            <Link to="/vistorias" className="inline-flex items-center gap-2 h-11 self-start font-medium no-underline text-tinta-suave hover:text-tinta">
+              <Icone nome="voltar" tamanho={18} /> Voltar à lista
             </Link>
             {detalhe}
           </div>

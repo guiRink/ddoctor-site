@@ -2,6 +2,7 @@ import type { Agendamento, Janela, MarcoISO } from "@compartilhado/tipos";
 import { formatarDuracao } from "@compartilhado/dominio/tempos";
 import { ESTADO_AGENDAMENTO, JANELA } from "../../dominio/rotulos";
 import { Etiqueta } from "../ui/Estado";
+import { SUPERFICIE } from "../ui/Basicos";
 import { Placa } from "../ui/Placa";
 import { diaCurto, diaMes, plural } from "./formato";
 import { minutosParaExpirar, periodoLivre, textoOcupacao, type DiaAgenda, type ItemAgenda } from "./modelo";
@@ -21,24 +22,24 @@ export interface PropsGrade {
 
 // ------------------------------------------------------------------ peças pequenas
 
-/** Barra de ocupação: um segmento por vaga (preto = ocupada; vermelho quando lota). */
+/** Barra de ocupação: um segmento por vaga (amarelo = ocupada, cinza = livre; vermelho quando lota). */
 export function BarraOcupacao({ dia, sobreAmarelo = false }: { dia: DiaAgenda; sobreAmarelo?: boolean }) {
   const total = Math.max(dia.total, dia.ocupadas);
-  if (total === 0) return <div aria-hidden="true" className="h-1.5 hachurado" />;
+  if (total === 0) return <div aria-hidden="true" className="h-1.5 rounded-full hachurado" />;
   const lotado = dia.restantes === 0;
-  const cheio = lotado ? "bg-alerta" : "bg-preto";
-  const vazio = sobreAmarelo ? "bg-preto/15" : "bg-linha-forte/60";
+  const cheio = lotado ? "bg-alerta" : "bg-amarelo";
+  const vazio = sobreAmarelo ? "bg-amarelo-tinta/15" : "bg-cinza-200";
   if (total > 12) {
     return (
-      <div aria-hidden="true" className={`h-1.5 ${vazio}`}>
-        <div className={`h-full ${cheio}`} style={{ width: `${Math.min(100, (dia.ocupadas / total) * 100)}%` }} />
+      <div aria-hidden="true" className={`h-1.5 rounded-full overflow-hidden ${vazio}`}>
+        <div className={`h-full rounded-full ${cheio}`} style={{ width: `${Math.min(100, (dia.ocupadas / total) * 100)}%` }} />
       </div>
     );
   }
   return (
-    <div aria-hidden="true" className="flex gap-[2px]">
+    <div aria-hidden="true" className="flex gap-[3px]">
       {Array.from({ length: total }, (_, i) => (
-        <span key={i} className={`h-1.5 flex-1 ${i < dia.ocupadas ? cheio : vazio}`} />
+        <span key={i} className={`h-1.5 flex-1 rounded-full ${i < dia.ocupadas ? cheio : vazio}`} />
       ))}
     </div>
   );
@@ -55,7 +56,7 @@ export function EstadoAgendamento({ ag, agora }: { ag: Agendamento; agora: Marco
         {ag.origem === "calia" ? "Proposto pela Calia" : e.texto}
       </Etiqueta>
       {min !== undefined && (
-        <span className="text-[12px] text-atencao font-semibold numero leading-tight">
+        <span className="text-[12px] text-atencao font-medium numero leading-tight">
           {min > 0 ? `expira em ${formatarDuracao(min)}` : "proposta expirada"}
         </span>
       )}
@@ -75,9 +76,9 @@ function EstadoCompacto({ ag, agora }: { ag: Agendamento; agora: MarcoISO }) {
   const cor = COR_PONTO[e.tom] ?? { ponto: "bg-tinta-fraca", texto: "text-tinta-suave" };
   const min = ag.estado === "proposto" ? minutosParaExpirar(ag, agora) : undefined;
   return (
-    <span className={`block text-[12px] font-semibold leading-tight ${cor.texto}`}>
+    <span className={`block text-[12px] font-medium leading-tight ${cor.texto}`}>
       <span className="inline-flex items-center gap-1.5">
-        <span aria-hidden="true" className={`inline-block w-2 h-2 shrink-0 ${cor.ponto}`} />
+        <span aria-hidden="true" className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${cor.ponto}`} />
         {ag.estado === "proposto" && ag.origem === "calia" ? "Proposto pela Calia" : e.texto}
       </span>
       {min !== undefined && <span className="block numero font-normal mt-0.5">{min > 0 ? `expira em ${formatarDuracao(min)}` : "proposta expirada"}</span>}
@@ -107,14 +108,16 @@ export function CartaoAgendamento({
 }) {
   const { ag, v } = item;
   const proposto = ag.estado === "proposto";
-  const borda = selecionado ? "border-amarelo-escuro bg-amarelo-claro" : `${proposto ? "border-dashed border-atencao" : "border-linha-forte"} bg-cartao hover:bg-amarelo-claro`;
+  const borda = selecionado
+    ? "border-amarelo-escuro bg-amarelo-claro ring-2 ring-amarelo/30"
+    : `${proposto ? "border-dashed border-atencao" : "border-linha"} bg-cartao shadow-controle hover:bg-cinza-50 hover:border-linha-forte`;
   return (
     <button
       type="button"
       aria-pressed={selecionado}
       aria-label={rotuloCartao(item)}
       onClick={onSelecionar}
-      className={`w-full text-left border ${borda} transition-colors duration-150 ${
+      className={`w-full text-left rounded-controle border ${borda} transition-colors duration-150 ${
         linha ? "flex items-center gap-3 px-3 py-2.5 min-h-14" : "flex flex-col items-start gap-1.5 p-1.5"
       }`}
     >
@@ -157,9 +160,9 @@ function BotaoPeriodo({
       disabled={!livre}
       onClick={() => onEscolher(dia.data, janela)}
       aria-label={livre ? `${verbo}: ${quando} (${plural(dia.restantes, "vaga livre", "vagas livres")})` : `${quando}: sem vaga`}
-      className={`w-full ${largo ? "h-11 text-[14px]" : "h-9 text-[13px]"} px-2 font-bold border border-dashed transition-colors duration-150 ${
+      className={`w-full ${largo ? "h-11 text-[14px]" : "h-9 text-[13px]"} px-2 font-semibold rounded-controle border border-dashed transition-colors duration-150 ${
         livre
-          ? "border-preto bg-amarelo-claro text-preto hover:bg-amarelo"
+          ? "border-amarelo-escuro bg-amarelo-claro text-amarelo-tinta hover:bg-amarelo hover:text-preto hover:border-amarelo"
           : "border-linha-forte text-tinta-fraca cursor-not-allowed"
       }`}
     >
@@ -169,7 +172,7 @@ function BotaoPeriodo({
 }
 
 function AvisoFechado({ texto }: { texto: string }) {
-  return <p className="text-[12px] text-tinta-fraca font-semibold">{texto}</p>;
+  return <p className="px-1 text-[12px] text-tinta-fraca font-medium">{texto}</p>;
 }
 
 // ------------------------------------------------------------------ grade (recepção, ≥ 1024 px)
@@ -177,7 +180,7 @@ function AvisoFechado({ texto }: { texto: string }) {
 export function GradeSemana({ dias, agora, selecionadoId, escolha, onSelecionar, onEscolher }: PropsGrade) {
   return (
     <div
-      className="grid bg-cartao border border-linha"
+      className={`grid ${SUPERFICIE} overflow-hidden`}
       style={{ gridTemplateColumns: `28px repeat(${dias.length}, minmax(0, 1fr))`, gridTemplateRows: "auto minmax(150px, auto) minmax(150px, auto)" }}
     >
       <div style={{ gridColumn: 1, gridRow: 1 }} className="border-b border-linha" />
@@ -185,7 +188,7 @@ export function GradeSemana({ dias, agora, selecionadoId, escolha, onSelecionar,
         <div
           key={janela}
           style={{ gridColumn: 1, gridRow: linha }}
-          className={`flex items-center justify-center bg-papel ${linha === 3 ? "border-t border-linha" : ""}`}
+          className={`flex items-center justify-center bg-cinza-50 ${linha === 3 ? "border-t border-linha" : ""}`}
         >
           <span className="rotulo text-tinta-suave [writing-mode:vertical-rl] rotate-180">{JANELA[janela]}</span>
         </div>
@@ -194,31 +197,32 @@ export function GradeSemana({ dias, agora, selecionadoId, escolha, onSelecionar,
       {dias.map((dia, i) => {
         const col = i + 2;
         const lotado = !dia.bloqueado && !dia.fechado && dia.total > 0 && dia.restantes === 0;
-        const fundo = dia.bloqueado || dia.fechado ? "hachurado" : lotado ? "bg-alerta-claro" : dia.passado ? "bg-papel/60" : "";
-        const cabecalho = dia.hoje ? "bg-amarelo" : lotado ? "bg-alerta-claro" : "";
+        const fundo = dia.bloqueado || dia.fechado ? "hachurado" : lotado ? "bg-alerta-claro/60" : dia.passado ? "bg-cinza-50" : dia.hoje ? "bg-amarelo-claro/35" : "";
+        const cabecalho = dia.hoje ? "bg-amarelo-claro" : lotado ? "bg-alerta-claro" : "";
         const idCab = `dia-${dia.data}`;
         return (
           <div key={dia.data} role="group" aria-labelledby={idCab} className="contents">
-            <div style={{ gridColumn: col, gridRow: 1 }} className={`border-l border-b border-linha px-2.5 pt-2 pb-2.5 ${cabecalho}`}>
+            <div style={{ gridColumn: col, gridRow: 1 }} className={`relative border-l border-b border-linha px-3 pt-2.5 pb-3 ${cabecalho}`}>
+              {dia.hoje && <span aria-hidden="true" className="absolute inset-x-0 top-0 h-0.5 bg-amarelo" />}
               <h3 id={idCab} className="leading-none">
-                <span className={`rotulo block ${dia.hoje ? "text-preto" : dia.passado ? "text-tinta-fraca" : "text-tinta-suave"}`}>
+                <span className={`rotulo block ${dia.hoje ? "text-amarelo-tinta" : dia.passado ? "text-tinta-fraca" : "text-tinta-suave"}`}>
                   {diaCurto(dia.data).split(" ")[0]}
                   {dia.hoje && " · hoje"}
                 </span>
-                <span className={`block mt-1 text-[20px] font-bold numero ${dia.passado ? "text-tinta-fraca" : ""}`}>{diaMes(dia.data)}</span>
+                <span className={`block mt-1 text-[20px] font-semibold tracking-[-0.01em] numero ${dia.passado ? "text-tinta-fraca" : ""}`}>{diaMes(dia.data)}</span>
               </h3>
-              <p className={`mt-1.5 text-[12px] numero font-semibold ${lotado ? "text-alerta" : dia.hoje ? "text-preto" : "text-tinta-suave"}`}>
+              <p className={`mt-1.5 text-[12px] numero font-medium ${lotado ? "text-alerta" : dia.hoje ? "text-amarelo-tinta" : "text-tinta-suave"}`}>
                 {lotado ? `Lotado · ${dia.ocupadas} de ${dia.total}` : textoOcupacao(dia)}
               </p>
-              <div className="mt-1.5">
+              <div className="mt-2">
                 <BarraOcupacao dia={dia} sobreAmarelo={dia.hoje} />
               </div>
             </div>
 
             {dia.bloqueado || dia.fechado ? (
               <div style={{ gridColumn: col, gridRow: "2 / 4" }} className={`border-l border-linha p-2.5 ${fundo}`}>
-                <p className="bg-cartao border border-linha px-2 py-1.5 text-[12px] leading-snug">
-                  <span className="rotulo block text-alerta">{dia.bloqueado ? "Dia bloqueado" : "Sem expediente"}</span>
+                <p className="bg-cartao border border-linha rounded-controle px-2.5 py-2 text-[12px] leading-snug">
+                  <span className="block font-medium text-alerta">{dia.bloqueado ? "Dia bloqueado" : "Sem expediente"}</span>
                   {dia.bloqueado && <span className="block mt-0.5 text-tinta-suave break-words">{dia.bloqueado}</span>}
                 </p>
               </div>
@@ -229,7 +233,7 @@ export function GradeSemana({ dias, agora, selecionadoId, escolha, onSelecionar,
                   <div
                     key={janela}
                     style={{ gridColumn: col, gridRow: linha }}
-                    className={`border-l border-linha p-1 flex flex-col gap-1.5 min-w-0 ${linha === 3 ? "border-t" : ""} ${fechado ? "hachurado" : fundo}`}
+                    className={`border-l border-linha p-1 flex flex-col gap-1 min-w-0 ${linha === 3 ? "border-t" : ""} ${fechado ? "hachurado" : fundo}`}
                   >
                     {dia.itens[janela].map((item) => (
                       <CartaoAgendamento
@@ -267,14 +271,18 @@ export function ListaDias({ dias, agora, selecionadoId, escolha, onSelecionar, o
         const lotado = !dia.bloqueado && !dia.fechado && dia.total > 0 && dia.restantes === 0;
         const vazio = dia.itens.manha.length + dia.itens.tarde.length === 0;
         return (
-          <li key={dia.data} className={`border border-linha ${dia.bloqueado || dia.fechado ? "hachurado" : lotado ? "bg-alerta-claro" : "bg-cartao"}`}>
-            <div className={`flex items-center justify-between gap-3 px-3 py-2.5 border-b border-linha ${dia.hoje ? "bg-amarelo" : ""}`}>
-              <h3 className={`text-[16px] font-bold numero ${dia.passado ? "text-tinta-fraca" : ""}`}>
+          <li
+            key={dia.data}
+            className={`border border-linha rounded-cartao shadow-cartao overflow-hidden ${dia.bloqueado || dia.fechado ? "hachurado" : lotado ? "bg-alerta-claro" : "bg-cartao"}`}
+          >
+            <div className={`relative flex items-center justify-between gap-3 px-3.5 py-3 border-b border-linha ${dia.hoje ? "bg-amarelo-claro" : "bg-cartao"}`}>
+              {dia.hoje && <span aria-hidden="true" className="absolute inset-x-0 top-0 h-0.5 bg-amarelo" />}
+              <h3 className={`flex items-center gap-2 text-[16px] font-semibold numero ${dia.passado ? "text-tinta-fraca" : ""}`}>
                 {diaCurto(dia.data)}
-                {dia.hoje && <span className="rotulo ml-2">Hoje</span>}
+                {dia.hoje && <span className="text-[13px] font-medium text-amarelo-tinta">hoje</span>}
               </h3>
               <div className="w-28 shrink-0">
-                <p className={`text-[12px] font-semibold numero text-right ${lotado ? "text-alerta" : ""}`}>
+                <p className={`text-[12px] font-medium numero text-right ${lotado ? "text-alerta" : dia.hoje ? "text-amarelo-tinta" : "text-tinta-suave"}`}>
                   {lotado ? `Lotado · ${dia.ocupadas} de ${dia.total}` : textoOcupacao(dia)}
                 </p>
                 <div className="mt-1">
@@ -283,14 +291,14 @@ export function ListaDias({ dias, agora, selecionadoId, escolha, onSelecionar, o
               </div>
             </div>
             {dia.bloqueado || dia.fechado ? (
-              <p className="m-3 bg-cartao border border-linha px-3 py-2 text-[13px]">
-                <span className="rotulo block text-alerta">{dia.bloqueado ? "Dia bloqueado" : "Sem expediente"}</span>
+              <p className="m-3 bg-cartao border border-linha rounded-controle px-3 py-2 text-[13px]">
+                <span className="block text-[12px] font-medium text-alerta">{dia.bloqueado ? "Dia bloqueado" : "Sem expediente"}</span>
                 {dia.bloqueado && <span className="text-tinta-suave">{dia.bloqueado}</span>}
               </p>
             ) : vazio && !escolha ? (
-              <p className="px-3 py-3 text-[13px] text-tinta-fraca">Nenhum carro agendado.</p>
+              <p className="px-3.5 py-3 text-[13px] text-tinta-fraca">Nenhum carro agendado.</p>
             ) : (
-              <div className="flex flex-col gap-3 p-3">
+              <div className="flex flex-col gap-3 p-3.5">
                 {JANELAS_ROTULO.map(({ janela }) => {
                   const fechado = dia.periodosFechados.includes(janela);
                   const itens = dia.itens[janela];

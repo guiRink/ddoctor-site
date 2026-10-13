@@ -1,7 +1,7 @@
 // Recebíveis e margem. Dinheiro em centavos; datas de negócio AAAA-MM-DD.
 import type { Baixa, Centavos, ConfigOficina, DataISO, EstadoTitulo, Id, OrcamentoVersao, OS, Pagador, TituloReceber } from "../tipos";
 import { somaCentavos } from "./dinheiro";
-import { diaSemana, diferencaDias, somarDias } from "./fuso";
+import { dataISOValida, diaSemana, diferencaDias, somarDias } from "./fuso";
 import { falha, type Resultado } from "./resultado";
 
 const FECHADO: ReadonlySet<EstadoTitulo> = new Set(["recebido", "cancelado"]);
@@ -10,6 +10,11 @@ const FECHADO: ReadonlySet<EstadoTitulo> = new Set(["recebido", "cancelado"]);
 export function saldoTitulo(t: TituloReceber): Centavos {
   if (t.estado === "cancelado") return 0;
   return t.valor - somaCentavos(t.baixas.map((b) => b.valor));
+}
+
+/** Baixas que valem dinheiro recebido: as de títulos NÃO cancelados. Use em toda soma de recebimentos. */
+export function baixasValidas(titulos: readonly TituloReceber[]): Baixa[] {
+  return titulos.filter((t) => t.estado !== "cancelado").flatMap((t) => t.baixas);
 }
 
 /** "vencido" é derivado (não gravado): vencimento < hoje e estado ∉ (recebido, cancelado). */
@@ -28,6 +33,23 @@ export function faixaAging(t: TituloReceber, hoje: DataISO): FaixaAging | null {
   if (atraso <= 30) return "0_30";
   if (atraso <= 60) return "31_60";
   return "61_mais";
+}
+
+export type CodigoData = "data_invalida" | "data_futura";
+
+/**
+ * Data de algo que JÁ aconteceu (recebidoEm da baixa, pagoEm da despesa): dia real do calendário e
+ * não depois de `hoje` (data de negócio no fuso da oficina, por parâmetro).
+ */
+export function validarDataRealizada(data: unknown, hoje: DataISO): Resultado<CodigoData> {
+  if (!dataISOValida(data)) return falha("data_invalida");
+  if (data > hoje) return falha("data_futura");
+  return { ok: true };
+}
+
+/** Data prevista (vencimento): só precisa ser um dia real do calendário; pode estar no passado ou no futuro. */
+export function validarDataPrevista(data: unknown): Resultado<"data_invalida"> {
+  return dataISOValida(data) ? { ok: true } : falha("data_invalida");
 }
 
 export type CodigoBaixa = "baixa_maior_que_saldo" | "valor_invalido" | "transicao_invalida";

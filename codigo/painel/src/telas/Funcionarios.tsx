@@ -6,7 +6,7 @@ import { useAgora, useOSs, usePerfis } from "../dados/hooks";
 import type { OSVisao } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
 import { ESTADO_ETAPA } from "../dominio/rotulos";
-import { Botao, CabecalhoPagina, Responsavel, Vazio } from "../componentes/ui/Basicos";
+import { Botao, CabecalhoPagina, Responsavel, SUPERFICIE, Vazio } from "../componentes/ui/Basicos";
 import { Etiqueta, Provisorio } from "../componentes/ui/Estado";
 import { EstadoConsultas } from "../componentes/gestao/Consultas";
 import { PlacaOS } from "../componentes/gestao/Comuns";
@@ -83,7 +83,7 @@ function Conteudo({ perfis, oss }: { perfis: Perfil[]; oss: OSVisao[] }) {
       </p>
 
       {pessoas.length === 0 ? (
-        <div className="bg-cartao border border-linha">
+        <div className={SUPERFICIE}>
           <Vazio
             icone="funcionarios"
             titulo="Ninguém da produção cadastrado"
@@ -119,7 +119,7 @@ function Conteudo({ perfis, oss }: { perfis: Perfil[]; oss: OSVisao[] }) {
                         <span className="block pl-9 text-[12px] text-tinta-suave">{p.funcao ?? "Produção"}</span>
                       </Td>
                       <Td className="text-tinta-suave whitespace-nowrap">{p.usaTerminal ? "Terminal" : "Celular próprio"}</Td>
-                      <Td numero className="font-bold">
+                      <Td numero className="font-semibold">
                         {n.concluidas.length}
                       </Td>
                       <Td numero>{n.pecas}</Td>
@@ -145,7 +145,7 @@ function Conteudo({ perfis, oss }: { perfis: Perfil[]; oss: OSVisao[] }) {
                       </Td>
                     </Linha>
                     {estaAberto && (
-                      <tr className="bg-amarelo-claro border-b border-linha">
+                      <tr className="bg-cinza-50 border-b border-linha">
                         <td colSpan={9} className="px-3 pb-4 pt-1">
                           <Historico etapas={n.concluidas} porOS={porOS} agora={agora} ano={ano} />
                         </td>
@@ -161,7 +161,7 @@ function Conteudo({ perfis, oss }: { perfis: Perfil[]; oss: OSVisao[] }) {
             {linhas.map(({ p, n }) => {
               const estaAberto = aberto === p.id;
               return (
-                <li key={p.id} className={`border border-linha p-3.5 ${estaAberto ? "bg-amarelo-claro" : "bg-cartao"}`}>
+                <li key={p.id} className={`${SUPERFICIE} p-4`}>
                   <div className="flex items-start justify-between gap-3">
                     <span className="min-w-0">
                       <Responsavel nome={p.nome} />
@@ -210,8 +210,8 @@ function Conteudo({ perfis, oss }: { perfis: Perfil[]; oss: OSVisao[] }) {
 function Mini({ rotulo, valor, className = "" }: { rotulo: string; valor: string | number; className?: string }) {
   return (
     <div className={className}>
-      <dt className="rotulo text-tinta-fraca">{rotulo}</dt>
-      <dd className="m-0 text-[16px] font-bold">{valor}</dd>
+      <dt className="text-[12px] text-tinta-suave">{rotulo}</dt>
+      <dd className="m-0 text-[16px] font-semibold">{valor}</dd>
     </div>
   );
 }
@@ -225,7 +225,7 @@ function Agora({ n, porOS, agora }: { n: NumerosPessoa; porOS: Map<string, OSVis
         <li key={e.id} className="flex items-center gap-2.5 min-w-0">
           <PlacaOS v={porOS.get(e.osId)} />
           <span className="min-w-0">
-            <span className="block text-[13px] font-semibold truncate">{e.nome}</span>
+            <span className="block text-[13px] font-medium truncate">{e.nome}</span>
             {e.estado === "bloqueada" ? (
               <Etiqueta tom="alerta" className="mt-0.5">
                 {ESTADO_ETAPA.bloqueada.texto}
@@ -242,14 +242,14 @@ function Agora({ n, porOS, agora }: { n: NumerosPessoa; porOS: Map<string, OSVis
 
 function Historico({ etapas, porOS, agora, ano }: { etapas: EtapaOS[]; porOS: Map<string, OSVisao>; agora: string; ano: string }) {
   return (
-    <div className="bg-cartao border border-linha">
-      <h3 className="rotulo text-tinta-suave px-4 pt-3 pb-2">Etapas concluídas no período</h3>
+    <div className="bg-cartao border border-linha rounded-cartao shadow-cartao overflow-hidden">
+      <h3 className="text-[13px] font-semibold px-4 pt-3 pb-2">Etapas concluídas no período</h3>
       <ul>
         {etapas.map((e) => (
           <li key={e.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2 border-t border-linha text-[13px]">
             <PlacaOS v={porOS.get(e.osId)} />
             <span className="min-w-0">
-              <span className="block font-semibold truncate">{e.nome}</span>
+              <span className="block font-medium truncate">{e.nome}</span>
               <span className="block text-[12px] text-tinta-suave numero">
                 {e.concluidaEm ? `concluída ${dataCurta(dataNoFuso(e.concluidaEm), ano)} às ${formatarMarco(paraMs(e.concluidaEm)).slice(11, 16)}` : ""}
                 {e.pecasFeitas !== undefined && ` · ${e.pecasFeitas} ${e.pecasFeitas === 1 ? "peça" : "peças"}`}

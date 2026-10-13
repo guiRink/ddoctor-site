@@ -7,9 +7,11 @@ import type { OSVisao } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
 import { podeEditar, veDadosSensiveis } from "../dominio/permissoes";
 import { ESTADO_OS, ORIGEM_OS } from "../dominio/rotulos";
-import { BotaoLink, CabecalhoPagina, Cartao, Erro, Esqueleto, Vazio } from "../componentes/ui/Basicos";
+import { Botao, BotaoLink, CabecalhoPagina, Cartao, Erro, Esqueleto, SUPERFICIE, Vazio } from "../componentes/ui/Basicos";
+import { CLASSE_LINHA, Tabela, Th } from "../componentes/ui/Tabela";
 import { Etiqueta } from "../componentes/ui/Estado";
 import { Placa } from "../componentes/ui/Placa";
+import { BarraAbas, ContagemAba, classeAba } from "../componentes/ui/Abas";
 import { Icone } from "../componentes/Icone";
 import { ha } from "../componentes/orcamentos/formato";
 import {
@@ -97,8 +99,7 @@ export function Orcamentos() {
     <>
       {cabecalho}
 
-      <nav aria-label="Filtrar por estado" className="-mx-4 md:mx-0 px-4 md:px-0 overflow-x-auto border-b border-linha mb-4">
-        <ul className="flex gap-1 min-w-max">
+      <BarraAbas rotulo="Filtrar por estado" chave={filtro.chave} className="mb-5">
           {ABAS_ORCAMENTOS.map((aba) => {
             const ativa = aba.chave === filtro.chave;
             const n = daAba(aba.estados).length;
@@ -108,44 +109,41 @@ export function Orcamentos() {
                   to={{ search: novaBusca(params, aba.chave) }}
                   replace
                   aria-current={ativa ? "page" : undefined}
-                  className={`flex items-center gap-2 h-11 px-3 text-[14px] no-underline whitespace-nowrap border-b-[3px] transition-colors duration-150 ${
-                    ativa ? "border-amarelo font-bold text-tinta" : "border-transparent font-semibold text-tinta-suave hover:text-tinta"
-                  }`}
+                  className={classeAba(ativa)}
                 >
                   {aba.nome}
-                  <span className={`numero text-[12px] ${ativa ? "text-tinta" : "text-tinta-fraca"}`}>{n}</span>
+                  <ContagemAba n={n} ativa={ativa} />
                 </Link>
               </li>
             );
           })}
-        </ul>
-      </nav>
+      </BarraAbas>
 
       {(termo || !abaConhecida) && (
         <div className="flex flex-wrap items-center gap-2 mb-4 text-[14px]">
           {termo && (
-            <span className="inline-flex items-center gap-1 h-9 pl-3 bg-cartao border border-linha-forte">
+            <span className="inline-flex items-center gap-1 h-8 pl-3 pr-0.5 bg-cartao border border-linha-forte rounded-controle shadow-controle">
               <span className="text-tinta-suave">Busca:</span>
-              <strong className="font-bold">“{termo}”</strong>
+              <strong className="font-semibold">“{termo}”</strong>
               <button
                 type="button"
                 onClick={() => trocar({ q: null })}
                 aria-label="Limpar a busca"
-                className="inline-grid place-items-center w-9 h-9 text-tinta-suave hover:text-tinta"
+                className="inline-grid place-items-center w-7 h-7 rounded-[4px] text-tinta-suave hover:text-tinta hover:bg-cinza-100"
               >
                 <Icone nome="fechar" tamanho={16} />
               </button>
             </span>
           )}
           {!abaConhecida && (
-            <span className="inline-flex items-center gap-1 h-9 pl-3 bg-cartao border border-linha-forte">
+            <span className="inline-flex items-center gap-1 h-8 pl-3 pr-0.5 bg-cartao border border-linha-forte rounded-controle shadow-controle">
               <span className="text-tinta-suave">Estado:</span>
-              <strong className="font-bold">{nomeFiltro}</strong>
+              <strong className="font-semibold">{nomeFiltro}</strong>
               <button
                 type="button"
                 onClick={() => trocar({ estado: null })}
                 aria-label="Limpar o filtro de estado"
-                className="inline-grid place-items-center w-9 h-9 text-tinta-suave hover:text-tinta"
+                className="inline-grid place-items-center w-7 h-7 rounded-[4px] text-tinta-suave hover:text-tinta hover:bg-cinza-100"
               >
                 <Icone nome="fechar" tamanho={16} />
               </button>
@@ -166,9 +164,7 @@ export function Orcamentos() {
               texto="Confira a placa (7 caracteres), o protocolo ou o nome do cliente. Se o carro é novo, registre o atendimento."
               acao={
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" onClick={() => trocar({ q: null })} className="h-11 px-4 font-bold bg-cartao border border-linha-forte hover:border-preto">
-                    Limpar busca
-                  </button>
+                  <Botao onClick={() => trocar({ q: null })}>Limpar busca</Botao>
                   {podeCriar && (
                     <BotaoLink para="/orcamentos/novo" variante="primario" icone="mais">
                       Novo atendimento
@@ -182,7 +178,7 @@ export function Orcamentos() {
               icone="ok"
               titulo={`Nenhum carro em “${ABAS_ORCAMENTOS.find((a) => a.chave === filtro.chave)?.nome ?? nomeFiltro}”`}
               texto="Quando um carro chegar a esse estado, ele aparece aqui."
-              acao={<button type="button" onClick={() => trocar({ estado: null })} className="h-11 px-4 font-bold bg-cartao border border-linha-forte hover:border-preto">Ver todos</button>}
+              acao={<Botao onClick={() => trocar({ estado: null })}>Ver todos</Botao>}
             />
           )}
         </Cartao>
@@ -209,20 +205,18 @@ function novaBusca(params: URLSearchParams, chave: string): string {
 function TabelaOS({ lista, agora, hoje, mostraValor }: { lista: OSVisao[]; agora: MarcoISO; hoje: string; mostraValor: boolean }) {
   const navegar = useNavigate();
   return (
-    <div className="hidden md:block bg-cartao border border-linha overflow-x-auto">
-      <table className="w-full border-collapse text-[14px]">
-        <caption className="sr-only">Orçamentos e ordens de serviço</caption>
-        <thead className="bg-papel">
-          <tr className="text-left border-b border-linha">
-            <th scope="col" className="rotulo text-tinta-suave font-bold whitespace-nowrap px-4 h-10">Placa</th>
-            <th scope="col" className="rotulo text-tinta-suave font-bold whitespace-nowrap px-3">Carro e cliente</th>
-            <th scope="col" className="rotulo text-tinta-suave font-bold whitespace-nowrap px-3">Origem e protocolo</th>
-            <th scope="col" className="rotulo text-tinta-suave font-bold whitespace-nowrap px-3 text-right">Peças</th>
-            {mostraValor && <th scope="col" className="rotulo text-tinta-suave font-bold whitespace-nowrap px-3 text-right">Valor autorizado</th>}
-            <th scope="col" className="rotulo text-tinta-suave font-bold whitespace-nowrap px-3">Estado</th>
-            <th scope="col" className="rotulo text-tinta-suave font-bold whitespace-nowrap px-4 text-right">Idade</th>
-          </tr>
-        </thead>
+    <Tabela legenda="Orçamentos e ordens de serviço" className="hidden md:block">
+      <thead>
+        <tr>
+          <Th className="pl-4">Placa</Th>
+          <Th>Carro e cliente</Th>
+          <Th>Origem e protocolo</Th>
+          <Th direita>Peças</Th>
+          {mostraValor && <Th direita>Valor autorizado</Th>}
+          <Th>Estado</Th>
+          <Th direita className="pr-4">Idade</Th>
+        </tr>
+      </thead>
         <tbody>
           {lista.map((v) => {
             const versao = versaoAtual(v);
@@ -235,9 +229,9 @@ function TabelaOS({ lista, agora, hoje, mostraValor }: { lista: OSVisao[]; agora
               <tr
                 key={v.os.id}
                 onClick={() => navegar(`/orcamentos/${v.os.id}`)}
-                className="border-b border-linha last:border-b-0 hover:bg-amarelo-claro cursor-pointer transition-colors duration-150"
+                className={`${CLASSE_LINHA} cursor-pointer`}
               >
-                <td className="px-4 py-2 h-14 align-middle">
+                <td className="pl-4 pr-3 py-2 h-[60px] align-middle">
                   <Placa placa={v.veiculo.placa} />
                 </td>
                 <td className="px-3 py-2 max-w-[260px]">
@@ -286,8 +280,7 @@ function TabelaOS({ lista, agora, hoje, mostraValor }: { lista: OSVisao[]; agora
             );
           })}
         </tbody>
-      </table>
-    </div>
+    </Tabela>
   );
 }
 
@@ -305,7 +298,7 @@ function CartoesOS({ lista, agora, hoje, mostraValor }: { lista: OSVisao[]; agor
         const idade = diferencaDias(dataNoFuso(v.os.criadoEm), hoje);
         return (
           <li key={v.os.id}>
-            <Link to={`/orcamentos/${v.os.id}`} className="block bg-cartao border border-linha p-3.5 no-underline text-tinta active:bg-amarelo-claro">
+            <Link to={`/orcamentos/${v.os.id}`} className={`block ${SUPERFICIE} p-4 no-underline text-tinta active:bg-cinza-50`}>
               <span className="flex items-start justify-between gap-3">
                 <Placa placa={v.veiculo.placa} tamanho="m" />
                 <Etiqueta tom={estado.tom}>{estado.texto}</Etiqueta>
@@ -319,11 +312,11 @@ function CartoesOS({ lista, agora, hoje, mostraValor }: { lista: OSVisao[]; agor
               </span>
               <span className="mt-3 pt-2.5 border-t border-linha flex items-center justify-between gap-3 text-[13px] numero">
                 <span>
-                  Peças <strong>{pecas.autorizadas}/{pecas.total}</strong>
+                  <span className="text-tinta-suave">Peças</span> <strong className="font-semibold">{pecas.autorizadas}/{pecas.total}</strong>
                   {pecas.negadas > 0 && <span className="text-alerta font-semibold"> · {pecas.negadas} negada{pecas.negadas > 1 ? "s" : ""}</span>}
                 </span>
                 {mostraValor && (
-                  <span className={valor.aprovado ? "font-bold" : "text-tinta-fraca"}>
+                  <span className={valor.aprovado ? "font-semibold" : "text-tinta-fraca"}>
                     {valor.valor > 0 ? formatarReais(valor.valor) : "—"}
                     {!valor.aprovado && valor.valor > 0 && " orçado"}
                   </span>

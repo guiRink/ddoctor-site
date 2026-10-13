@@ -3,8 +3,7 @@ import { useHref, useSearchParams } from "react-router-dom";
 import { useAgora, useConfig, useOSs, usePerfis } from "../dados/hooks";
 import { useSessao } from "../dados/sessao";
 import { podeEditar, podeVer } from "../dominio/permissoes";
-import { Botao, BotaoLink, CabecalhoPagina, Erro, Vazio } from "../componentes/ui/Basicos";
-import { Icone } from "../componentes/Icone";
+import { Botao, BotaoExterno, BotaoLink, CabecalhoPagina, Contagem, Erro, SUPERFICIE, Vazio } from "../componentes/ui/Basicos";
 import { GrupoFiltros } from "../componentes/ui/Filtros";
 import { CartaoQuadro } from "../componentes/producao/CartaoQuadro";
 import { PainelOS } from "../componentes/producao/PainelOS";
@@ -89,16 +88,9 @@ export function Producao() {
         resumo={resumo}
         acoes={
           podeVer(perfil.papel, "tv") && (
-            <a
-              href={hrefTV}
-              target="_blank"
-              rel="noopener"
-              className="hidden md:inline-flex items-center justify-center gap-2 h-11 px-4 font-bold no-underline bg-cartao text-tinta border border-linha-forte hover:border-preto transition-colors duration-150"
-            >
-              <Icone nome="tv" />
+            <BotaoExterno href={hrefTV} icone="tv" className="max-md:hidden">
               Abrir quadro da TV
-              <span className="sr-only">(abre em nova aba)</span>
-            </a>
+            </BotaoExterno>
           )
         }
       />
@@ -121,11 +113,12 @@ export function Producao() {
           })}
         />
         <label className="flex items-center gap-2">
-          <span className="rotulo text-tinta-fraca">Responsável</span>
+          <span className="text-[13px] font-medium text-tinta-suave">Responsável</span>
+          <span className="relative inline-flex">
           <select
             value={responsavel}
             onChange={(e) => mudar("responsavel", e.target.value || null)}
-            className="h-11 md:h-9 px-2 bg-cartao border border-linha-forte font-semibold text-tinta"
+            className="appearance-none h-11 md:h-9 pl-3 pr-9 bg-cartao border border-linha-forte shadow-controle text-[13px] font-medium text-tinta outline-none cursor-pointer hover:border-tinta-fraca focus:border-tinta-fraca focus:ring-[3px] focus:ring-amarelo/30 transition-colors duration-150"
           >
             <option value="">Todos</option>
             {funcionarios.map((p) => (
@@ -134,6 +127,7 @@ export function Producao() {
               </option>
             ))}
           </select>
+          </span>
         </label>
         {(filtro !== "todos" || responsavel) && (
           <Botao tamanho="denso" variante="fantasma" icone="fechar" onClick={() => setParams({}, { replace: true })}>
@@ -142,7 +136,7 @@ export function Producao() {
         )}
         {(rolagem.esquerda || rolagem.direita) && (
           <div className="hidden md:flex items-center gap-1 ml-auto">
-            <span className="text-[12px] text-tinta-suave mr-1">Mais colunas</span>
+            <span className="text-[13px] text-tinta-suave mr-1.5">Mais colunas</span>
             <Botao tamanho="denso" variante="contorno" icone="voltar" aria-label="Rolar o quadro para a esquerda" disabled={!rolagem.esquerda} onClick={() => rolagem.rolar(-1)} />
             <Botao tamanho="denso" variante="contorno" icone="seta" aria-label="Rolar o quadro para a direita" disabled={!rolagem.direita} onClick={() => rolagem.rolar(1)} />
           </div>
@@ -155,7 +149,7 @@ export function Producao() {
       ) : consulta.isError || config.isError || !consulta.data ? (
         <Erro mensagem="Não consegui carregar o quadro de produção." onTentar={() => (consulta.refetch(), config.refetch())} />
       ) : itens.length === 0 ? (
-        <div className="bg-cartao border border-linha">
+        <div className={SUPERFICIE}>
           <Vazio
             icone="producao"
             titulo="Nenhum carro na oficina agora"
@@ -170,7 +164,7 @@ export function Producao() {
           />
         </div>
       ) : colunas.length === 0 ? (
-        <div className="bg-cartao border border-linha">
+        <div className={SUPERFICIE}>
           <Vazio
             icone="filtro"
             titulo={filtro === "todos" ? "Nenhum carro com esse responsável" : `Nenhum carro em “${NOME_FILTRO[filtro]}”`}
@@ -198,18 +192,13 @@ export function Producao() {
             const pronto = c.id === COLUNA_PRONTOS;
             return (
               <section key={c.id} aria-label={`${c.nome}: ${c.itens.length}`} className="md:w-[256px] md:shrink-0 min-w-0">
-                <header className={`flex items-baseline justify-between gap-2 h-11 mb-2.5 border-b-2 ${pronto ? "border-ok" : "border-preto"}`}>
-                  <h2 className="text-[16px] font-bold truncate">{c.nome}</h2>
-                  <span className="text-[12px] text-tinta-suave numero whitespace-nowrap">
-                    {pronto ? (
-                      <span className="text-[16px] font-bold text-tinta">{c.itens.length}</span>
-                    ) : (
-                      <>
-                        {partes.join(" · ")}
-                        <span className="ml-2 text-[16px] font-bold text-tinta">{c.itens.length}</span>
-                      </>
-                    )}
-                  </span>
+                <header className="flex items-center justify-between gap-2 h-10 mb-2 px-0.5">
+                  <h2 className="flex items-center gap-2 min-w-0 text-[15px] font-semibold">
+                    {pronto && <span aria-hidden="true" className="w-2 h-2 rounded-full bg-ok shrink-0" />}
+                    <span className="truncate">{c.nome}</span>
+                    <Contagem n={c.itens.length} tom={pronto ? "ok" : "neutro"} />
+                  </h2>
+                  {!pronto && partes.length > 0 && <span className="text-[12px] text-tinta-fraca numero whitespace-nowrap">{partes.join(" · ")}</span>}
                 </header>
                 <ul className="m-0 p-0 flex flex-col gap-2.5">
                   {c.itens.map((i) => (
@@ -254,10 +243,12 @@ function QuadroCarregando() {
     <div role="status" aria-label="Carregando o quadro" className="flex flex-col gap-6 md:flex-row md:gap-3 overflow-hidden">
       {[3, 2, 2, 1].map((n, c) => (
         <div key={c} className="md:w-[256px] md:shrink-0">
-          <div className="h-11 mb-2.5 border-b-2 border-linha" />
+          <div className="h-10 mb-2 flex items-center">
+            <div className="esqueleto h-4 w-28" />
+          </div>
           <div className="flex flex-col gap-2.5">
             {Array.from({ length: n }, (_, i) => (
-              <div key={i} className="esqueleto h-[212px]" />
+              <div key={i} className="esqueleto h-[212px] rounded-cartao" />
             ))}
           </div>
         </div>

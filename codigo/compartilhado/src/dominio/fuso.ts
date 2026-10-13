@@ -89,6 +89,19 @@ export function formatarMarco(ms: number): MarcoISO {
   );
 }
 
+/** Ordena marcos pelo instante real (formatos misturados: "Z", "-03:00" ou sem fuso). Para .sort(). */
+export function compararMarcos(a: MarcoISO, b: MarcoISO): number {
+  return paraMs(a) - paraMs(b);
+}
+
+/** AAAA-MM-DD de um dia que existe no calendário (recusa 2026-02-30, 2026-13-01, "12/10/2026"). */
+export function dataISOValida(data: unknown): data is DataISO {
+  if (typeof data !== "string" || !SO_DATA.test(data)) return false;
+  const [a, m, d] = data.split("-").map(Number);
+  const r = new Date(Date.UTC(a, m - 1, d));
+  return r.getUTCFullYear() === a && r.getUTCMonth() === m - 1 && r.getUTCDate() === d;
+}
+
 /** Data de negócio (AAAA-MM-DD) do instante, no fuso da oficina. */
 export function dataNoFuso(marco: MarcoISO | number): DataISO {
   const p = partes(typeof marco === "number" ? marco : paraMs(marco));
@@ -125,4 +138,17 @@ export function minutosDeHora(hhmm: string): number {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
   if (!m) throw new Error(`hora_invalida: ${hhmm}`);
   return Number(m[1]) * 60 + Number(m[2]);
+}
+
+/** "AAAA-MM" de uma data ou marco (marco convertido para o dia no fuso da oficina). */
+export function mesDe(dataOuMarco: DataISO | MarcoISO): string {
+  return (SO_DATA.test(dataOuMarco) ? dataOuMarco : dataNoFuso(dataOuMarco)).slice(0, 7);
+}
+
+/** Todos os dias do mês "AAAA-MM", em ordem. */
+export function diasDoMes(mes: string): DataISO[] {
+  if (!/^\d{4}-\d{2}$/.test(mes)) throw new Error(`mes_invalido: ${mes}`);
+  const dias: DataISO[] = [];
+  for (let d = `${mes}-01`; d.startsWith(mes); d = somarDias(d, 1)) dias.push(d);
+  return dias;
 }

@@ -71,6 +71,6 @@ export const STATUS_ESTOQUE: Record<StatusEstoque, { texto: string; tom: Tom }> 
 /** Formas de recebimento oferecidas no formulário de baixa. */
 export const FORMAS_RECEBIMENTO = ["Pix", "Transferência", "Dinheiro", "Cartão", "Boleto"] as const;
 
-/** Classe padrão de campo de formulário (borda forte, foco preto; o contorno amarelo vem do :focus-visible). */
+/** Classe padrão de campo de formulário (revisão SE): borda `linha-forte`, raio 6 (base); foco = borda `tinta-fraca` + anel amarelo suave. */
 export const CLASSE_CAMPO =
-  "h-11 md:h-9 w-full px-2.5 bg-cartao border border-linha-forte text-[14px] text-tinta focus:border-preto";
+  "h-11 md:h-9 w-full px-2.5 bg-cartao border border-linha-forte shadow-controle text-[14px] text-tinta outline-none transition-[border-color,box-shadow] duration-150 hover:border-tinta-fraca focus:border-tinta-fraca focus:ring-[3px] focus:ring-amarelo/30";

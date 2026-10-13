@@ -1,116 +1,67 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import type { ConfigOficina, Pagador, Perfil, TipoReparo } from "@compartilhado/tipos";
+import { capacidadePecasDia } from "@compartilhado/dominio/config";
 import { useAcoes, useConfig, usePagadores, useTiposReparo } from "../dados/hooks";
 import { useSessao } from "../dados/sessao";
+import { podeEditar as podeEditarModulo } from "../dominio/permissoes";
 import { PAPEL } from "../dominio/rotulos";
 import { definirPin, sairDaSessao } from "../componentes/PinGate";
-import { Botao, CabecalhoPagina, Erro, Esqueleto, Responsavel, Vazio } from "../componentes/ui/Basicos";
+import { Botao, CabecalhoPagina, Responsavel, Vazio } from "../componentes/ui/Basicos";
 import { Etiqueta, Provisorio, Semaforo } from "../componentes/ui/Estado";
 import { Retorno } from "../componentes/gestao/Comuns";
 import { Linha, Tabela, Td, Th } from "../componentes/gestao/Tabela";
 import { CLASSE_CAMPO, TIPO_PAGADOR, descreverPrazo } from "../componentes/gestao/formato";
+import { Consulta, Dado, ListaSecoes, NavLateral, NotaProvisoria, Secao, type SecaoAjustes } from "../componentes/ajustes/Estrutura";
+import { Categorias } from "../componentes/ajustes/Categorias";
+import { Checklist } from "../componentes/ajustes/Checklist";
+import { Auditoria } from "../componentes/ajustes/Auditoria";
 
-const SECOES = [
-  { id: "tipos", nome: "Tipos de reparo e etapas" },
-  { id: "prazos", nome: "Prazos e cores" },
-  { id: "agenda", nome: "Agenda" },
-  { id: "pagadores", nome: "Pagadores e prazos" },
-  { id: "pessoas", nome: "Pessoas e papéis" },
-  { id: "acesso", nome: "Acesso" },
-  { id: "demo", nome: "Demonstração" },
-] as const;
+const SECOES: SecaoAjustes[] = [
+  { id: "tipos", nome: "Tipos de reparo e etapas", grupo: "Oficina" },
+  { id: "prazos", nome: "Prazos e cores", grupo: "Oficina" },
+  { id: "agenda", nome: "Agenda e capacidade", grupo: "Oficina" },
+  { id: "checklist", nome: "Checklist de entrada", grupo: "Oficina" },
+  { id: "pagadores", nome: "Pagadores e prazos", grupo: "Financeiro" },
+  { id: "categorias", nome: "Categorias financeiras", grupo: "Financeiro" },
+  { id: "pessoas", nome: "Pessoas e papéis", grupo: "Pessoas e acesso" },
+  { id: "acesso", nome: "Acesso", grupo: "Pessoas e acesso" },
+  { id: "auditoria", nome: "Auditoria", grupo: "Sistema" },
+  { id: "demo", nome: "Demonstração", grupo: "Sistema" },
+];
 
+/**
+ * Ajustes (design §5): como o painel está configurado. Seções agrupadas com navegação lateral em 1366+
+ * e lista no celular. Editáveis hoje: categorias financeiras, checklist de entrada, PIN e demonstração;
+ * o resto é leitura até chegar a edição. Todo valor provisório aparece marcado.
+ * Módulo só de dono e gestor (arq. §9.1); a barreira real é a RLS.
+ */
 export function Ajustes() {
+  const { perfil, perfis } = useSessao();
+  const editar = podeEditarModulo(perfil.papel, "ajustes");
   return (
     <>
       <CabecalhoPagina
         titulo="Ajustes"
-        resumo="Como o painel está configurado hoje. Por enquanto é só leitura. A edição chega por partes: primeiro pessoas e login, depois tipos de reparo, prazos e agenda, e por fim pagadores."
+        resumo="Como o painel está configurado. Categorias, checklist e PIN já se editam aqui; tipos de reparo, prazos, agenda e pagadores ganham edição por partes."
       />
-      <div className="lg:grid lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-8 items-start">
-        <nav aria-label="Seções de Ajustes" className="hidden lg:block sticky top-24">
-          <ul className="flex flex-col border-l border-linha">
-            {SECOES.map((s) => (
-              <li key={s.id}>
-                <button
-                  type="button"
-                  onClick={() => document.getElementById(`ajustes-${s.id}`)?.scrollIntoView({ block: "start" })}
-                  className="w-full text-left h-9 pl-4 -ml-px border-l-2 border-transparent text-[13px] font-semibold text-tinta-suave hover:text-tinta hover:border-preto transition-colors duration-150"
-                >
-                  {s.nome}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <div className="flex flex-col gap-6 min-w-0">
+      <div className="lg:grid lg:grid-cols-[208px_minmax(0,1fr)] lg:gap-10 items-start">
+        <NavLateral secoes={SECOES} />
+        <ListaSecoes secoes={SECOES} />
+        <div className="flex flex-col gap-6 min-w-0 max-w-[960px]">
           <TiposReparo />
           <PrazosECores />
           <Agenda />
+          <Checklist podeEditar={editar} />
           <Pagadores />
+          <Categorias podeEditar={editar} />
           <Pessoas />
           <Acesso />
+          <Auditoria perfis={perfis} />
           <Demonstracao />
         </div>
       </div>
     </>
-  );
-}
-
-// ------------------------------------------------------------------ estrutura de seção
-
-function Secao({ id, titulo, nota, children }: { id: string; titulo: string; nota?: ReactNode; children: ReactNode }) {
-  return (
-    <section id={`ajustes-${id}`} aria-labelledby={`ajustes-${id}-titulo`} className="bg-cartao border border-linha scroll-mt-24">
-      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 border-b border-linha min-h-12">
-        <h2 id={`ajustes-${id}-titulo`} className="text-[16px] font-bold">
-          {titulo}
-        </h2>
-        {nota && <span className="text-[12px] text-tinta-suave">{nota}</span>}
-      </header>
-      {children}
-    </section>
-  );
-}
-
-function NotaProvisoria({ texto = "a confirmar no questionário" }: { texto?: string }) {
-  return (
-    <span className="inline-flex items-center gap-2">
-      <Etiqueta tom="atencao">Provisório</Etiqueta>
-      <span>{texto}</span>
-    </span>
-  );
-}
-
-function Consulta<T>({
-  q,
-  children,
-}: {
-  q: { data: T | undefined; isPending: boolean; isError: boolean; refetch: () => unknown };
-  children: (d: T) => ReactNode;
-}) {
-  if (q.isPending)
-    return (
-      <div className="p-4">
-        <Esqueleto linhas={3} altura="h-9" />
-      </div>
-    );
-  if (q.isError || q.data === undefined)
-    return (
-      <div className="p-4">
-        <Erro onTentar={() => q.refetch()} />
-      </div>
-    );
-  return <>{children(q.data)}</>;
-}
-
-function Dado({ nome, children }: { nome: string; children: ReactNode }) {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,240px)_minmax(0,1fr)] gap-x-4 gap-y-0.5 px-4 py-3 border-b border-linha last:border-b-0">
-      <dt className="text-[13px] text-tinta-suave">{nome}</dt>
-      <dd className="m-0 font-semibold numero">{children}</dd>
-    </div>
   );
 }
 
@@ -121,16 +72,16 @@ const simNao = (v: boolean) => (v ? "Sim" : <span className="text-tinta-fraca">N
 function TiposReparo() {
   const q = useTiposReparo();
   return (
-    <Secao id="tipos" titulo="Tipos de reparo e etapas" nota={<NotaProvisoria />}>
+    <Secao id="tipos" titulo="Tipos de reparo e etapas" descricao="Cada tipo gera as etapas da OS na entrada do carro, com o prazo de cada uma." nota={<NotaProvisoria texto="a confirmar no questionário" />}>
       <Consulta q={q}>
         {(tipos: TipoReparo[]) =>
           tipos.length === 0 ? (
-            <Vazio titulo="Nenhum tipo de reparo" texto="Os tipos e suas etapas vêm do questionário do dono." />
+            <Vazio icone="producao" titulo="Nenhum tipo de reparo" texto="Os tipos e suas etapas vêm do questionário do dono." />
           ) : (
-            <div className="flex flex-col gap-4 p-4">
+            <div className="flex flex-col gap-6 p-5">
               {tipos.map((t) => (
                 <div key={t.id} className="min-w-0">
-                  <h3 className="flex items-center gap-2 mb-2 font-bold">
+                  <h3 className="flex flex-wrap items-baseline gap-x-2 mb-2.5 text-[14px] font-semibold">
                     {t.nome}
                     <span className="text-[12px] font-normal text-tinta-suave numero">
                       {t.etapas.length} {t.etapas.length === 1 ? "etapa" : "etapas"} · {t.etapas.reduce((s, e) => s + e.prazoPadraoHoras, 0)} h no total
@@ -156,7 +107,7 @@ function TiposReparo() {
                             <Td numero className="text-tinta-suave text-left!">
                               {e.ordem}
                             </Td>
-                            <Td className="font-semibold">{e.nome}</Td>
+                            <Td className="font-medium">{e.nome}</Td>
                             <Td numero>{t.provisorio ? <Provisorio>{e.prazoPadraoHoras} h</Provisorio> : `${e.prazoPadraoHoras} h`}</Td>
                             <Td className="pl-6">{simNao(e.dispensavel)}</Td>
                             <Td>{simNao(e.exigeFoto)}</Td>
@@ -165,7 +116,7 @@ function TiposReparo() {
                         ))}
                     </tbody>
                   </Tabela>
-                  <ol className="md:hidden border border-linha" aria-label={`Etapas de ${t.nome}`}>
+                  <ol className="md:hidden border border-linha rounded-cartao overflow-hidden" aria-label={`Etapas de ${t.nome}`}>
                     {[...t.etapas]
                       .sort((a, b) => a.ordem - b.ordem)
                       .map((e) => (
@@ -173,7 +124,7 @@ function TiposReparo() {
                           <span className="numero text-tinta-suave w-4 shrink-0">{e.ordem}</span>
                           <span className="min-w-0 flex-1">
                             <span className="flex items-baseline justify-between gap-3">
-                              <span className="font-semibold">{e.nome}</span>
+                              <span className="font-medium">{e.nome}</span>
                               <span className="numero">{t.provisorio ? <Provisorio>{e.prazoPadraoHoras} h</Provisorio> : `${e.prazoPadraoHoras} h`}</span>
                             </span>
                             <span className="block text-[12px] text-tinta-suave">
@@ -212,7 +163,7 @@ function descreverExpediente(c: ConfigOficina): string {
 function PrazosECores() {
   const q = useConfig();
   return (
-    <Secao id="prazos" titulo="Prazos e cores" nota={<NotaProvisoria />}>
+    <Secao id="prazos" titulo="Prazos e cores" descricao="Quando o semáforo de cada etapa muda de cor, contando só as horas do expediente." nota={<NotaProvisoria texto="a confirmar no questionário" />}>
       <Consulta q={q}>
         {(c: ConfigOficina) => (
           <dl>
@@ -252,7 +203,7 @@ function PrazosECores() {
 function Agenda() {
   const q = useConfig();
   return (
-    <Secao id="agenda" titulo="Agenda" nota={<NotaProvisoria />}>
+    <Secao id="agenda" titulo="Agenda e capacidade" descricao="Limites que a agenda e a produção prevista usam para avisar quando a oficina enche." nota={<NotaProvisoria texto="a confirmar no questionário" />}>
       <Consulta q={q}>
         {(c: ConfigOficina) => (
           <dl>
@@ -264,6 +215,10 @@ function Agenda() {
               <Provisorio>{c.capacidadePadrao.carrosSimultaneos} carros</Provisorio>
               <span className="block text-[12px] font-normal text-tinta-suave">Só aviso; não bloqueia.</span>
             </Dado>
+            <Dado nome="Peças por dia na produção">
+              <Provisorio>{capacidadePecasDia(c)} peças</Provisorio>
+              <span className="block text-[12px] font-normal text-tinta-suave">Linha de capacidade da produção prevista, no Geral.</span>
+            </Dado>
           </dl>
         )}
       </Consulta>
@@ -274,7 +229,7 @@ function Agenda() {
 function Pagadores() {
   const q = usePagadores();
   return (
-    <Secao id="pagadores" titulo="Pagadores e prazos" nota={<NotaProvisoria texto="prazos a confirmar com a oficina" />}>
+    <Secao id="pagadores" titulo="Pagadores e prazos" descricao="Quem paga cada parte do serviço e em quanto tempo; define o vencimento dos títulos." nota={<NotaProvisoria texto="prazos a confirmar com a oficina" />}>
       <Consulta q={q}>
         {(pagadores: Pagador[]) =>
           pagadores.length === 0 ? (
@@ -282,12 +237,12 @@ function Pagadores() {
           ) : (
             <ul>
               {pagadores.map((p) => (
-                <li key={p.id} className="grid grid-cols-1 sm:grid-cols-[minmax(0,240px)_minmax(0,1fr)] gap-x-4 gap-y-0.5 px-4 py-3 border-b border-linha last:border-b-0">
+                <li key={p.id} className="grid grid-cols-1 sm:grid-cols-[minmax(0,260px)_minmax(0,1fr)] gap-x-6 gap-y-1 px-5 py-3.5 border-b border-linha last:border-b-0">
                   <span>
-                    <span className="block font-semibold">{p.nome}</span>
+                    <span className="block font-medium">{p.nome}</span>
                     <span className="block text-[12px] text-tinta-suave">{TIPO_PAGADOR[p.tipo]}</span>
                   </span>
-                  <span className="self-center">
+                  <span className="self-center text-[14px]">
                     Vence {p.prazo.provisorio ? <Provisorio>{descreverPrazo(p)}</Provisorio> : descreverPrazo(p)}
                     {p.descontaFranquia === false && <span className="block text-[12px] text-tinta-suave">Não desconta a franquia da mão de obra.</span>}
                   </span>
@@ -306,9 +261,9 @@ function Pessoas() {
   const navegar = useNavigate();
   const ativos = perfis.filter((p) => p.ativo);
   return (
-    <Secao id="pessoas" titulo="Pessoas e papéis" nota="Cadastro e login individual chegam em breve">
-      <div className="px-4 py-4 border-b border-linha bg-papel">
-        <label htmlFor="ajustes-ver-como" className="block text-[13px] font-semibold mb-1.5">
+    <Secao id="pessoas" titulo="Pessoas e papéis" descricao="Quem usa o painel e o que cada papel enxerga." nota="Cadastro e login individual chegam em breve">
+      <div className="px-5 py-4 border-b border-linha bg-cinza-50">
+        <label htmlFor="ajustes-ver-como" className="block text-[13px] font-medium text-tinta-suave mb-1.5">
           Ver o painel como
         </label>
         <div className="flex flex-wrap items-center gap-3">
@@ -319,7 +274,7 @@ function Pessoas() {
               trocarPerfil(e.target.value);
               navegar("/");
             }}
-            className={`${CLASSE_CAMPO} md:h-11 max-w-sm font-semibold`}
+            className={`${CLASSE_CAMPO} max-w-sm font-medium`}
           >
             {perfis.map((p) => (
               <option key={p.id} value={p.id}>
@@ -337,7 +292,7 @@ function Pessoas() {
       ) : (
         <ul>
           {ativos.map((p: Perfil) => (
-            <li key={p.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2.5 min-h-14 border-b border-linha last:border-b-0">
+            <li key={p.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 py-2.5 min-h-14 border-b border-linha last:border-b-0">
               <span className="min-w-0">
                 <Responsavel nome={p.nome} />
                 {p.funcao && <span className="block pl-9 text-[12px] text-tinta-suave">{p.funcao}</span>}
@@ -379,18 +334,18 @@ function Acesso() {
   }
 
   return (
-    <Secao id="acesso" titulo="Acesso" nota="PIN provisório; o login individual chega em breve">
+    <Secao id="acesso" titulo="Acesso" descricao="Entrada no painel neste navegador." nota="PIN provisório; o login individual chega em breve">
       {podeTrocarPin && (
-        <form onSubmit={salvar} className="px-4 py-4 border-b border-linha" aria-labelledby="ajustes-pin-titulo">
-          <h3 id="ajustes-pin-titulo" className="font-semibold">
+        <form onSubmit={salvar} className="px-5 py-4 border-b border-linha" aria-labelledby="ajustes-pin-titulo">
+          <h3 id="ajustes-pin-titulo" className="text-[14px] font-semibold">
             Trocar o PIN de entrada
           </h3>
           <p className="mt-1 text-[13px] text-tinta-suave max-w-[70ch]">
             O PIN fica guardado só neste navegador e não é segurança de verdade: evita que alguém abra o painel por engano.
           </p>
           <div className="mt-3 flex flex-wrap items-end gap-3">
-            <label className="flex flex-col gap-1" htmlFor="ajustes-pin-novo">
-              <span className="text-[13px] font-semibold">Novo PIN</span>
+            <label className="flex flex-col gap-1.5" htmlFor="ajustes-pin-novo">
+              <span className="text-[13px] font-medium text-tinta-suave">Novo PIN</span>
               <input
                 id="ajustes-pin-novo"
                 type="password"
@@ -402,8 +357,8 @@ function Acesso() {
                 className={`${CLASSE_CAMPO} w-40 tracking-[0.3em]`}
               />
             </label>
-            <label className="flex flex-col gap-1" htmlFor="ajustes-pin-confirma">
-              <span className="text-[13px] font-semibold">Repita o PIN</span>
+            <label className="flex flex-col gap-1.5" htmlFor="ajustes-pin-confirma">
+              <span className="text-[13px] font-medium text-tinta-suave">Repita o PIN</span>
               <input
                 id="ajustes-pin-confirma"
                 type="password"
@@ -424,7 +379,7 @@ function Acesso() {
           </div>
         </form>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
         <p className="text-[13px] text-tinta-suave">Sair fecha o painel neste navegador; para entrar de novo, pede o PIN.</p>
         <Botao
           variante="contorno"
@@ -460,8 +415,8 @@ function Demonstracao() {
   }
 
   return (
-    <Secao id="demo" titulo="Demonstração">
-      <div className="px-4 py-4">
+    <Secao id="demo" titulo="Demonstração" nota={<Etiqueta tom="atencao">Dados fictícios</Etiqueta>}>
+      <div className="px-5 py-4">
         <p className="max-w-[75ch]">
           Os carros, clientes, valores e pessoas que aparecem no painel são <strong>fictícios</strong>, criados para mostrar como as telas funcionam.
           Eles ficam só neste navegador; nada sai daqui para a Maxpar, para as seguradoras ou para outro lugar.
