@@ -1,9 +1,9 @@
 # GusPainel (D doctor) — mapa
 
 ## Estado atual (sempre atualizado, sempre curto)
-- Onde está: plano de execução aprovado e Sprint SD (design e telas v2 em memória) fechado em 12/10/2026: 14 telas navegáveis com dados fictícios, 133 testes, publicado em https://guirink.github.io/ddoctor-site/painel/ (PIN 3316), branch `sprint/sd-design` mesclada na `main` com tag `sprint-SD`. Banco real ainda não existe (tudo em memória).
-- Próximo passo: mandar ao dono o link do painel e o questionário (`docs/questionario-dono.md`); checkpoint com ele sobre as telas; depois S1 (backend Supabase local: migrations do núcleo, RLS, RepositorioSupabase, login por papel, `listarProducao`).
-- Bloqueios: dono responder o questionário (prioridade 1.1 tipos de reparo e etapas, trava o S3; 5.1 planilha financeira, trava o S4); dono decidir se a produção pode "pegar" etapas livres na fila (`docs/qa-sprintSD.md` item 6); Docker Desktop ou OrbStack no Mac (pré-requisito do S1); conta Supabase; endereço completo e horário da oficina para a landing; confirmar se Porto/Azul chegam via Carglass e não via Maxpar.
+- Onde está: Sprint SE (visual clean + o que faltava frente ao ERP de um concorrente) fechado em 13/10/2026 na branch `sprint/se-clean-concorrente`: 295 testes, lint sem erros, build ok, demo v3 (`ddoctor.demo.v3`), tudo fictício. Antes disso, o SD (12/10) entregou as 14 telas em memória. Banco real ainda não existe (tudo em memória). Merge, tag `sprint-SE` e publicação ficam para depois do checkpoint, a critério do Guilherme.
+- Próximo passo: Guilherme mostra o painel ao irmão (checkpoint) e envia o questionário (`docs/questionario-dono.md`; as 7 decisões novas L30–L36 ainda não estão nele); instalar Docker Desktop ou OrbStack; depois S1 (Supabase local: migrations do núcleo mais as tabelas novas do SE, RLS, RepositorioSupabase, login por papel, `listarProducao`).
+- Bloqueios: dono responder o questionário (1.1 tipos de reparo e etapas, trava o S3; 5.1 planilha financeira, trava o S4); L34 (guardar CPF/CNPJ do cliente, LGPD) antes de o S1 criar a coluna; dono decidir se a produção pode "pegar" etapas livres na fila (`docs/qa-sprintSD.md` item 6); Docker Desktop ou OrbStack no Mac (pré-requisito do S1); conta Supabase; endereço completo e horário da oficina para a landing; confirmar se Porto/Azul chegam via Carglass e não via Maxpar.
 - Fontes atuais: `docs/painel-execucao.md`, `docs/painel-arquitetura.md`, `docs/painel-informacoes.md`, `docs/painel-design.md`. O plano antigo (`docs/painel-plano.md`) é só histórico do Sprint 0.
 
 ---
@@ -43,13 +43,44 @@ Todas as linhas abaixo estão como provisórias, com o valor sugerido do questio
 | L27 | Worker no PC da oficina ou na nuvem (R$ 30–70/mês) | PC da oficina | provisória | 12/10/2026 · questionário 8.3 | — |
 | L28 | Retenção de dados | 5 anos financeiro, 24 meses fotos, 12 meses snapshots/Calia | provisória | 12/10/2026 · questionário 8.4 | — |
 | L29 | Autorização escrita para leitura automática do portal | Sem ela o S6 não roda; só após L05/L06 favoráveis | aberta | 12/10/2026 · questionário 8.5 | — |
+| L30 | Capacidade de produção em peças por dia | 10 peças/dia (valor visto no sistema do concorrente, sem confirmação) | provisória | 13/10/2026 · Sprint SE, `docs/concorrente-analise.md` | SE Geral (produção prevista contra a capacidade) |
+| L31 | Itens do checklist de recepção do veículo | Checklist padrão de 21 itens, configurável em Ajustes | provisória | 13/10/2026 · Sprint SE | SE Receber o carro e Ajustes |
+| L32 | Categorias financeiras de receita | Lista padrão provisória, editável em Ajustes | provisória | 13/10/2026 · Sprint SE | SE Financeiro e Ajustes |
+| L33 | A partir de quantos dias o estoque conta como parado | 90 dias | provisória | 13/10/2026 · Sprint SE | SE Estoque |
+| L34 | Guardar CPF/CNPJ do cliente? | Guardado (validado) no cadastro PF/PJ; conflita com o provisório da L19 ("sem CPF") e exige decisão de LGPD antes do banco real | provisória | 13/10/2026 · Sprint SE | SE Clientes |
+| L35 | O fechamento do caixa do dia pode ser reaberto? | A confirmar com o dono; a QA do SE protegeu o caixa fechado (`docs/qa-sprintSE.md`) | aberta | 13/10/2026 · Sprint SE | SE Financeiro (caixa do dia) |
+| L36 | Valor da hora de mão de obra (custo da OS) | A confirmar com o dono; o painel usa um valor provisório no demo | aberta | 13/10/2026 · Sprint SE | SE Ficha da OS (Custos e Resultado) |
 | — | Produção pode "pegar" etapas livres na fila? | Sem resposta (`docs/qa-sprintSD.md` item 6) | aberta | 12/10/2026 · QA do SD | — |
+
+Nota L30–L36: IDs atribuídos pelo escrivão em 13/10/2026 às decisões novas do Sprint SE (o resumo não trouxe IDs); L34 e L19 se contradizem (CPF), e a L12 (4 entradas por dia) é outra medida que a L30 (10 peças/dia).
 
 Nota L20: a ficha original sugeria "não desconta", mas o estudo da Maxpar (§2.1 passo 10) indica que ela paga a mão de obra autorizada menos a franquia. O questionário e o domínio foram alinhados em 12/10/2026 para "desconta"; segue provisório até o dono responder.
 
 ---
 
 ## Histórico (mais recente primeiro)
+
+### 13/10/2026 Sprint SE — Visual clean e o que faltava frente ao concorrente (fechado na branch, falta checkpoint)
+**Decisões tomadas:**
+- Guilherme pediu para olhar o ERP que um concorrente montou para a oficina (app feito no Lovable), acrescentar o que esquecemos e deixar o painel "mais clean, profissional e bonito" — porquê: o irmão já viu o concorrente; o painel precisa cobrir o mesmo terreno e parecer melhor. Análise em `docs/concorrente-analise.md`. A senha do sistema do concorrente não foi registrada em lugar nenhum.
+- Direção visual clean: fundo claro, barra lateral clara, Archivo em peso normal, raio 8/6, amarelo só em ação, item ativo, foco e "hoje", pílulas suaves; Placa Mercosul mantida; Quadro da TV continua escuro — porquê: leitura mais calma no escritório, identidade preservada onde ela ajuda (placa) e a TV legível de longe. Revisão SE em `docs/painel-design.md`; CLAUDE.md atualizado.
+- Componentes genéricos unificados em `codigo/painel/src/componentes/ui/` (Gaveta, Campos, Abas, Periodo, Contagem, BotaoExterno, Tabela, FaixaIndicadores) — porquê: telas consistentes, achado da crítica final do designer.
+- Decisões do dono novas, todas provisórias (L30–L36, ver tabela): capacidade de 10 peças/dia; checklist padrão de 21 itens; categorias financeiras de receita; estoque parado a partir de 90 dias; guardar CPF/CNPJ do cliente (conflita com "CPF não armazenado", L19, por LGPD); reabrir caixa existe ou não; valor da hora de mão de obra.
+
+**O que foi implementado:**
+- Clientes: lista, ficha com veículos, histórico e total pago, cadastro PF/PJ com CPF/CNPJ validado e endereço; Novo atendimento busca cliente existente.
+- Receber o carro em 4 passos (dados, km, combustível e reclamação; checklist configurável; mapa de avarias em 5 vistas).
+- Ficha da OS com abas Recepção, Custos (insumos do estoque, mão de obra, terceiros), Resultado (margem) e Pagamentos (forma, parcelas); impressão A4 do orçamento.
+- Estoque com entrada (custo médio ponderado), retirada, movimentações, reposição, fornecedores, consumo por funcionário e CSV; Financeiro com competência, nova despesa e caixa do dia; Relatórios (tela nova, CSV); Geral com produção prevista e calendário de entregas; Ajustes com categorias, checklist e auditoria.
+- QA em `docs/qa-sprintSE.md` e correções aplicadas (custos só para quem edita, receita única da OS, caixa fechado, devolução rastreada, cliente demo sem link, entre outras). 295 testes, lint 0 erros, build ok. Demo v3 (`ddoctor.demo.v3`), tudo fictício.
+
+**O que ficou de fora (de propósito):**
+- `listarProducao()` sem dados pessoais e custos fora da `OSVisao` — S1, junto com a RLS.
+- Tabelas novas no banco: `custo_os`, `fornecedor`, `categoria_financeira`, `fechamento_caixa`, recepção/avarias, `baixa.parcelas`; `movimento_estoque.tipo` mudou — S1 (migrations do `arquiteto-dados`).
+- Merge, tag `sprint-SE` e publicação — dependem do checkpoint do Guilherme com o irmão.
+
+**Arquivos relevantes:**
+- `docs/concorrente-analise.md`, `docs/qa-sprintSE.md`, `docs/painel-design.md` (revisão SE), `CLAUDE.md`, `notas/sprints/sprint-SE.md`, `codigo/painel/src/componentes/ui/`, `codigo/compartilhado/src/`
 
 ### 12/10/2026 Sprint SD — Design e telas v2 em memória (fechado)
 **Decisões tomadas:**
