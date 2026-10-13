@@ -1,0 +1,6 @@
+{
+  "name": "@ddoctor/compartilhado",
+  "private": true,
+  "type": "module",
+  "description": "Tipos, enums, contratos e regras de domínio do painel D doctor (fonte única para painel e worker)."
+}
