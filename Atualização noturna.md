@@ -1,26 +1,31 @@
-# Atualização noturna — 02/10/2026
+# Atualização noturna — 12/10/2026
 
 ## Precisa de você
-- Mandar ao seu irmão o link do painel com dados demo (https://guirink.github.io/ddoctor-site/painel/, PIN 3316) e pedir: prints da Área do Credenciado / Portal do Prestador, a planilha atual (abas e colunas), prazo real de pagamento da Maxpar e quais seguradoras chegam via Maxpar. Sem isso o Sprint 1 vai no escuro em peças, status e documentação.
-- Confirmar se Porto Seguro/Azul chegam pela Carglass (outro sistema) e não pela Maxpar — muda se o painel precisa de uma segunda origem.
-- Conta Supabase: só é necessária no Sprint 4; não precisa criar agora.
+- [L09] Tipos de reparo e etapas (questionário 1.1) — trava o Sprint 3 (provisório em uso: 4 tipos de `docs/painel-informacoes.md` §4)
+- [L18] Planilha financeira atual (questionário 5.1) — trava o Sprint 4 (provisório em uso: campos de informações §3.8–3.9)
+- Decidir se a produção pode "pegar" etapas livres na fila (`docs/qa-sprintSD.md` item 6)
+- Instalar Docker Desktop ou OrbStack no Mac — pré-requisito do Sprint 1
+- Mandar ao dono o link do painel (PIN 3316) e o questionário, e combinar o checkpoint das telas
+
+## Onde estamos
+Fase 0 · Sprint SD fechado (checklist completo) · Portões: G1 ❌ · G2 ❌ · G3 ❌ · G4 ❌
 
 ## O que mudou
-- A landing está aprovada e publicada; o scroll do filme ficou fluido, com encaixe nos takes e entrega ao scroll normal no fim.
-- O estudo da Maxpar mudou o enquadramento: ela é gestora de assistências (martelinho, SRA, pintura, funilaria com teto de mão de obra e franquia paga na oficina), não plataforma de orçamento de sinistro.
-- O painel nasceu: plano em cinco sprints, estrutura padrão do projeto, CLAUDE.md, três agentes e um app funcionando com 12 carros fictícios em Pátio, Atendimentos, Ficha, Agenda, Pendências e Financeiro.
-- Tudo publicado no mesmo link da landing, em /painel/, protegido por PIN provisório.
+- Plano de execução aprovado; novo sprint SD fechado antes do S1, com tag `sprint-SD`, mesclado na `main`.
+- 14 telas navegáveis em memória (Geral até Ajustes, TV e celular) sobre domínio compartilhado com 133 testes e 21 carros fictícios; a placa Mercosul identifica cada carro.
+- Revisão QA e crítica visual aplicadas (bug da OS devolvida à fila, protocolo duplicado e agenda em data passada corrigidos).
+- Publicado em https://guirink.github.io/ddoctor-site/painel/; questionário do dono criado em `docs/questionario-dono.md`.
 
-## Decisões que eu tomei sozinho
-- Sprints curtos rodados em loop, com checkpoint seu/do seu irmão entre eles — porquê: muitos fatos da operação ainda são suposição.
-- Dados guardados no navegador (IndexedDB) até o Sprint 4; Supabase depois — porquê: demo imediata sem conta em serviço nenhum; a troca fica isolada numa camada.
-- Regras de pendência com limites provisórios (3 dias sem autorização, aviso 2 dias antes da vistoria vencer, 30 dias para pagamento) — porquê: valores do estudo público; ajustar com a oficina.
-- Incluí "Sinistros e seguradoras" como frente na landing — porquê: a oficina atende via Maxpar; está marcado como inferido para confirmar.
+## Decisões que eu tomei sozinho (provisórias, a confirmar)
+- Semáforo da OS só em "na oficina", com limiar absoluto de 8 h úteis — porquê: sem etapas confirmadas pelo dono (L09) não há limiar relativo.
+- Bloqueio fica vermelho após 4 h úteis; feriados não contam — porquê: valores sugeridos da ficha (L10, L11).
+- Mão de obra da Maxpar líquida da franquia — porquê: o estudo da Maxpar indica isso; questionário e domínio alinhados (L20), a confirmar com o dono.
+- Os demais itens L01–L29 seguem com o valor sugerido do questionário (tabela em [[mapa]]).
 
 ## O que ficou pela metade
-- Sprint 0 fechado; Sprint 1 (cadastro/edição da ficha, mover carros no pátio, entrada rápida) não começou.
-- Revisão de qualidade (revisor-qa) do Sprint 0 em andamento; achados materiais entram antes do Sprint 1.
-- Landing: endereço completo, horário e logo vetorial seguem como placeholders.
+- Sem banco real, login individual nem fotos reais (S1/S3).
+- Ações ainda sem suporte: ajustar prazo com motivo, reordenar prioridade, bloqueio de agenda, edição em Ajustes, compras de estoque, lançar despesa, exportar CSV.
+- Próximo: checkpoint do dono sobre as telas, depois S1 (Supabase local, RLS, login por papel, `listarProducao`).
 
 ---
 Detalhe completo: [[mapa]] · histórico: [[historico]]
