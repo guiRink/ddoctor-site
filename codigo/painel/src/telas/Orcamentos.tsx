@@ -214,13 +214,13 @@ function TabelaOS({ lista, agora, hoje, mostraValor }: { lista: OSVisao[]; agora
         <caption className="sr-only">Orçamentos e ordens de serviço</caption>
         <thead className="bg-papel">
           <tr className="text-left border-b border-linha">
-            <th scope="col" className="rotulo text-tinta-suave font-bold px-4 h-10">Placa</th>
-            <th scope="col" className="rotulo text-tinta-suave font-bold px-3">Carro e cliente</th>
-            <th scope="col" className="rotulo text-tinta-suave font-bold px-3">Origem e protocolo</th>
-            <th scope="col" className="rotulo text-tinta-suave font-bold px-3 text-right">Peças</th>
-            {mostraValor && <th scope="col" className="rotulo text-tinta-suave font-bold px-3 text-right">Valor autorizado</th>}
-            <th scope="col" className="rotulo text-tinta-suave font-bold px-3">Estado</th>
-            <th scope="col" className="rotulo text-tinta-suave font-bold px-4 text-right">Idade</th>
+            <th scope="col" className="rotulo text-tinta-suave font-bold whitespace-nowrap px-4 h-10">Placa</th>
+            <th scope="col" className="rotulo text-tinta-suave font-bold whitespace-nowrap px-3">Carro e cliente</th>
+            <th scope="col" className="rotulo text-tinta-suave font-bold whitespace-nowrap px-3">Origem e protocolo</th>
+            <th scope="col" className="rotulo text-tinta-suave font-bold whitespace-nowrap px-3 text-right">Peças</th>
+            {mostraValor && <th scope="col" className="rotulo text-tinta-suave font-bold whitespace-nowrap px-3 text-right">Valor autorizado</th>}
+            <th scope="col" className="rotulo text-tinta-suave font-bold whitespace-nowrap px-3">Estado</th>
+            <th scope="col" className="rotulo text-tinta-suave font-bold whitespace-nowrap px-4 text-right">Idade</th>
           </tr>
         </thead>
         <tbody>

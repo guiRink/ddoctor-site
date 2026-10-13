@@ -16,13 +16,22 @@ const VARIANTE: Record<Variante, string> = {
 };
 
 const TAMANHO: Record<TamanhoBotao, string> = {
-  denso: "h-9 px-3 text-[13px] gap-1.5",
+  denso: "h-11 md:h-9 px-3 text-[13px] gap-1.5",
   padrao: "h-11 px-4 text-[14px] gap-2",
   grande: "h-14 px-5 text-[16px] gap-2.5",
 };
 
+/** Botão só com ícone: quadrado na altura do tamanho (o ícone não encolhe). */
+const QUADRADO: Record<TamanhoBotao, string> = {
+  denso: "h-11 w-11 md:h-9 md:w-9 px-0",
+  padrao: "h-11 w-11 px-0",
+  grande: "h-14 w-14 px-0",
+};
+
 const BASE_BOTAO =
   "inline-flex items-center justify-center font-bold whitespace-nowrap transition-colors duration-150 disabled:opacity-40 disabled:pointer-events-none";
+
+const temConteudo = (c: ReactNode) => c !== undefined && c !== null && c !== false && c !== "";
 
 export function Botao({
   variante = "contorno",
@@ -33,8 +42,12 @@ export function Botao({
   ...resto
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variante?: Variante; tamanho?: TamanhoBotao; icone?: NomeIcone; children?: ReactNode }) {
   return (
-    <button type="button" className={`${BASE_BOTAO} ${VARIANTE[variante]} ${TAMANHO[tamanho]} ${className}`} {...resto}>
-      {icone && <Icone nome={icone} tamanho={tamanho === "grande" ? 22 : 18} />}
+    <button
+      type="button"
+      className={`${BASE_BOTAO} ${VARIANTE[variante]} ${icone && !temConteudo(children) ? QUADRADO[tamanho] : TAMANHO[tamanho]} ${className}`}
+      {...resto}
+    >
+      {icone && <Icone nome={icone} tamanho={tamanho === "grande" ? 22 : 18} className="shrink-0" />}
       {children}
     </button>
   );
@@ -57,7 +70,7 @@ export function BotaoLink({
 }) {
   return (
     <Link to={para} className={`${BASE_BOTAO} ${VARIANTE[variante]} ${TAMANHO[tamanho]} no-underline ${className}`}>
-      {icone && <Icone nome={icone} tamanho={18} />}
+      {icone && <Icone nome={icone} tamanho={18} className="shrink-0" />}
       {children}
     </Link>
   );
@@ -72,7 +85,7 @@ export function CabecalhoPagina({ titulo, resumo, acoes }: { titulo: string; res
         <h1 className="titulo-condensado text-[32px]">{titulo}</h1>
         {resumo && <p className="mt-1.5 text-tinta-suave text-[14px]">{resumo}</p>}
       </div>
-      {acoes && <div className="flex flex-wrap items-center gap-2">{acoes}</div>}
+      {acoes && <div className="flex flex-wrap items-center gap-2 empty:hidden">{acoes}</div>}
     </header>
   );
 }

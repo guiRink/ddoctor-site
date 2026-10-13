@@ -210,7 +210,7 @@ export function NovoAtendimento() {
                   key={o}
                   className={`relative flex items-center justify-center text-center h-11 px-2 text-[13px] sm:text-[14px] cursor-pointer leading-tight focus-within:outline focus-within:outline-2 focus-within:outline-amarelo focus-within:z-10 ${
                     i > 0 ? "border-l border-linha-forte" : ""
-                  } ${origem === o ? "bg-amarelo text-preto font-bold" : "bg-cartao text-tinta-suave font-semibold hover:text-tinta hover:bg-papel"}`}
+                  } ${origem === o ? "bg-preto text-papel font-bold" : "bg-cartao text-tinta-suave font-semibold hover:text-tinta hover:bg-papel"}`}
                 >
                   <input type="radio" name="origem" value={o} checked={origem === o} onChange={() => setOrigem(o)} className="sr-only" />
                   {ORIGEM_OS[o]}

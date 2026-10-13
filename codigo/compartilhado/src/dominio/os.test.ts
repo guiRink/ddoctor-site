@@ -216,3 +216,13 @@ describe("etapas: iniciar, concluir, bloquear, retomar, dispensar", () => {
     expect(retomarEtapa(l, "os1-e1", m("2026-10-12T10:30"))).toEqual({ ok: false, codigo: "transicao_invalida" });
   });
 });
+
+describe("OS agendada volta para a fila", () => {
+  it("cancelamento ou não comparecimento devolve a OS para aguardando_agendamento com motivo", async () => {
+    const { transicaoOS } = await import("./os");
+    const os = { id: "o", numero: 1, veiculoId: "v", clienteId: "c", origem: "maxpar", estado: "agendada", prioridade: 0, atendimentosExternos: [], criadoEm: "", atualizadoEm: "" } as const;
+    expect(transicaoOS({ ...os }, "aguardando_agendamento", { motivo: "Cliente não compareceu" }).ok).toBe(true);
+    expect(transicaoOS({ ...os }, "aguardando_agendamento", {})).toEqual({ ok: false, codigo: "motivo_obrigatorio" });
+    expect(transicaoOS({ ...os, estado: "na_oficina" }, "aguardando_agendamento", { motivo: "x" })).toEqual({ ok: false, codigo: "transicao_invalida" });
+  });
+});

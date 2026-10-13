@@ -44,9 +44,9 @@ export function CartaoTV({ item, agora, perfis }: { item: ItemQuadro; agora: Mar
 
       <div className="flex-1 min-h-0 flex flex-col px-5 pt-2.5 pb-2.5">
         <Placa placa={v.veiculo.placa} tamanho="tv" />
-        <p className="mt-2 shrink-0 text-[32px] font-bold leading-[1.1] truncate">{v.veiculo.modelo ?? "Modelo não informado"}</p>
+        <p className="mt-1.5 shrink-0 text-[32px] font-bold leading-[1.1] truncate">{v.veiculo.modelo ?? "Modelo não informado"}</p>
         <div className="shrink-0 flex items-center justify-between gap-3 min-w-0">
-          <p className="text-[20px] text-papel-suave leading-snug truncate">
+          <p className="text-[20px] text-papel-suave leading-snug truncate" title={[v.veiculo.cor, v.tipoReparo?.nome].filter(Boolean).join(" · ")}>
             {[v.veiculo.cor, v.tipoReparo?.nome].filter(Boolean).join(" · ") || "—"}
           </p>
           {v.os.prioridade === 2 && (
@@ -55,9 +55,9 @@ export function CartaoTV({ item, agora, perfis }: { item: ItemQuadro; agora: Mar
         </div>
 
         {bloqueio ? (
-          <p className="mt-2 shrink-0 flex items-center gap-2 text-[20px] font-semibold leading-snug min-w-0">
-            <Icone nome="bloqueio" tamanho={20} className="shrink-0 text-alerta" />
-            <span className="truncate">{bloqueio.motivo}</span>
+          <p className="mt-1 shrink-0 flex items-start gap-2 text-[20px] font-semibold leading-[1.15] min-w-0">
+            <Icone nome="bloqueio" tamanho={20} className="shrink-0 mt-0.5 text-alerta" />
+            <span className="line-clamp-2">{bloqueio.motivo}</span>
           </p>
         ) : (
           <div className="mt-2 flex items-center gap-3">
@@ -73,7 +73,7 @@ export function CartaoTV({ item, agora, perfis }: { item: ItemQuadro; agora: Mar
         )}
 
         {!item.pronto && (
-          <div className="mt-2 flex items-center gap-3 min-w-0">
+          <div className="mt-1.5 flex items-center gap-3 min-w-0">
             {nome ? (
               <>
                 <span aria-hidden="true" className="inline-grid place-items-center w-11 h-11 shrink-0 bg-papel text-preto text-[20px] font-bold">

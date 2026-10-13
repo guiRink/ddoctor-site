@@ -8,7 +8,7 @@ O painel é uma ferramenta de trabalho (modo *Operate*): **o carro certo, o esta
 
 Três regras que valem para todas as telas:
 1. **Um elemento dominante por tela.** Na Produção é o quadro; no Geral é "Precisa de ação"; na Ficha é a placa e o estado.
-2. **Cor = significado.** Amarelo = ação primária, item selecionado, etapa atual. Verde/laranja/vermelho = semáforo de prazo. Nada colorido por enfeite.
+2. **Cor = significado.** Amarelo = ação primária, item selecionado em navegação (menu, aba, dia de hoje), etapa atual. Filtro selecionado é preto (ver `Segmentos`), para não competir com a ação primária. Verde/laranja/vermelho = semáforo de prazo. Nada colorido por enfeite.
 3. **O carro é identificado pela placa.** Sempre o componente `Placa` (formato Mercosul), nunca texto solto.
 
 ## 2. Tokens
@@ -35,16 +35,18 @@ Movimento: só para mudança de estado, 150–200 ms, `cubic-bezier(.22,1,.36,1)
 
 | Componente | Para quê | Regras |
 | --- | --- | --- |
-| `Placa` | Identificar o carro | Formato Mercosul: corpo branco, faixa azul `maxpar` no topo com "BRASIL", caracteres pretos largos e `tabular-nums`, borda preta 1,5 px. Tamanhos `p` (listas), `m` (cartões), `g` (ficha), `tv`. Placa antiga também usa o formato. |
+| `Placa` | Identificar o carro | Formato Mercosul: corpo branco, faixa azul `maxpar` no topo com "BRASIL" (6/7/9/12 px), caracteres pretos `wdth 106` e `tabular-nums`, borda preta 1,5 px. Tamanhos `p` 96 px (listas), `m` 122 (cartões), `g` 180 (ficha), `tv` 264. A pior sequência (WWW8W88) cabe dentro da borda em todos. `encolher` deixa a placa ocupar a coluna até o tamanho cheio (mínimo `p` 92 px) — usado na grade da Agenda. Placa antiga também usa o formato. |
 | `Semaforo` | Estado de prazo | Pílula quadrada com ponto + texto: "No prazo" (ok), "Atenção" (atencao), "Atrasado" ou "Impedido" (alerta). Nunca só a cor: sempre texto junto. |
 | `EtiquetaEstado` | Estado da OS, do orçamento, do agendamento, do título | Fundo claro + texto da cor do grupo; rótulos de `rotulos.ts`. Neutros (rascunho, aguardando) em contorno `linha`. |
 | `ProgressoEtapas` | Onde o carro está na produção | Barra segmentada, um segmento por etapa: concluída `preto`, atual cor do semáforo, dispensada hachurada `linha`, futura `linha`. Abaixo, "Etapa 3 de 5 · Pintura". |
 | `Responsavel` | Quem faz | Quadrado 28 px com iniciais em `grafite` + nome; sem foto. |
 | `Cartao` | Agrupar | `bg-cartao border border-linha`, cabeçalho com título 16/700 e ação à direita; sem cartão dentro de cartão. |
 | `Secao` | Bloco de tela com contagem | Título + número entre parênteses + link "ver tudo" que abre a lista filtrada. |
-| `Tabela` | Listas densas | Cabeçalho `rotulo` sobre `papel`, linhas 48 px, hover `amarelo-claro`, primeira coluna com `Placa`, números alinhados à direita. |
-| `Botao` | Ações | Primário `amarelo`+`preto`; secundário `preto`+`papel`; contorno; perigo. Alturas 36 (denso), 44 (padrão), 56 (celular da produção). |
-| `Proveniencia` | De onde veio o dado | Etiqueta pequena "Maxpar · lido 12/10 14:30" em `maxpar`, ou "manual"; vermelha se `lidoEm` > 24 h. |
+| `Tabela` | Listas densas | Cabeçalho `rotulo` sobre `papel` sem quebra de linha, linhas 48 px, hover `amarelo-claro`, primeira coluna com `Placa`, números alinhados à direita. Linha vencida/atrasada ganha fundo `alerta-claro` a 50 %, nunca faixa colorida na borda esquerda. |
+| `LinhaCarro` | Carro em lista de cartão | Placa `p` + modelo + detalhe (até 2 linhas) + complemento à direita; em coluna com menos de 24rem o complemento desce para baixo do texto (container query), para o modelo não ser cortado. |
+| `Botao` | Ações | Primário `amarelo`+`preto`; secundário `preto`+`papel`; contorno; perigo. Alturas 36 (denso; 44 abaixo de 768 px), 44 (padrão), 56 (celular da produção). Só ícone = quadrado na mesma altura, ícone 18 px que não encolhe. |
+| `Segmentos` (`ui/Filtros.tsx`) | Filtro de um valor só, com contagem | Botões lado a lado, gap 6 px, 36 px (44 no celular), borda `linha-forte`; selecionado `preto`+`papel`; contagem `tabular-nums` em `tinta-fraca`, vermelha quando crítica (atrasados, impedidos). Rótulo à esquerda em `rotulo`. No celular a fileira rola até a borda da tela. Mesmo componente em Produção, Recebíveis, Estoque e Funcionários. Escolha única em formulário (Origem, no Novo atendimento) usa o mesmo selecionado preto. Abas de estado (Orçamentos) são navegação: sublinhado amarelo. |
+| `Proveniencia` (`ui/Proveniencia.tsx`) | De onde veio o dado | Etiqueta 24 px, 11 px semibold: "Maxpar · lido 12/10 14:30" em `maxpar` sobre azul claro; "manual · 12/10 14:30" neutra (`papel` + `tinta-suave`, o azul é só da Maxpar); vermelha com "· desatualizado" se a leitura passou de 24 h e a tela permite. |
 | `Vazio` / `Erro` / `Carregando` | Estados | Vazio ensina a próxima ação; Erro tem "Tentar de novo"; Carregando é esqueleto na forma do conteúdo, nunca spinner no meio. |
 | `Provisorio` | Valor ainda não confirmado pelo dono | Sublinhado pontilhado + dica "provisório — a confirmar". |
 
@@ -53,8 +55,8 @@ Movimento: só para mudança de estado, 150–200 ms, `cubic-bezier(.22,1,.36,1)
 | Superfície | Tela | Padrão |
 | --- | --- | --- |
 | Recepção / escritório (1366–1920 px) | Todas as abas | Barra lateral preta 240 px com o D amarelo; topo com busca por placa/protocolo/cliente, botão **Novo atendimento** e seletor de papel (demo); conteúdo em `papel`, largura máxima 1440 px. |
-| Celular (390 px) | Produção "Minhas tarefas", consultas rápidas do dono | Menu vira barra inferior com 5 itens; botões de ação 56 px, um cartão por tarefa, Iniciar/Concluir/Impedimento grandes e separados. |
-| TV (1920×1080) | Produção TV | Fundo `preto`, colunas por etapa, cartões `grafite` com cabeçalho na cor do semáforo, `Placa` tamanho `tv`, tempo e responsável em 24 px+, rodapé com relógio e "atualizado há X s". Sem cursor, sem foco, sem rolagem: se não couber, rotaciona páginas a cada 20 s. |
+| Celular (390 px) | Produção "Minhas tarefas", consultas rápidas do dono | Menu vira barra inferior com 5 itens (rótulo 11 px em até 2 linhas, nunca cortado); botões de ação 56 px, um cartão por tarefa, Iniciar/Concluir/Impedimento grandes e separados. |
+| TV (1920×1080) | Produção TV | Fundo `preto`, colunas por etapa, cartões `grafite` com cabeçalho na cor do semáforo, `Placa` tamanho `tv`, tempo e responsável em 24 px+, rodapé com relógio e "atualizado há X s". Sem cursor, sem foco, sem rolagem: se não couber, rotaciona páginas a cada 20 s. Motivo do impedimento em até 2 linhas; legenda separa cor (No prazo · Atenção · Atrasado · Pronto) do ícone de impedido. |
 
 ## 5. Telas (composição)
 

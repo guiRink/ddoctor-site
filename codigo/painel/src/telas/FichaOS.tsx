@@ -30,7 +30,7 @@ import { Placa } from "../componentes/ui/Placa";
 import { Icone } from "../componentes/Icone";
 import { LinhaVazia, VerTudo } from "../componentes/orcamentos/Blocos";
 import { ProximaAcao } from "../componentes/orcamentos/ProximaAcao";
-import { Proveniencia } from "../componentes/orcamentos/Proveniencia";
+import { Proveniencia } from "../componentes/ui/Proveniencia";
 import { dataCurta, diaCurto, ha, marcoCurto, telefoneLegivel } from "../componentes/orcamentos/formato";
 import { LIMITE_VISTORIA_DIAS } from "../componentes/orcamentos/selecoes";
 
@@ -56,15 +56,20 @@ export function FichaOS() {
     </Link>
   );
 
-  if (consulta.isError) {
+  const apoioComErro = [config, perfis, tipos].some((c) => c.isError);
+  if (consulta.isError || apoioComErro) {
     return (
       <>
         {voltar}
-        <Erro mensagem="Não consegui carregar esta OS." onTentar={() => consulta.refetch()} />
+        <Erro
+          mensagem="Não consegui carregar esta OS."
+          onTentar={() => [consulta, config, perfis, tipos, pagadores].forEach((c) => c.refetch())}
+        />
       </>
     );
   }
-  if (consulta.isPending || !config.data || !perfis.data || !tipos.data || !pagadores.data) {
+  // pagadores só bloqueia quem vê dinheiro (no S1 a recepção pode não ter leitura dessa tabela)
+  if (consulta.isPending || !config.data || !perfis.data || !tipos.data || (!pagadores.data && !pagadores.isError && veDadosSensiveis(perfil.papel))) {
     return (
       <>
         {voltar}
@@ -172,7 +177,7 @@ export function FichaOS() {
             </Cartao>
           ))}
           {(v.atendimentos.length > 0 || v.pendencias.length > 0) && <SecaoPendencias v={v} agora={agora} perfis={perfis.data} podeAgir={podeAgir} />}
-          {sensivel && v.titulos.length > 0 && <SecaoRecebiveis v={v} agora={agora} pagadores={pagadores.data} />}
+          {sensivel && v.titulos.length > 0 && <SecaoRecebiveis v={v} agora={agora} pagadores={pagadores.data ?? []} />}
           {v.os.observacoes && (
             <Cartao titulo="Observações">
               <p className="px-4 py-3 text-[14px] whitespace-pre-line break-words">{v.os.observacoes}</p>

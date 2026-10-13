@@ -115,10 +115,10 @@ export function CartaoAgendamento({
       aria-label={rotuloCartao(item)}
       onClick={onSelecionar}
       className={`w-full text-left border ${borda} transition-colors duration-150 ${
-        linha ? "flex items-center gap-3 px-3 py-2.5 min-h-14" : "flex flex-col items-start gap-1.5 p-2"
+        linha ? "flex items-center gap-3 px-3 py-2.5 min-h-14" : "flex flex-col items-start gap-1.5 p-1.5"
       }`}
     >
-      {v ? <Placa placa={v.veiculo.placa} tamanho="p" /> : <span className="text-[12px] text-tinta-fraca">OS removida</span>}
+      {v ? <Placa placa={v.veiculo.placa} tamanho="p" encolher={!linha} /> : <span className="text-[12px] text-tinta-fraca">OS removida</span>}
       <span className={`min-w-0 ${linha ? "flex-1" : "w-full"}`}>
         <span className="block text-[13px] font-semibold leading-tight truncate" title={v?.veiculo.modelo}>
           {v?.veiculo.modelo ?? "Modelo não informado"}
@@ -229,7 +229,7 @@ export function GradeSemana({ dias, agora, selecionadoId, escolha, onSelecionar,
                   <div
                     key={janela}
                     style={{ gridColumn: col, gridRow: linha }}
-                    className={`border-l border-linha p-1.5 flex flex-col gap-1.5 min-w-0 ${linha === 3 ? "border-t" : ""} ${fechado ? "hachurado" : fundo}`}
+                    className={`border-l border-linha p-1 flex flex-col gap-1.5 min-w-0 ${linha === 3 ? "border-t" : ""} ${fechado ? "hachurado" : fundo}`}
                   >
                     {dia.itens[janela].map((item) => (
                       <CartaoAgendamento

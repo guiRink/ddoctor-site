@@ -241,7 +241,7 @@ function FormConcluir({
 }) {
   const id = useId();
   const pedeContagem = etapa.pecasPrevistas !== undefined || Boolean(etapa.exigeContagemPecas);
-  const [pecas, setPecas] = useState(String(etapa.pecasPrevistas ?? 0));
+  const [pecas, setPecas] = useState(etapa.exigeContagemPecas ? "" : String(etapa.pecasPrevistas ?? 0));
   const [foto, setFoto] = useState(false);
   const n = Number(pecas);
   const pecasOk = !pedeContagem || (pecas.trim() !== "" && Number.isInteger(n) && n >= 0);

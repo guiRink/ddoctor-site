@@ -1,7 +1,7 @@
 // Gráficos simples em HTML/CSS (sem biblioteca): barras horizontais de escala comum, rótulo direto.
 
 /**
- * Previsto × pago numa mesma linha: o trilho mostra o previsto (contorno `linha-forte`) e o
+ * Previsto × pago numa mesma linha: o trilho mostra o previsto (cinza `linha-forte`) e o
  * preenchimento `preto` mostra o pago. `max` é comum a todas as linhas da lista.
  */
 export function BarraPrevistoPago({ previsto, pago, max }: { previsto: number; pago: number; max: number }) {
@@ -9,7 +9,7 @@ export function BarraPrevistoPago({ previsto, pago, max }: { previsto: number; p
   const q = previsto > 0 ? Math.min(100, (pago / previsto) * 100) : 0;
   return (
     <div className="h-3 w-full" aria-hidden="true">
-      <div className="h-full border border-linha-forte bg-cartao" style={{ width: `${Math.max(p, previsto > 0 ? 1 : 0)}%` }}>
+      <div className="h-full bg-linha-forte/60" style={{ width: `${Math.max(p, previsto > 0 ? 1 : 0)}%` }}>
         <div className="h-full bg-preto" style={{ width: `${q}%` }} />
       </div>
     </div>

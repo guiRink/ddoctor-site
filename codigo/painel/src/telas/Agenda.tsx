@@ -141,14 +141,13 @@ export function Agenda() {
 
   // ------------------------------------------------------------ estados de tela
   const tam = largo ? "denso" : "padrao";
-  const quadrado = largo ? "w-9 px-0" : "w-11 px-0";
   const navegacao = (
     <div className="flex items-center gap-2">
-      <Botao variante="contorno" tamanho={tam} icone="voltar" aria-label="Semana anterior" onClick={() => irPara(somarDias(semana, -7))} className={quadrado} />
+      <Botao variante="contorno" tamanho={tam} icone="voltar" aria-label="Semana anterior" onClick={() => irPara(somarDias(semana, -7))} />
       <p className="min-w-[124px] text-center font-bold numero" aria-live="polite">
         {diaMes(semana)} – {diaMes(fimSemana)}
       </p>
-      <Botao variante="contorno" tamanho={tam} icone="seta" aria-label="Próxima semana" onClick={() => irPara(somarDias(semana, 7))} className={quadrado} />
+      <Botao variante="contorno" tamanho={tam} icone="seta" aria-label="Próxima semana" onClick={() => irPara(somarDias(semana, 7))} />
       <Botao variante="contorno" tamanho={tam} onClick={() => irPara(inicioDaSemana(hoje))} disabled={semana === inicioDaSemana(hoje)}>
         Hoje
       </Botao>

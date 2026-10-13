@@ -10,7 +10,7 @@ import { Botao, CabecalhoPagina, Responsavel, Vazio } from "../componentes/ui/Ba
 import { Etiqueta, Provisorio } from "../componentes/ui/Estado";
 import { EstadoConsultas } from "../componentes/gestao/Consultas";
 import { PlacaOS } from "../componentes/gestao/Comuns";
-import { GrupoFiltros } from "../componentes/gestao/Filtros";
+import { GrupoFiltros } from "../componentes/ui/Filtros";
 import { Linha, Tabela, Td, Th } from "../componentes/gestao/Tabela";
 import { numerosPessoa, type NumerosPessoa } from "../componentes/gestao/resumos";
 import { dataComSemana, dataCurta } from "../componentes/gestao/formato";
@@ -87,7 +87,7 @@ function Conteudo({ perfis, oss }: { perfis: Perfil[]; oss: OSVisao[] }) {
           <Vazio
             icone="funcionarios"
             titulo="Ninguém da produção cadastrado"
-            texto="Cadastre funileiros, pintores e polidores em Ajustes → Pessoas e papéis (edição chega no S1). Os números aparecem quando eles concluírem etapas."
+            texto="Cadastre funileiros, pintores e polidores em Ajustes → Pessoas e papéis (a edição chega com o login individual). Os números aparecem quando eles concluírem etapas."
           />
         </div>
       ) : (

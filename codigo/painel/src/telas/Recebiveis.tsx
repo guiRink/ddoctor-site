@@ -12,7 +12,7 @@ import { Botao, CabecalhoPagina, Vazio } from "../componentes/ui/Basicos";
 import { Etiqueta, Provisorio } from "../componentes/ui/Estado";
 import { EstadoConsultas } from "../componentes/gestao/Consultas";
 import { PlacaOS, Retorno } from "../componentes/gestao/Comuns";
-import { GrupoFiltros } from "../componentes/gestao/Filtros";
+import { GrupoFiltros } from "../componentes/ui/Filtros";
 import { Linha, Tabela, Td, Th } from "../componentes/gestao/Tabela";
 import { FAIXAS, resumoAging } from "../componentes/gestao/resumos";
 import {
@@ -105,11 +105,11 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
         resumo={
           abertos.length ? (
             <>
-              Em aberto <strong className="numero text-tinta">{formatarReais(totalAberto)}</strong> em{" "}
+              Em aberto <strong className="numero text-tinta whitespace-nowrap">{formatarReais(totalAberto)}</strong> em{" "}
               <span className="numero">{abertos.length}</span> {abertos.length === 1 ? "título" : "títulos"}
               {vencido > 0 && (
                 <>
-                  {" · "}vencido <strong className="numero text-alerta">{formatarReais(vencido)}</strong>
+                  {" · "}vencido <strong className="numero text-alerta whitespace-nowrap">{formatarReais(vencido)}</strong>
                 </>
               )}
             </>
@@ -200,7 +200,7 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
           <Vazio
             icone="recebiveis"
             titulo="Nenhum título ainda"
-            texto="Os títulos nascem na entrega do carro: franquia e complemento do cliente, mão de obra da Maxpar ou da seguradora. O lançamento manual chega no S4."
+            texto="Os títulos nascem na entrega do carro: franquia e complemento do cliente, mão de obra da Maxpar ou da seguradora. O lançamento manual chega na etapa do financeiro."
           />
         </div>
       ) : lista.length === 0 ? (

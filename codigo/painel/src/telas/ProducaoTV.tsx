@@ -185,8 +185,12 @@ export function ProducaoTV() {
         <ul className="flex-1 flex items-center justify-center gap-7 m-0 p-0 list-none text-papel-suave">
           <Legenda cor="bg-ok" texto="No prazo" />
           <Legenda cor="bg-atencao" texto="Atenção" />
-          <Legenda cor="bg-alerta" texto="Atrasado ou impedido" />
+          <Legenda cor="bg-alerta" texto="Atrasado" />
           <Legenda cor="bg-grafite-3" texto="Pronto" />
+          <li className="flex items-center gap-2.5">
+            <Icone nome="bloqueio" tamanho={20} className="text-papel" />
+            Impedido
+          </li>
         </ul>
         <div className="flex items-center gap-3 text-papel-suave numero">
           {paginas > 1 && (

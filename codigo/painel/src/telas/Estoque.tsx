@@ -9,7 +9,7 @@ import { podeEditar } from "../dominio/permissoes";
 import { Botao, CabecalhoPagina, Vazio } from "../componentes/ui/Basicos";
 import { Etiqueta, Provisorio } from "../componentes/ui/Estado";
 import { EstadoConsultas } from "../componentes/gestao/Consultas";
-import { GrupoFiltros } from "../componentes/gestao/Filtros";
+import { GrupoFiltros } from "../componentes/ui/Filtros";
 import { BarraSaldo } from "../componentes/gestao/Barras";
 import { Linha, Tabela, Td, Th } from "../componentes/gestao/Tabela";
 import { STATUS_ESTOQUE, dataCurta } from "../componentes/gestao/formato";
@@ -83,7 +83,7 @@ function Conteudo({ materiais }: { materiais: Material[] }) {
               <Botao tamanho="denso" disabled>
                 Conferência
               </Botao>
-              <span className="text-[12px] text-tinta-fraca">chegam no S4</span>
+              <span className="text-[12px] text-tinta-fraca">em breve</span>
             </span>
           ) : undefined
         }
@@ -99,7 +99,7 @@ function Conteudo({ materiais }: { materiais: Material[] }) {
           <Vazio
             icone="estoque"
             titulo="Nenhum material cadastrado"
-            texto="O cadastro de materiais, as compras e as conferências chegam no S4. Até lá, a lista fica vazia."
+            texto="O cadastro de materiais, as compras e as conferências chegam na etapa do financeiro. Até lá, a lista fica vazia."
           />
         </div>
       ) : (

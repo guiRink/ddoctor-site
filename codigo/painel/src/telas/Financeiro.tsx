@@ -53,7 +53,7 @@ function Conteudo({ titulos, despesas, oss, pagadores }: { titulos: TituloRecebe
             Caixa de <strong className="text-tinta">{mes}</strong> e o que vem nos próximos 30 dias.
           </>
         }
-        acoes={<AcaoFutura texto="Exportar CSV" quando="chega no S4" />}
+        acoes={<AcaoFutura texto="Exportar CSV" quando="em breve" />}
       />
 
       {/* ---------------- saldo do mês (elemento dominante) */}
@@ -101,7 +101,7 @@ function Conteudo({ titulos, despesas, oss, pagadores }: { titulos: TituloRecebe
             }
           >
             {aPagar.length === 0 ? (
-              <Vazio titulo="Nada a pagar" texto="Todas as despesas lançadas estão pagas. O lançamento de despesas chega no S4." />
+              <Vazio titulo="Nada a pagar" texto="Todas as despesas lançadas estão pagas. O lançamento de despesas chega na próxima etapa do painel." />
             ) : (
               <ul>
                 {aPagar.map((d) => (
@@ -155,7 +155,7 @@ function Conteudo({ titulos, despesas, oss, pagadores }: { titulos: TituloRecebe
                   <span className="inline-block w-3 h-3 bg-preto" /> pago
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="inline-block w-3 h-3 border border-linha-forte bg-cartao" /> previsto
+                  <span className="inline-block w-3 h-3 bg-linha-forte/60" /> previsto
                 </span>
               </p>
               <BarrasCategoria categorias={categorias} />
@@ -226,8 +226,7 @@ function LinhaAPagar({ despesa: d, hoje, podePagar }: { despesa: Despesa; hoje: 
   }
 
   return (
-    <li className={`relative border-b border-linha last:border-b-0 ${aberta ? "bg-amarelo-claro" : ""}`}>
-      {vencida && <span aria-hidden="true" className="absolute left-0 top-0 bottom-0 w-1 bg-alerta" />}
+    <li className={`border-b border-linha last:border-b-0 ${aberta ? "bg-amarelo-claro" : vencida ? "bg-alerta-claro/50" : ""}`}>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[96px_minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-2 px-4 py-2.5 min-h-14">
         <span className="numero text-[13px] sm:col-start-1 order-2 sm:order-none col-span-2 sm:col-span-1">
           <span className="font-semibold">{dataComSemana(d.vencimento)}</span>

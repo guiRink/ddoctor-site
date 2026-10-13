@@ -26,7 +26,7 @@ export function Ajustes() {
     <>
       <CabecalhoPagina
         titulo="Ajustes"
-        resumo="Como o painel está configurado hoje. Por enquanto é só leitura: a edição chega no S1 (pessoas e login), no S3 (tipos de reparo, prazos e agenda) e no S4 (pagadores)."
+        resumo="Como o painel está configurado hoje. Por enquanto é só leitura. A edição chega por partes: primeiro pessoas e login, depois tipos de reparo, prazos e agenda, e por fim pagadores."
       />
       <div className="lg:grid lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-8 items-start">
         <nav aria-label="Seções de Ajustes" className="hidden lg:block sticky top-24">
@@ -74,7 +74,7 @@ function Secao({ id, titulo, nota, children }: { id: string; titulo: string; not
   );
 }
 
-function NotaProvisoria({ texto = "provisório — a confirmar no questionário" }: { texto?: string }) {
+function NotaProvisoria({ texto = "a confirmar no questionário" }: { texto?: string }) {
   return (
     <span className="inline-flex items-center gap-2">
       <Etiqueta tom="atencao">Provisório</Etiqueta>
@@ -125,7 +125,7 @@ function TiposReparo() {
       <Consulta q={q}>
         {(tipos: TipoReparo[]) =>
           tipos.length === 0 ? (
-            <Vazio titulo="Nenhum tipo de reparo" texto="Os tipos e suas etapas vêm do questionário do dono e entram no S3." />
+            <Vazio titulo="Nenhum tipo de reparo" texto="Os tipos e suas etapas vêm do questionário do dono." />
           ) : (
             <div className="flex flex-col gap-4 p-4">
               {tipos.map((t) => (
@@ -278,7 +278,7 @@ function Pagadores() {
       <Consulta q={q}>
         {(pagadores: Pagador[]) =>
           pagadores.length === 0 ? (
-            <Vazio titulo="Nenhum pagador cadastrado" texto="Maxpar, cliente e seguradoras entram no S4, com o prazo de cada um." />
+            <Vazio titulo="Nenhum pagador cadastrado" texto="Maxpar, cliente e seguradoras entram com o prazo de pagamento de cada um." />
           ) : (
             <ul>
               {pagadores.map((p) => (
@@ -306,7 +306,7 @@ function Pessoas() {
   const navegar = useNavigate();
   const ativos = perfis.filter((p) => p.ativo);
   return (
-    <Secao id="pessoas" titulo="Pessoas e papéis" nota="Cadastro e login individual chegam no S1">
+    <Secao id="pessoas" titulo="Pessoas e papéis" nota="Cadastro e login individual chegam em breve">
       <div className="px-4 py-4 border-b border-linha bg-papel">
         <label htmlFor="ajustes-ver-como" className="block text-[13px] font-semibold mb-1.5">
           Ver o painel como
@@ -328,12 +328,12 @@ function Pessoas() {
             ))}
           </select>
           <span className="text-[12px] text-tinta-suave max-w-[48ch]">
-            Só na demonstração: mostra o que cada pessoa enxerga. Com o login (S1), cada um entra com a própria conta.
+            Só na demonstração: mostra o que cada pessoa enxerga. Com o login individual, cada um entra com a própria conta.
           </span>
         </div>
       </div>
       {ativos.length === 0 ? (
-        <Vazio titulo="Nenhuma pessoa cadastrada" texto="O cadastro de pessoas chega no S1." />
+        <Vazio titulo="Nenhuma pessoa cadastrada" texto="O cadastro de pessoas chega com o login individual." />
       ) : (
         <ul>
           {ativos.map((p: Perfil) => (
@@ -379,7 +379,7 @@ function Acesso() {
   }
 
   return (
-    <Secao id="acesso" titulo="Acesso" nota="PIN provisório; o login individual chega no S1">
+    <Secao id="acesso" titulo="Acesso" nota="PIN provisório; o login individual chega em breve">
       {podeTrocarPin && (
         <form onSubmit={salvar} className="px-4 py-4 border-b border-linha" aria-labelledby="ajustes-pin-titulo">
           <h3 id="ajustes-pin-titulo" className="font-semibold">

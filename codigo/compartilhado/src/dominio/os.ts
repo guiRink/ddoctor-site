@@ -12,7 +12,8 @@ export const TRANSICOES_OS: Readonly<Record<EstadoOS, readonly EstadoOS[]>> = {
   rascunho: ["aguardando_aprovacao", "cancelada"],
   aguardando_aprovacao: ["aguardando_agendamento", "cancelada"],
   aguardando_agendamento: ["agendada", "na_oficina", "cancelada"],
-  agendada: ["na_oficina", "cancelada"],
+  // agendada → aguardando_agendamento: agendamento cancelado ou cliente não compareceu (volta para a fila)
+  agendada: ["na_oficina", "aguardando_agendamento", "cancelada"],
   na_oficina: ["pronta", "cancelada"],
   pronta: ["entregue", "cancelada"],
   entregue: ["encerrada", "cancelada"],
@@ -59,6 +60,7 @@ export function transicaoOS(os: OS, para: EstadoOS, contexto: ContextoTransicaoO
     case "aguardando_aprovacao":
       return (contexto.versao?.itens.length ?? 0) > 0 ? { ok: true } : falha("sem_itens");
     case "aguardando_agendamento":
+      if (os.estado === "agendada") return contexto.motivo?.trim() ? { ok: true } : falha("motivo_obrigatorio");
       if (!contexto.versao?.aprovacao?.confiavel) return falha("aprovacao_nao_confiavel");
       if ((contexto.conflitosAbertos ?? 0) > 0) return falha("conflito_aberto");
       return { ok: true };

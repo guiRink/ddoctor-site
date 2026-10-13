@@ -90,14 +90,17 @@ export function LinhaCarro({ v, para, direita, detalhe }: { v: OSVisao; para?: s
   const conteudo = (
     <>
       <Placa placa={v.veiculo.placa} tamanho="p" />
-      <span className="min-w-0 flex-1">
-        <span className="block font-semibold truncate">{v.veiculo.modelo ?? "Modelo não informado"}</span>
-        <span className="block text-[13px] text-tinta-suave truncate">{detalhe ?? v.cliente.nome}</span>
+      {/* Em coluna estreita (< 24rem, ex.: celular) o complemento desce para baixo do texto, sem cortar o modelo. */}
+      <span className="min-w-0 flex-1 flex flex-col items-start gap-1.5 @sm:flex-row @sm:items-center @sm:gap-3">
+        <span className="min-w-0 w-full @sm:flex-1">
+          <span className="block font-semibold truncate">{v.veiculo.modelo ?? "Modelo não informado"}</span>
+          <span className="block text-[13px] leading-snug text-tinta-suave line-clamp-2">{detalhe ?? v.cliente.nome}</span>
+        </span>
+        {direita && <span className="shrink-0 flex items-center gap-2">{direita}</span>}
       </span>
-      {direita && <span className="shrink-0 flex items-center gap-2">{direita}</span>}
     </>
   );
-  const classe = "flex items-center gap-3 px-4 py-2.5 min-h-14 border-b border-linha last:border-b-0";
+  const classe = "@container flex items-center gap-3 px-4 py-2.5 min-h-14 border-b border-linha last:border-b-0";
   if (!para) return <div className={classe}>{conteudo}</div>;
   return (
     <Link to={para} className={`${classe} no-underline text-tinta hover:bg-amarelo-claro transition-colors duration-150`}>

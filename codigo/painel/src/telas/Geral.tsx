@@ -14,7 +14,7 @@ import { LinhaCarro, nomePerfil } from "../componentes/ui/Carro";
 import { Placa } from "../componentes/ui/Placa";
 import { Etiqueta, Provisorio, Semaforo } from "../componentes/ui/Estado";
 import { LinhaVazia, MaisItens, Subtitulo, VerTudo } from "../componentes/orcamentos/Blocos";
-import { Proveniencia } from "../componentes/orcamentos/Proveniencia";
+import { Proveniencia } from "../componentes/ui/Proveniencia";
 import { dataCurta, diaCurto, diaExtenso, ha, hora } from "../componentes/orcamentos/formato";
 import {
   LIMITE_SEM_AUTORIZACAO_DIAS,

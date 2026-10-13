@@ -5,6 +5,7 @@ import { useSessao } from "../dados/sessao";
 import { podeEditar, podeVer } from "../dominio/permissoes";
 import { Botao, BotaoLink, CabecalhoPagina, Erro, Vazio } from "../componentes/ui/Basicos";
 import { Icone } from "../componentes/Icone";
+import { GrupoFiltros } from "../componentes/ui/Filtros";
 import { CartaoQuadro } from "../componentes/producao/CartaoQuadro";
 import { PainelOS } from "../componentes/producao/PainelOS";
 import {
@@ -104,29 +105,23 @@ export function Producao() {
 
       {/* filtros */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3 mb-5">
-        <div role="group" aria-label="Filtrar o quadro" className="flex gap-1.5 overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap">
-          {FILTROS.map((f) => {
-            const ativo = filtro === f;
+        <GrupoFiltros<FiltroQuadro>
+          rotulo="Filtrar o quadro"
+          mostrarRotulo={false}
+          valor={filtro}
+          onMudar={(f) => mudar("filtro", f === "todos" ? null : f)}
+          opcoes={FILTROS.map((f) => {
             const n = porFiltro(f);
-            const critico = (f === "atrasados" || f === "impedidos") && n > 0;
-            return (
-              <button
-                key={f}
-                type="button"
-                aria-pressed={ativo}
-                onClick={() => mudar("filtro", f === "todos" ? null : f)}
-                className={`inline-flex items-center gap-2 h-11 md:h-9 px-3 shrink-0 text-[13px] font-bold border transition-colors duration-150 ${
-                  ativo ? "bg-amarelo border-amarelo text-preto" : "bg-cartao border-linha-forte text-tinta hover:border-preto"
-                }`}
-              >
-                {NOME_FILTRO[f]}
-                <span className={`numero min-w-5 text-center ${ativo ? "" : critico ? "text-alerta" : "text-tinta-fraca"}`}>{consulta.data ? n : "–"}</span>
-              </button>
-            );
+            return {
+              valor: f,
+              texto: NOME_FILTRO[f],
+              contagem: consulta.data ? n : "–",
+              critico: (f === "atrasados" || f === "impedidos") && n > 0,
+            };
           })}
-        </div>
-        <label className="flex items-center gap-2 text-[13px] text-tinta-suave">
-          <span>Responsável</span>
+        />
+        <label className="flex items-center gap-2">
+          <span className="rotulo text-tinta-fraca">Responsável</span>
           <select
             value={responsavel}
             onChange={(e) => mudar("responsavel", e.target.value || null)}

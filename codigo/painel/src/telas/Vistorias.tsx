@@ -38,7 +38,9 @@ export function Vistorias() {
 
   /** OS que o papel pode ver (produção: só onde tem etapa). */
   const visiveis = useMemo(
-    () => (oss.data ?? []).filter((v) => !soProprias || v.etapas.some((e) => e.responsavelId === perfil.id)),
+    () => (oss.data ?? []).filter(
+        (v) => !soProprias || v.etapas.some((e) => e.responsavelId === perfil.id && e.estado !== "concluida" && e.estado !== "dispensada"),
+      ),
     [oss.data, soProprias, perfil.id],
   );
 
@@ -53,7 +55,7 @@ export function Vistorias() {
 
   const termo = filtro.trim().toLowerCase().replace(/[\s-]/g, "");
   const filtrados = termo
-    ? comFotos.filter(({ v }) => [v.veiculo.placa, v.veiculo.modelo ?? "", v.cliente.nome, String(v.os.numero)].some((t) => t.toLowerCase().replace(/[\s-]/g, "").includes(termo)))
+    ? comFotos.filter(({ v }) => [v.veiculo.placa, v.veiculo.modelo ?? "", soProprias ? "" : v.cliente.nome, String(v.os.numero)].some((t) => t.toLowerCase().replace(/[\s-]/g, "").includes(termo)))
     : comFotos;
 
   const existe = osParam ? oss.data?.find((v) => v.os.id === osParam) : undefined;
@@ -181,7 +183,7 @@ export function Vistorias() {
                 {v.veiculo.cor && <span className="font-normal text-tinta-suave"> · {v.veiculo.cor}</span>}
               </h2>
               <p className="text-[13px] text-tinta-suave break-words">
-                OS <span className="numero">{v.os.numero}</span> · {v.cliente.nome}
+                OS <span className="numero">{v.os.numero}</span>{!soProprias && <> · {v.cliente.nome}</>}
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-3">
                 <Etiqueta tom={estado.tom}>{estado.texto}</Etiqueta>
@@ -198,7 +200,7 @@ export function Vistorias() {
               Adicionar foto
             </Botao>
             <p id="motivo-sem-foto" className="text-[12px] text-tinta-fraca sm:text-right">
-              Ainda não: as fotos chegam no S3 (armazenamento privado).
+              Em breve: as fotos vão direto do celular para um armazenamento privado da oficina.
             </p>
           </div>
         </header>

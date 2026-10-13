@@ -3,12 +3,16 @@ import { Link } from "react-router-dom";
 import type { OSVisao } from "../../dados/repositorio";
 import { Botao } from "../ui/Basicos";
 import { Placa } from "../ui/Placa";
+import { useSessao } from "../../dados/sessao";
+import { podeVer } from "../../dominio/permissoes";
 
 /** Placa que abre a ficha da OS; sem OS conhecida mostra um traço. */
 export function PlacaOS({ v }: { v?: OSVisao }) {
+  const { perfil } = useSessao();
   if (!v) return <span className="text-tinta-fraca">—</span>;
+  if (!podeVer(perfil.papel, "orcamentos")) return <Placa placa={v.veiculo.placa} tamanho="p" />;
   return (
-    <Link to={`/orcamentos/${v.os.id}`} aria-label={`Placa ${v.veiculo.placa} — abrir ficha da OS ${v.os.numero}`} className="inline-flex no-underline">
+    <Link to={`/orcamentos/${v.os.id}`} aria-label={`Placa ${v.veiculo.placa} — abrir ficha da OS ${v.os.numero}`} className="inline-flex no-underline p-2.5 -m-2.5">
       <Placa placa={v.veiculo.placa} tamanho="p" />
     </Link>
   );

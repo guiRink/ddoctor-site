@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import type { Perfil } from "@compartilhado/tipos";
 import { usePerfis } from "./hooks";
+import { Erro, Esqueleto } from "../componentes/ui/Basicos";
 
 /**
  * Quem está usando o painel. Na demonstração, um seletor "Ver como" troca o papel para o dono
@@ -34,7 +35,16 @@ export function ProvedorSessao({ children }: { children: ReactNode }) {
     };
   }, [consulta.data, perfilId]);
 
-  if (!valor) return null;
+  if (!valor) {
+    // carregando ou falhou: nunca deixar a tela em branco
+    return (
+      <div className="min-h-svh grid place-items-center p-6 bg-papel">
+        <div className="w-full max-w-md">
+          {consulta.isError ? <Erro mensagem="Não consegui abrir o painel." onTentar={() => consulta.refetch()} /> : <Esqueleto linhas={3} />}
+        </div>
+      </div>
+    );
+  }
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
 
