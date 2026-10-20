@@ -200,6 +200,20 @@ export function densidadeTV(altura: number, n: number, vao: number): { densidade
   return { densidade: "compacto", porPagina: cabem(ALTURA_TV.compacto) };
 }
 
+/**
+ * Páginas da TV num tique do relógio de páginas. O conjunto de colunas troca a cada tique; a página
+ * de cada coluna só avança quando o conjunto dá a volta — assim toda página de toda coluna aparece
+ * (com o mesmo contador para os dois, a 2ª página de uma coluna podia cair sempre no outro conjunto).
+ */
+export function paginasTV(tique: number, paginasColunas: number): { paginaColunas: number; paginaDaColuna: (paginas: number) => number } {
+  const conjuntos = Math.max(1, paginasColunas);
+  const volta = Math.floor(tique / conjuntos);
+  return {
+    paginaColunas: tique % conjuntos,
+    paginaDaColuna: (paginas) => volta % Math.max(1, paginas),
+  };
+}
+
 // ------------------------------------------------------------------ formatação de datas (fuso da oficina)
 
 const SEMANA = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];

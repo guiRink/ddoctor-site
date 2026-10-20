@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { EtapaOS, OS } from "@compartilhado/tipos";
 import { CONFIG_PADRAO } from "@compartilhado/dominio/config";
 import type { OSVisao } from "../../dados/repositorio";
-import { COLUNA_PRONTOS, contarItens, densidadeTV, etapasSemCarro, filtrarItens, formatarDia, formatarPrazoCurto, lerVisao, montarColunas, montarItens, ordemEtapas, ordenarPorUrgencia } from "./quadro";
+import { COLUNA_PRONTOS, contarItens, densidadeTV, etapasSemCarro, filtrarItens, formatarDia, formatarPrazoCurto, lerVisao, montarColunas, montarItens, ordemEtapas, ordenarPorUrgencia, paginasTV } from "./quadro";
 
 const AGORA = "2026-10-13T10:00:00-03:00"; // terça, dentro do expediente
 
@@ -117,5 +117,31 @@ describe("apresentação", () => {
     expect(lerVisao("lista")).toBe("lista");
     expect(lerVisao(null)).toBe("quadro");
     expect(lerVisao("outra")).toBe("quadro");
+  });
+});
+
+describe("paginasTV", () => {
+  it("com um só conjunto de colunas, a coluna pagina a cada tique", () => {
+    expect([0, 1, 2, 3].map((t) => paginasTV(t, 1).paginaDaColuna(3))).toEqual([0, 1, 2, 0]);
+    expect(paginasTV(5, 1).paginaColunas).toBe(0);
+  });
+
+  it("com 2 conjuntos e coluna de 2 páginas, toda página aparece no conjunto da coluna", () => {
+    const vistas = new Set<number>();
+    for (let t = 0; t < 8; t++) {
+      const { paginaColunas, paginaDaColuna } = paginasTV(t, 2);
+      if (paginaColunas === 0) vistas.add(paginaDaColuna(2));
+    }
+    expect([...vistas].sort()).toEqual([0, 1]);
+  });
+
+  it("a página da coluna só avança quando o conjunto dá a volta", () => {
+    expect([0, 1, 2, 3, 4, 5].map((t) => paginasTV(t, 3).paginaColunas)).toEqual([0, 1, 2, 0, 1, 2]);
+    expect([0, 1, 2, 3, 4, 5].map((t) => paginasTV(t, 3).paginaDaColuna(2))).toEqual([0, 0, 0, 1, 1, 1]);
+  });
+
+  it("tolera zero páginas", () => {
+    expect(paginasTV(4, 0).paginaColunas).toBe(0);
+    expect(paginasTV(4, 1).paginaDaColuna(0)).toBe(0);
   });
 });

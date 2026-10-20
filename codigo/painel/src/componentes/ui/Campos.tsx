@@ -232,6 +232,7 @@ export function Segmentado<T extends string>({
   valor,
   onMudar,
   larguraTotal = false,
+  desabilitado = false,
 }: {
   nome: string;
   legenda: string;
@@ -240,9 +241,11 @@ export function Segmentado<T extends string>({
   valor: T | undefined;
   onMudar: (v: T) => void;
   larguraTotal?: boolean;
+  /** Trava a troca (ex.: enquanto uma foto envia); o valor atual segue visível. */
+  desabilitado?: boolean;
 }) {
   return (
-    <fieldset className="min-w-0 border-0 p-0 m-0">
+    <fieldset disabled={desabilitado} className={`min-w-0 border-0 p-0 m-0 ${desabilitado ? "opacity-60 [&_label]:cursor-not-allowed" : ""}`}>
       <legend className={ocultarLegenda ? "sr-only" : "mb-1.5 text-[13px] font-medium text-tinta-suave"}>{legenda}</legend>
       <div
         className={`${larguraTotal ? "grid" : "inline-flex max-w-full overflow-x-auto"} gap-0.5 p-0.5 rounded-cartao bg-cinza-100`}

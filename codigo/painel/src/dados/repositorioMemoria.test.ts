@@ -82,7 +82,9 @@ describe("repositório em memória", () => {
       const atual = etapas.find((e) => e.estado === "na_fila" || e.estado === "em_execucao");
       if (!atual) break;
       if (atual.estado === "na_fila") await repo.iniciarEtapa(atual.id, "p-andre");
-      expect((await repo.concluirEtapa(atual.id, { temFoto: true, pecasFeitas: 1 })).ok).toBe(true);
+      // etapa que exige foto só conclui com foto real ligada a ela
+      const foto = atual.exigeFoto ? await repo.adicionarFoto(v.os.id, novaFoto({ fase: "final", etapaId: atual.id })) : undefined;
+      expect((await repo.concluirEtapa(atual.id, { pecasFeitas: 1, fotoIds: foto?.id ? [foto.id] : undefined })).ok).toBe(true);
     }
     expect((await repo.obterOS(v.os.id))?.os.estado).toBe("pronta");
   });
@@ -377,7 +379,7 @@ describe("repositório em memória", () => {
       const atual = etapas.find((e) => e.estado === "na_fila" || e.estado === "em_execucao")!;
       if (atual.estado === "na_fila") await repo.iniciarEtapa(atual.id, "p-andre");
       if (atual.exigeFoto) return { osId: v.os.id, etapaId: atual.id };
-      await repo.concluirEtapa(atual.id, { pecasFeitas: 1, temFoto: true });
+      await repo.concluirEtapa(atual.id, { pecasFeitas: 1 });
     }
     throw new Error("sem etapa com foto");
   }

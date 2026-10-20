@@ -304,7 +304,10 @@ export function Agenda() {
       {capacidadePadrao && naOficina >= capacidadePadrao.carrosSimultaneos && (
         <p className="mb-4 px-4 py-2.5 rounded-cartao bg-atencao-claro text-atencao font-medium text-[13px] border border-atencao/25">
           {plural(naOficina, "carro", "carros")} na oficina — limite de {capacidadePadrao.carrosSimultaneos}{" "}
-          <span className="font-normal">(provisório — a confirmar). Agendar continua possível; é só um aviso.</span>
+          <span className="font-normal">
+            {config.data && campoConfigProvisorio(config.data, "carrosSimultaneos") && "(provisório — a confirmar). "}
+            Agendar continua possível; é só um aviso.
+          </span>
         </p>
       )}
 

@@ -119,11 +119,6 @@ export interface DadosConclusaoEtapa {
   pecasFeitas?: number;
   /** Fotos da OS que comprovam a etapa; as ainda sem etapa passam a ser ligadas a ela. */
   fotoIds?: Id[];
-  /**
-   * @deprecated Use `fotoIds` (foto real ligada à etapa). Mantido para o CartaoTarefa antigo: `true` ainda
-   * satisfaz a exigência de foto até a tela passar a tirar a foto de verdade.
-   */
-  temFoto?: boolean;
 }
 
 /** Linha da lista de clientes. */

@@ -18,6 +18,7 @@ import {
   montarColunas,
   montarItens,
   densidadeTV,
+  paginasTV,
 } from "../componentes/producao/quadro";
 
 const ATUALIZAR_MS = 15_000;
@@ -83,7 +84,7 @@ export function ProducaoTV() {
     const t = setInterval(() => setTique((p) => p + 1), PAGINA_MS);
     return () => clearInterval(t);
   }, [paginasColunas, algumaColunaPagina]);
-  const paginaColunas = tique % paginasColunas;
+  const { paginaColunas, paginaDaColuna } = paginasTV(tique, paginasColunas);
   const inicio = paginaColunas * colunasPorTela;
   const visiveis = colunas.slice(inicio, inicio + colunasPorTela).map((c, i) => ({ coluna: c, ...densidades[inicio + i] }));
   const estreito = (l - 64 - (visiveis.length - 1) * VAO_PX) / Math.max(1, visiveis.length) < PLACA_TV_PX;
@@ -135,7 +136,7 @@ export function ProducaoTV() {
           <div className="h-full flex" style={{ gap: VAO_PX }}>
             {visiveis.map(({ coluna, densidade, porPagina }) => {
               const paginas = Math.max(1, Math.ceil(coluna.itens.length / porPagina));
-              const pagina = tique % paginas;
+              const pagina = paginaDaColuna(paginas);
               const itensPagina = coluna.itens.slice(pagina * porPagina, (pagina + 1) * porPagina);
               const pronto = coluna.id === COLUNA_PRONTOS;
               return (

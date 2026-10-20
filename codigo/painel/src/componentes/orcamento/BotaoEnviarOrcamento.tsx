@@ -4,7 +4,6 @@ import { useAgora } from "../../dados/hooks";
 import type { OSVisao } from "../../dados/repositorio";
 import { Botao, BotaoExterno } from "../ui/Basicos";
 import { AreaTexto, Aviso, Grupo, LinhaPrevia, Previa } from "../ui/Campos";
-import { Provisorio } from "../ui/Estado";
 import { Gaveta } from "../ui/Gaveta";
 import { Placa } from "../ui/Placa";
 import { linkWhatsAppComMensagem, mensagemOrcamento, montarDocumento, numeroWhatsApp } from "./documento";
@@ -75,7 +74,7 @@ function GavetaEnviarOrcamento({ v, onFechar }: { v: OSVisao; onFechar: () => vo
   const [aviso, setAviso] = useState<{ tom: "ok" | "alerta"; texto: string } | null>(null);
   const [copiado, setCopiado] = useState(false);
 
-  // prévia (data de emissão só para a validade exibida; o PDF usa a hora do clique)
+  // prévia (o PDF usa a hora do clique)
   const agora = useAgora(60_000);
   const doc = montarDocumento(v, agora);
   const mensagem = mensagemOrcamento(v, doc);
@@ -139,22 +138,18 @@ function GavetaEnviarOrcamento({ v, onFechar }: { v: OSVisao; onFechar: () => vo
           <span className="text-[13px] break-all">{doc.nomeArquivo}</span>
         </LinhaPrevia>
         <LinhaPrevia rotulo="Peças">{semPecas ? "nenhuma" : doc.itens.length}</LinhaPrevia>
-        {doc.aprovado ? (
-          <LinhaPrevia rotulo="Situação">{doc.aprovado}</LinhaPrevia>
-        ) : (
-          doc.validade && (
-            <LinhaPrevia rotulo="Validade">
-              <Provisorio>{doc.validade.dias} dias</Provisorio>
-              <span className="text-tinta-suave"> · até {doc.validade.ate.slice(0, 5)}</span>
-            </LinhaPrevia>
-          )
-        )}
+        {doc.aprovado && <LinhaPrevia rotulo="Situação">{doc.aprovado}</LinhaPrevia>}
         {total && (
           <LinhaPrevia rotulo={total.nome} forte>
             {total.valor}
           </LinhaPrevia>
         )}
       </Previa>
+      {!doc.aprovado && (
+        <p className="text-[13px] text-tinta-suave -mt-2">
+          Validade: ainda não sai no PDF (prazo a confirmar com o dono).
+        </p>
+      )}
 
       {semPecas && <Aviso tom="alerta">Este orçamento ainda não tem peças. Lance as peças na ficha antes de enviar ao cliente.</Aviso>}
 

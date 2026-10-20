@@ -100,8 +100,15 @@ const PREFIXO_SESSAO = "sessao:";
 const ehLocal = (f: Foto) => f.url.startsWith(PREFIXO_IDB) || f.url.startsWith(PREFIXO_SESSAO);
 const urlsFoto = new Map<Id, { url: string; miniaturaUrl: string }>();
 
+/** blob: URL da foto; se o navegador recusar, url vazia (a tela mostra "foto indisponível"). */
 function criarUrl(blob: Blob): string {
-  return typeof URL.createObjectURL === "function" ? URL.createObjectURL(blob) : "";
+  if (typeof URL.createObjectURL !== "function") return "";
+  try {
+    return URL.createObjectURL(blob);
+  } catch (e) {
+    console.warn("[fotos] não consegui criar a URL da foto", e);
+    return "";
+  }
 }
 function liberarUrls(id: Id) {
   const u = urlsFoto.get(id);
@@ -115,26 +122,42 @@ function liberarUrls(id: Id) {
 let limpezaFotosFeita = false;
 let resolvendoFotos: Promise<void> = Promise.resolve();
 
-/** Garante blob: URLs para as fotos locais antes da leitura; foto "sessao:" perdida (aba recarregada) sai do estado. */
+/**
+ * Garante blob: URLs para as fotos locais antes da leitura; foto "sessao:" perdida (aba recarregada) sai do estado.
+ * Nunca rejeita: a cadeia é compartilhada por todas as leituras, e uma falha aqui (IndexedDB, blob) derrubaria
+ * todas. Foto que falha fica com url vazia ("foto indisponível") e é tentada de novo na próxima leitura.
+ */
 function resolverFotos(): Promise<void> {
-  resolvendoFotos = resolvendoFotos.then(async () => {
-    const locais = estado.fotos.filter(ehLocal);
-    if (!limpezaFotosFeita) {
-      limpezaFotosFeita = true;
-      await apagarOrfaos(new Set(locais.filter((f) => f.url.startsWith(PREFIXO_IDB)).map((f) => f.id)));
-    }
-    const perdidas = new Set<Id>();
-    for (const f of locais) {
-      if (urlsFoto.has(f.id)) continue;
-      const blobs = await lerBlobs(f.id);
-      if (blobs) urlsFoto.set(f.id, { url: criarUrl(blobs.arquivo), miniaturaUrl: criarUrl(blobs.miniatura) });
-      else if (f.url.startsWith(PREFIXO_SESSAO)) perdidas.add(f.id);
-    }
-    if (perdidas.size) {
-      estado.fotos = estado.fotos.filter((f) => !perdidas.has(f.id));
-      salvar();
-    }
-  });
+  resolvendoFotos = resolvendoFotos
+    .then(async () => {
+      const locais = estado.fotos.filter(ehLocal);
+      if (!limpezaFotosFeita) {
+        limpezaFotosFeita = true;
+        try {
+          await apagarOrfaos(new Set(locais.filter((f) => f.url.startsWith(PREFIXO_IDB)).map((f) => f.id)));
+        } catch (e) {
+          console.warn("[fotos] não consegui limpar fotos órfãs", e);
+        }
+      }
+      const perdidas = new Set<Id>();
+      for (const f of locais) {
+        if (urlsFoto.has(f.id)) continue;
+        try {
+          const blobs = await lerBlobs(f.id);
+          if (blobs) urlsFoto.set(f.id, { url: criarUrl(blobs.arquivo), miniaturaUrl: criarUrl(blobs.miniatura) });
+          else if (f.url.startsWith(PREFIXO_SESSAO)) perdidas.add(f.id);
+        } catch (e) {
+          console.warn(`[fotos] não consegui ler a foto ${f.id}`, e);
+        }
+      }
+      if (perdidas.size) {
+        estado.fotos = estado.fotos.filter((f) => !perdidas.has(f.id));
+        salvar();
+      }
+    })
+    .catch((e) => {
+      console.warn("[fotos] falha ao preparar as fotos; a leitura segue sem elas", e);
+    });
   return resolvendoFotos;
 }
 
@@ -419,7 +442,7 @@ export const repositorioMemoria: Repositorio = {
     const indicadas = (dados.fotoIds ?? []).map((id) => estado.fotos.find((f) => f.id === id));
     if (indicadas.some((f) => !f || f.osId !== etapa.osId)) return { ok: false, codigo: "foto_nao_encontrada" };
     const ligar = (indicadas as Foto[]).filter((f) => FASES_FOTO_ETAPA.includes(f.fase) && (!f.etapaId || f.etapaId === etapaId));
-    const temFoto = fotosDaEtapa(estado.fotos, etapa.osId, etapaId).length > 0 || ligar.length > 0 || dados.temFoto === true; // temFoto: legado
+    const temFoto = fotosDaEtapa(estado.fotos, etapa.osId, etapaId).length > 0 || ligar.length > 0;
     const r = mudarEtapas(etapaId, "concluída", (etapas) => concluirEtapa(etapas, etapaId, { pecasFeitas: dados.pecasFeitas, temFoto }, agora()));
     if (r.ok && ligar.length) {
       const ids = new Set(ligar.map((f) => f.id));

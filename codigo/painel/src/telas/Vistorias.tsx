@@ -49,6 +49,12 @@ export function Vistorias() {
   const [filtro, setFiltro] = useState("");
   // painel "Adicionar fotos": aberto para uma OS, numa fase
   const [captura, setCaptura] = useState<{ osId: string; fase: FaseInterna } | null>(null);
+  // enquanto uma foto prepara/envia, a fase e o "Fechar" ficam travados (trocar remontaria a captura no meio do envio)
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const fecharCaptura = () => {
+    setCaptura(null);
+    setEnviandoFoto(false);
+  };
   const painelCaptura = useRef<HTMLDivElement>(null);
   const podeFotografar = podeAdicionarFoto(perfil.papel);
 
@@ -250,9 +256,11 @@ export function Vistorias() {
                 <h3 id="titulo-captura" className="text-[15px] font-semibold">
                   Adicionar fotos
                 </h3>
-                <p className="text-[13px] text-tinta-suave">Escolha a fase e tire ou escolha as fotos. Pode mandar várias.</p>
+                <p className="text-[13px] text-tinta-suave" aria-live="polite">
+                  {enviandoFoto ? "Enviando foto… espere terminar para trocar a fase ou fechar." : "Escolha a fase e tire ou escolha as fotos. Pode mandar várias."}
+                </p>
               </div>
-              <Botao variante="fantasma" tamanho="denso" onClick={() => setCaptura(null)}>
+              <Botao variante="fantasma" tamanho="denso" onClick={fecharCaptura} disabled={enviandoFoto}>
                 Fechar
               </Botao>
             </div>
@@ -263,6 +271,7 @@ export function Vistorias() {
               valor={capturaAberta.fase}
               onMudar={(fase) => setCaptura({ osId: v.os.id, fase })}
               larguraTotal={!largo}
+              desabilitado={enviandoFoto}
             />
             <CapturaFoto
               key={capturaAberta.fase}
@@ -272,6 +281,7 @@ export function Vistorias() {
               podeRemover={() => false}
               rotulo={`Fotos de ${FASE_VISTORIA[capturaAberta.fase].toLowerCase()}`}
               mostrarProntas={false}
+              onEstado={(e) => setEnviandoFoto(e.ocupado)}
             />
           </div>
         )}
@@ -280,7 +290,7 @@ export function Vistorias() {
             fotos={v.fotos}
             perfis={perfis.data ?? []}
             podeRemover={(f) => podeRemoverFoto(perfil.papel, f, perfil.id)}
-            onAdicionar={podeFotografar && v.os.estado !== "cancelada" ? (fase) => setCaptura({ osId: v.os.id, fase }) : undefined}
+            onAdicionar={podeFotografar && v.os.estado !== "cancelada" && !enviandoFoto ? (fase) => setCaptura({ osId: v.os.id, fase }) : undefined}
           />
         </div>
       </section>

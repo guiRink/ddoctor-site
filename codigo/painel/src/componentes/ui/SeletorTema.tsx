@@ -122,7 +122,10 @@ function MenuTema({ tema, escolher }: { tema: Tema; escolher: (t: Tema) => void 
           onKeyDown={teclaNoMenu}
           className="absolute bottom-full right-0 mb-2 z-40 w-44 p-1 rounded-cartao bg-cartao border border-linha elevacao"
         >
-          <p className="px-2.5 h-7 flex items-center text-[12px] font-medium text-tinta-fraca">Tema</p>
+          {/* título só visual: dentro de role="menu" só cabem itens; o nome do menu vem do aria-label */}
+          <div aria-hidden="true" className="px-2.5 h-7 flex items-center text-[12px] font-medium text-tinta-fraca">
+            Tema
+          </div>
           {OPCOES.map((o, i) => {
             const marcado = o.valor === tema;
             return (

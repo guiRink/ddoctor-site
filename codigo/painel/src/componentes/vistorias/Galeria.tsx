@@ -294,7 +294,8 @@ function FotoAmpliada({
                 ))}
             </div>
             {erro && erro.id === f.id && (
-              <p role="alert" className="basis-full flex items-start gap-2 text-[13px] font-medium text-alerta">
+              // fundo preto: o texto vai numa pílula clara (alerta sobre alerta-claro ≈ 5,5:1); alerta direto no preto não passava
+              <p role="alert" className="basis-full flex items-start gap-2 px-3 py-2 rounded-controle bg-alerta-claro text-alerta text-[13px] font-medium">
                 <Icone nome="alerta" tamanho={16} className="mt-0.5 shrink-0" />
                 {erro.texto}
               </p>
