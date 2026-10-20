@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { FaseVistoria, Foto, Perfil } from "@compartilhado/tipos";
+import { mensagemErro, useAcoes } from "../../dados/hooks";
 import { FASE_VISTORIA } from "../../dominio/rotulos";
-import { Contagem } from "../ui/Basicos";
+import { Botao, Contagem } from "../ui/Basicos";
 import { Etiqueta } from "../ui/Estado";
 import { Icone } from "../Icone";
 import { dataHora } from "../agenda/formato";
+import { FotoIndisponivel, ImagemFoto } from "../fotos/MiniaturasFoto";
+import { DICA_EXPIRACAO, fonteMiniatura, textoExpiracao } from "../fotos/formato";
 
 // Galeria de vistoria: faixas horizontais por fase e foto ampliada em <dialog> nativo.
 // docs/painel-design.md §5 Vistorias · informações §3.4.
@@ -27,22 +30,6 @@ function textoAlt(f: Foto): string {
   return `${FASE_VISTORIA[f.fase]}: ${f.legenda || "foto sem legenda"}`;
 }
 
-/** Imagem com troca para aviso quando o arquivo não carrega (link vencido, sem rede). */
-function Imagem({ f, className }: { f: Foto; className: string }) {
-  const [falhou, setFalhou] = useState(false);
-  if (falhou) {
-    return (
-      <span className={`grid place-items-center bg-cinza-100 text-tinta-fraca text-[12px] font-medium ${className}`}>
-        <span className="flex flex-col items-center gap-1">
-          <Icone nome="camera" />
-          Foto indisponível
-        </span>
-      </span>
-    );
-  }
-  return <img src={f.url} alt={textoAlt(f)} loading="lazy" decoding="async" onError={() => setFalhou(true)} className={`object-cover bg-cinza-100 ${className}`} />;
-}
-
 export function Miniatura({ f, className = "w-14 h-[42px] rounded-controle" }: { f?: Foto; className?: string }) {
   if (!f) {
     return (
@@ -51,7 +38,7 @@ export function Miniatura({ f, className = "w-14 h-[42px] rounded-controle" }: {
       </span>
     );
   }
-  return <Imagem f={f} className={`shrink-0 ${className}`} />;
+  return <ImagemFoto src={fonteMiniatura(f)} alt={textoAlt(f)} className={`shrink-0 ${className}`} compacto />;
 }
 
 function Legenda({ f, perfis }: { f: Foto; perfis: Perfil[] }) {
@@ -62,11 +49,28 @@ function Legenda({ f, perfis }: { f: Foto; perfis: Perfil[] }) {
       </span>
       <span className="block mt-0.5 text-[12px] text-tinta-suave truncate">{autorDe(f, perfis)}</span>
       <span className="block text-[12px] text-tinta-suave numero">{dataHora(f.tiradaEm)}</span>
+      {f.origem === "interna" && textoExpiracao(f) && (
+        <span className="block mt-0.5 text-[12px] text-tinta-fraca numero truncate" title={DICA_EXPIRACAO}>
+          {textoExpiracao(f)}
+        </span>
+      )}
     </>
   );
 }
 
-export function FaixasPorFase({ fotos, perfis }: { fotos: Foto[]; perfis: Perfil[] }) {
+export function FaixasPorFase({
+  fotos,
+  perfis,
+  podeRemover,
+  onAdicionar,
+}: {
+  fotos: Foto[];
+  perfis: Perfil[];
+  /** Quem pode remover cada foto (podeRemoverFoto); ausente = ninguém. */
+  podeRemover?: (f: Foto) => boolean;
+  /** Abre a captura na fase (Entrada · Durante · Final); ausente = o papel não tira foto. */
+  onAdicionar?: (fase: Exclude<FaseVistoria, "externa">) => void;
+}) {
   const ordenadas = FASES.flatMap((fase) => fotos.filter((f) => f.fase === fase).sort((a, b) => a.tiradaEm.localeCompare(b.tiradaEm)));
   const [aberta, setAberta] = useState<number | null>(null);
 
@@ -80,12 +84,30 @@ export function FaixasPorFase({ fotos, perfis }: { fotos: Foto[]; perfis: Perfil
               <span className="text-[15px] font-semibold">{FASE_VISTORIA[fase]}</span>
               <Contagem n={daFase.length} />
               {fase === "externa" && <span className="text-[12px] text-tinta-suave font-normal">só leitura, importadas do portal</span>}
+              {fase !== "externa" && onAdicionar && daFase.length > 0 && (
+                <Botao variante="fantasma" tamanho="denso" icone="mais" className="ml-auto" onClick={() => onAdicionar(fase)} aria-label={`Adicionar foto: ${FASE_VISTORIA[fase]}`}>
+                  Adicionar
+                </Botao>
+              )}
             </h3>
             {daFase.length === 0 ? (
-              <p className="flex items-center gap-2 h-20 px-4 rounded-cartao border border-dashed border-linha-forte text-tinta-fraca text-[13px]">
-                <Icone nome="camera" tamanho={16} />
-                {VAZIO_FASE[fase]}
-              </p>
+              fase !== "externa" && onAdicionar ? (
+                <button
+                  type="button"
+                  onClick={() => onAdicionar(fase)}
+                  className="flex w-full items-center gap-2 h-20 px-4 rounded-cartao border border-dashed border-linha-forte text-tinta-suave text-[13px] text-left hover:bg-cinza-50 hover:text-tinta transition-colors duration-150"
+                >
+                  <Icone nome="camera" tamanho={16} className="shrink-0" />
+                  <span>
+                    {VAZIO_FASE[fase]} <span className="font-semibold text-tinta">Adicionar foto</span>
+                  </span>
+                </button>
+              ) : (
+                <p className="flex items-center gap-2 h-20 px-4 rounded-cartao border border-dashed border-linha-forte text-tinta-fraca text-[13px]">
+                  <Icone nome="camera" tamanho={16} />
+                  {VAZIO_FASE[fase]}
+                </p>
+              )
             ) : (
               <ul className="flex gap-3 overflow-x-auto pb-2 snap-x" aria-label={`Fotos: ${FASE_VISTORIA[fase]}`}>
                 {daFase.map((f) => {
@@ -99,7 +121,7 @@ export function FaixasPorFase({ fotos, perfis }: { fotos: Foto[]; perfis: Perfil
                           aria-label={`Ampliar foto: ${f.legenda || FASE_VISTORIA[f.fase]}`}
                           className="relative block w-full group"
                         >
-                          <Imagem f={f} className="block w-full aspect-[4/3]" />
+                          <ImagemFoto src={fonteMiniatura(f)} alt={textoAlt(f)} className="block w-full aspect-[4/3]" />
                           {f.origem === "maxpar" && (
                             <Etiqueta tom="maxpar" className="absolute left-2 top-2">
                               Maxpar
@@ -120,7 +142,7 @@ export function FaixasPorFase({ fotos, perfis }: { fotos: Foto[]; perfis: Perfil
         );
       })}
 
-      <FotoAmpliada fotos={ordenadas} perfis={perfis} indice={aberta} onTrocar={setAberta} />
+      <FotoAmpliada fotos={ordenadas} perfis={perfis} indice={aberta} onTrocar={setAberta} podeRemover={podeRemover} />
     </div>
   );
 }
@@ -131,14 +153,20 @@ function FotoAmpliada({
   perfis,
   indice,
   onTrocar,
+  podeRemover,
 }: {
   fotos: Foto[];
   perfis: Perfil[];
   indice: number | null;
   onTrocar: (i: number | null) => void;
+  podeRemover?: (f: Foto) => boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const acoes = useAcoes();
   const aberto = indice !== null && fotos[indice] !== undefined;
+  // confirmação e erro valem para a foto em que foram pedidos (trocar de foto zera)
+  const [confirmar, setConfirmar] = useState<string | null>(null);
+  const [erro, setErro] = useState<{ id: string; texto: string } | null>(null);
 
   useEffect(() => {
     const d = ref.current;
@@ -148,6 +176,21 @@ function FotoAmpliada({
   }, [aberto]);
 
   const f = aberto ? fotos[indice] : undefined;
+  const removivel = f ? (podeRemover?.(f) ?? false) : false;
+
+  async function remover(alvo: Foto) {
+    setErro(null);
+    try {
+      const r = await acoes.removerFoto.mutateAsync([alvo.id]);
+      if (r.ok) {
+        setConfirmar(null);
+        onTrocar(null);
+      } else setErro({ id: alvo.id, texto: mensagemErro(r.codigo) });
+    } catch {
+      setErro({ id: alvo.id, texto: mensagemErro() });
+    }
+  }
+
   const anterior = () => indice !== null && indice > 0 && onTrocar(indice - 1);
   const proxima = () => indice !== null && indice < fotos.length - 1 && onTrocar(indice + 1);
 
@@ -182,7 +225,11 @@ function FotoAmpliada({
             </button>
           </div>
           <div className="relative flex-1 min-h-0 grid place-items-center bg-preto">
-            <img src={f.url} alt={textoAlt(f)} className="max-w-full max-h-[calc(96svh-140px)] object-contain" />
+            {f.url ? (
+              <img src={f.url} alt={textoAlt(f)} className="max-w-full max-h-[calc(96svh-140px)] object-contain" />
+            ) : (
+              <FotoIndisponivel className="w-full h-[50svh]" cores="bg-grafite text-papel-suave" />
+            )}
             <button
               type="button"
               onClick={anterior}
@@ -207,9 +254,51 @@ function FotoAmpliada({
               <span className="block font-medium break-words">{f.legenda || "Sem legenda"}</span>
               <span className="block text-[12px] text-papel-suave numero">
                 {autorDe(f, perfis)} · {dataHora(f.tiradaEm)}
+                {f.origem === "interna" && textoExpiracao(f) && (
+                  <span title={DICA_EXPIRACAO}> · {textoExpiracao(f)!.replace("Apagada", "apagada")}</span>
+                )}
               </span>
             </p>
-            {f.origem === "maxpar" && <Etiqueta tom="maxpar">Maxpar · importada</Etiqueta>}
+            <div className="flex flex-wrap items-center gap-2">
+              {f.origem === "maxpar" && <Etiqueta tom="maxpar">Maxpar · importada</Etiqueta>}
+              {removivel &&
+                (confirmar === f.id ? (
+                  <>
+                    <span className="text-[13px] text-papel-suave">Remover esta foto?</span>
+                    <button
+                      type="button"
+                      autoFocus
+                      onClick={() => remover(f)}
+                      disabled={acoes.removerFoto.isPending}
+                      className="h-10 px-3 rounded-controle bg-alerta text-cartao text-[13px] font-semibold hover:opacity-90 transition-opacity duration-150 disabled:opacity-40"
+                    >
+                      {acoes.removerFoto.isPending ? "Removendo…" : "Remover"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmar(null)}
+                      className="h-10 px-3 rounded-controle text-papel-suave text-[13px] font-medium hover:text-papel hover:bg-grafite-2 transition-colors duration-150"
+                    >
+                      Cancelar
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => (setErro(null), setConfirmar(f.id))}
+                    className="inline-flex items-center gap-2 h-10 px-3 rounded-controle border border-linha-clara text-papel-suave text-[13px] font-medium hover:text-papel hover:bg-grafite-2 transition-colors duration-150"
+                  >
+                    <Icone nome="fechar" tamanho={16} />
+                    Remover foto
+                  </button>
+                ))}
+            </div>
+            {erro && erro.id === f.id && (
+              <p role="alert" className="basis-full flex items-start gap-2 text-[13px] font-medium text-alerta">
+                <Icone nome="alerta" tamanho={16} className="mt-0.5 shrink-0" />
+                {erro.texto}
+              </p>
+            )}
           </div>
         </div>
       )}
