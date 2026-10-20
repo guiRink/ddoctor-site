@@ -6,6 +6,8 @@ import { repositorioMemoria } from "./repositorioMemoria";
 import type {
   CategoriaEntrada,
   ClienteEntrada,
+  ConfigParcial,
+  DadosConclusaoEtapa,
   DespesaEntrada,
   FechamentoEntrada,
   FornecedorEntrada,
@@ -13,9 +15,11 @@ import type {
   MovimentoEntrada,
   NovoAtendimentoRapido,
   NovoCustoOS,
+  NovaFoto,
   PagamentoOS,
   Repositorio,
   Resultado,
+  TipoReparoEntrada,
   VeiculoEntrada,
 } from "./repositorio";
 
@@ -84,7 +88,7 @@ export function useAcoes() {
 
   return {
     iniciarEtapa: mut((etapaId: Id, responsavelId: Id) => repositorio.iniciarEtapa(etapaId, responsavelId)),
-    concluirEtapa: mut((etapaId: Id, dados: { pecasFeitas?: number; temFoto?: boolean }) => repositorio.concluirEtapa(etapaId, dados)),
+    concluirEtapa: mut((etapaId: Id, dados: DadosConclusaoEtapa) => repositorio.concluirEtapa(etapaId, dados)),
     bloquearEtapa: mut((etapaId: Id, motivo: string) => repositorio.bloquearEtapa(etapaId, motivo)),
     retomarEtapa: mut((etapaId: Id) => repositorio.retomarEtapa(etapaId)),
     dispensarEtapa: mut((etapaId: Id, motivo: string) => repositorio.dispensarEtapa(etapaId, motivo)),
@@ -119,6 +123,11 @@ export function useAcoes() {
     salvarCategoria: mut((categoria: CategoriaEntrada) => repositorio.salvarCategoria(categoria)),
     fecharCaixa: mut((dados: FechamentoEntrada) => repositorio.fecharCaixa(dados)),
     salvarChecklistConfig: mut((itens: ChecklistItem[]) => repositorio.salvarChecklistConfig(itens)),
+    salvarConfig: mut((parcial: ConfigParcial) => repositorio.salvarConfig(parcial)),
+    salvarTipoReparo: mut((tipo: TipoReparoEntrada) => repositorio.salvarTipoReparo(tipo)),
+    // fotos: comprima antes com comprimirFoto (dados/fotos.ts); ok com codigo "fotos_temporarias" = aviso
+    adicionarFoto: mut((osId: Id, foto: NovaFoto) => repositorio.adicionarFoto(osId, foto)),
+    removerFoto: mut((fotoId: Id) => repositorio.removerFoto(fotoId)),
     restaurarDemo: mut(async () => {
       await repositorio.restaurarDemo();
       return { ok: true };

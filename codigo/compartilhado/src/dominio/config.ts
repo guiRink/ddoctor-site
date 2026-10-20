@@ -1,4 +1,7 @@
-import type { CategoriaFinanceira, ChecklistItem, ConfigOficina } from "../tipos";
+import type { CampoConfig, CategoriaFinanceira, ChecklistItem, ConfigOficina } from "../tipos";
+import { CAMPOS_CONFIG } from "../tipos";
+import { minutosDeHora } from "./fuso";
+import { falha } from "./resultado";
 
 /**
  * Configuração padrão enquanto o dono não confirma (docs/painel-informacoes.md §4–5).
@@ -84,4 +87,90 @@ export function capacidadePecasDia(config: Pick<ConfigOficina, "capacidadePadrao
 /** Itens do checklist de entrada da configuração (ou o padrão provisório). */
 export function itensChecklist(config: Pick<ConfigOficina, "checklist">): readonly ChecklistItem[] {
   return config.checklist ?? CHECKLIST_PADRAO;
+}
+
+// ---------------------------------------------------------------- edição da configuração (Ajustes)
+
+/** Limites aceitos ao editar a capacidade e o semáforo (inteiros). Fora disso: valor_invalido. */
+export const LIMITES_CONFIG = {
+  vagasEntrada: { min: 1, max: 30 },
+  carrosSimultaneos: { min: 1, max: 60 },
+  pecasDia: { min: 1, max: 200 },
+  laranjaAntesHoras: { min: 1, max: 80 },
+  vermelhoBloqueioHoras: { min: 1, max: 80 },
+} as const;
+
+export interface ConfigParcial {
+  capacidadePadrao?: { vagasEntrada?: number; carrosSimultaneos?: number; pecasDia?: number };
+  expediente?: ConfigOficina["expediente"];
+  semaforo?: Partial<ConfigOficina["semaforo"]>;
+}
+
+export type CodigoConfig = "valor_invalido" | "expediente_invalido" | "nada_a_salvar";
+
+/** Falha traz o `campo` que não passou (para a tela marcar o campo certo). */
+export type ResultadoConfig =
+  | { ok: true; config: ConfigOficina; campos: CampoConfig[] }
+  | { ok: false; codigo: CodigoConfig; campo?: string };
+
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+function inteiroEntre(v: unknown, lim: { min: number; max: number }): v is number {
+  return typeof v === "number" && Number.isInteger(v) && v >= lim.min && v <= lim.max;
+}
+
+/** O campo ainda é "provisório — a confirmar"? (confirmado por campo vence o `provisorio` geral). */
+export function campoConfigProvisorio(config: Pick<ConfigOficina, "provisorio" | "confirmado">, campo: CampoConfig): boolean {
+  return config.provisorio && !config.confirmado?.[campo];
+}
+
+/**
+ * Aplica uma edição parcial da configuração. Valida inteiros dentro de LIMITES_CONFIG (valor_invalido, com o
+ * `campo` que falhou) e o expediente (dias 0–6 sem repetir, "HH:MM", início antes do fim: expediente_invalido).
+ * Cada campo salvo vira confirmado; o `provisorio` geral cai quando todos os CAMPOS_CONFIG estão confirmados.
+ */
+export function aplicarConfig(config: ConfigOficina, parcial: ConfigParcial): ResultadoConfig {
+  const campos: CampoConfig[] = [];
+  let capacidadePadrao = config.capacidadePadrao;
+  let semaforo = config.semaforo;
+  let expediente = config.expediente;
+
+  const cap = parcial.capacidadePadrao;
+  if (cap) {
+    for (const campo of ["vagasEntrada", "carrosSimultaneos", "pecasDia"] as const) {
+      if (cap[campo] === undefined) continue;
+      if (!inteiroEntre(cap[campo], LIMITES_CONFIG[campo])) return { ok: false, codigo: "valor_invalido", campo };
+      capacidadePadrao = { ...capacidadePadrao, [campo]: cap[campo] };
+      campos.push(campo);
+    }
+  }
+  const sem = parcial.semaforo;
+  if (sem) {
+    let mudou = false;
+    for (const campo of ["laranjaAntesHoras", "vermelhoBloqueioHoras"] as const) {
+      if (sem[campo] === undefined) continue;
+      if (!inteiroEntre(sem[campo], LIMITES_CONFIG[campo])) return { ok: false, codigo: "valor_invalido", campo };
+      semaforo = { ...semaforo, [campo]: sem[campo] };
+      mudou = true;
+    }
+    if (mudou) campos.push("semaforo");
+  }
+  const exp = parcial.expediente;
+  if (exp) {
+    const dias = exp.diasSemana;
+    const diasOk =
+      Array.isArray(dias) && dias.length > 0 && new Set(dias).size === dias.length && dias.every((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+    if (!diasOk || !HHMM.test(exp.inicio ?? "") || !HHMM.test(exp.fim ?? "")) return { ok: false, codigo: "expediente_invalido", campo: "expediente" };
+    if (minutosDeHora(exp.inicio) >= minutosDeHora(exp.fim)) return { ok: false, codigo: "expediente_invalido", campo: "expediente" };
+    if (exp.sabadoFim !== undefined && (!HHMM.test(exp.sabadoFim) || minutosDeHora(exp.sabadoFim) <= minutosDeHora(exp.inicio)))
+      return { ok: false, codigo: "expediente_invalido", campo: "sabadoFim" };
+    expediente = { diasSemana: [...dias].sort((a, b) => a - b), inicio: exp.inicio, fim: exp.fim, ...(exp.sabadoFim ? { sabadoFim: exp.sabadoFim } : {}) };
+    campos.push("expediente");
+  }
+  if (campos.length === 0) return falha("nada_a_salvar");
+
+  const confirmado = { ...config.confirmado };
+  for (const c of campos) confirmado[c] = true;
+  const todos = CAMPOS_CONFIG.every((c) => confirmado[c]);
+  return { ok: true, campos, config: { ...config, capacidadePadrao, semaforo, expediente, confirmado, provisorio: config.provisorio && !todos } };
 }

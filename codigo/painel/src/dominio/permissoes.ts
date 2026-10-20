@@ -65,6 +65,38 @@ export function veCustosOS(papel: Papel): boolean {
   return papel === "dono" || papel === "gestor" || papel === "financeiro";
 }
 
+/**
+ * Capacidade, expediente e semáforo (salvarConfig): quem edita Ajustes na matriz — dono e gestor.
+ * Provisório (sprint SF): o pedido foi "só o dono"; a matriz §9.1 dá Ajustes ao gestor, então ele também edita.
+ */
+export function podeEditarConfig(papel: Papel): boolean {
+  return acesso(papel, "ajustes") === "editar";
+}
+
+/**
+ * Criar ou editar tipo de reparo (categoria de serviço): dono, gestor e recepção — a recepção cria na hora do
+ * atendimento. Provisório (sprint SF), a confirmar com o dono.
+ */
+export function podeCriarTipoReparo(papel: Papel): boolean {
+  return papel === "dono" || papel === "gestor" || papel === "recepcao";
+}
+
+/** Tirar foto da OS: quem edita vistorias (dono, gestor, recepção) e a produção (fotos das próprias etapas). */
+export function podeAdicionarFoto(papel: Papel): boolean {
+  return podeEditar(papel, "vistorias");
+}
+
+/**
+ * Remover foto interna: dono, gestor e recepção; a produção só a que ela mesma tirou (acesso "proprio").
+ * Foto da Maxpar nunca (o repositório recusa com foto_externa).
+ */
+export function podeRemoverFoto(papel: Papel, foto: { autorId?: string; origem: "interna" | "maxpar" }, perfilId?: string): boolean {
+  if (foto.origem === "maxpar") return false;
+  const a = acesso(papel, "vistorias");
+  if (a === "editar") return true;
+  return a === "proprio" && Boolean(perfilId) && foto.autorId === perfilId;
+}
+
 /** Primeira tela de cada papel. */
 export function telaInicial(papel: Papel): string {
   switch (papel) {

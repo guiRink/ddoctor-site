@@ -19,3 +19,5 @@ export * from "./pagamentos";
 export * from "./caixa";
 export * from "./relatorios";
 export * from "./producao";
+export * from "./tiposReparo";
+export * from "./fotos";

@@ -15,6 +15,7 @@ import type {
   FechamentoCaixa,
   FormaPagamento,
   Fornecedor,
+  FaseVistoria,
   Foto,
   Id,
   Janela,
@@ -34,6 +35,10 @@ import type {
   Veiculo,
 } from "@compartilhado/tipos";
 import type { ModoMaoDeObra } from "@compartilhado/dominio/custos";
+import type { ConfigParcial } from "@compartilhado/dominio/config";
+import type { TipoReparoEntrada } from "@compartilhado/dominio/tiposReparo";
+
+export type { ConfigParcial, TipoReparoEntrada };
 
 /**
  * Visão de leitura de uma OS com tudo o que as telas precisam (montada pelo repositório).
@@ -50,6 +55,7 @@ export interface OSVisao {
   agendamento?: Agendamento; // o ativo (não cancelado/realizado), se houver
   pendencias: PendenciaExterna[];
   titulos: TituloReceber[];
+  /** url/miniaturaUrl prontas para <img> (blob: na memória, URL assinada no S1/S3); expiraEm calculado (L28). */
   fotos: Foto[];
   /**
    * Custos lançados (insumos, mão de obra, terceiros, outros). Só dono, gestor e financeiro veem (veCustosOS).
@@ -86,9 +92,38 @@ export interface NovoAtendimentoRapido {
  */
 export const LIMITE_AUDITORIA = 500;
 
+/**
+ * Resultado de uma escrita. `ok: false` → `codigo` é o erro (mensagem em ERRO de rotulos.ts).
+ * `ok: true` com `codigo` → deu certo, com AVISO (ex.: "fotos_temporarias"); a tela mostra a mensagem sem tratar como erro.
+ */
 export interface Resultado {
   ok: boolean;
   codigo?: string;
+  /** Campo que falhou na validação (ex.: salvarConfig → "vagasEntrada"), para a tela marcar o campo. */
+  campo?: string;
+}
+
+/** Foto nova da OS, já comprimida no aparelho (dados/fotos.ts → comprimirFoto). */
+export interface NovaFoto {
+  fase: Exclude<FaseVistoria, "externa">; // "externa" é a vistoria da Maxpar, que o painel só lê
+  etapaId?: Id; // obrigatório na prática para comprovar a etapa (fase "durante" ou "final")
+  legenda?: string;
+  arquivo: Blob; // imagem comprimida (~1600 px)
+  miniatura: Blob; // ~320 px
+  largura?: number;
+  altura?: number;
+}
+
+/** Conclusão de etapa. Com exigeFoto, a OS precisa de ao menos uma foto "durante"/"final" ligada à etapa. */
+export interface DadosConclusaoEtapa {
+  pecasFeitas?: number;
+  /** Fotos da OS que comprovam a etapa; as ainda sem etapa passam a ser ligadas a ela. */
+  fotoIds?: Id[];
+  /**
+   * @deprecated Use `fotoIds` (foto real ligada à etapa). Mantido para o CartaoTarefa antigo: `true` ainda
+   * satisfaz a exigência de foto até a tela passar a tirar a foto de verdade.
+   */
+  temFoto?: boolean;
 }
 
 /** Linha da lista de clientes. */
@@ -215,10 +250,18 @@ export interface Repositorio {
   salvarCategoria(categoria: CategoriaEntrada): Promise<Resultado & { id?: Id }>;
   fecharCaixa(dados: FechamentoEntrada): Promise<Resultado & { id?: Id }>;
   salvarChecklistConfig(itens: ChecklistItem[]): Promise<Resultado>;
+  /** Capacidade, expediente e semáforo; cada campo salvo deixa de ser provisório. Só dono e gestor (podeEditarConfig). */
+  salvarConfig(parcial: ConfigParcial): Promise<Resultado>;
+  /** Cria (sem id) ou edita um tipo de reparo / categoria de serviço. Não muda etapas de OS já geradas. */
+  salvarTipoReparo(tipo: TipoReparoEntrada): Promise<Resultado & { id?: Id }>;
+
+  // fotos (comprimidas no aparelho; memória: IndexedDB; S1/S3: Cloudflare R2, L37)
+  adicionarFoto(osId: Id, foto: NovaFoto): Promise<Resultado & { id?: Id; url?: string }>;
+  removerFoto(fotoId: Id): Promise<Resultado>;
 
   // produção
   iniciarEtapa(etapaId: Id, responsavelId: Id): Promise<Resultado>;
-  concluirEtapa(etapaId: Id, dados: { pecasFeitas?: number; temFoto?: boolean }): Promise<Resultado>;
+  concluirEtapa(etapaId: Id, dados: DadosConclusaoEtapa): Promise<Resultado>;
   bloquearEtapa(etapaId: Id, motivo: string): Promise<Resultado>;
   retomarEtapa(etapaId: Id): Promise<Resultado>;
   dispensarEtapa(etapaId: Id, motivo: string): Promise<Resultado>;

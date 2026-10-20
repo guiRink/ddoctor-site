@@ -1,4 +1,4 @@
-import type { Agendamento, Cliente, CustoOS, EstadoOS, EtapaOS, Id, Janela, Material, MovimentoEstoque, OS, RecepcaoVeiculo, RegistroAuditoria, TituloReceber } from "@compartilhado/tipos";
+import type { Agendamento, CampoConfig, Cliente, CustoOS, EstadoOS, EtapaOS, Foto, Id, Janela, Material, MovimentoEstoque, OS, RecepcaoVeiculo, RegistroAuditoria, TituloReceber } from "@compartilhado/tipos";
 import { FORMAS_PAGAMENTO } from "@compartilhado/tipos";
 import { normalizarPlaca, placaValida } from "@compartilhado/dominio/placa";
 import { bloquearEtapa, concluirEtapa, dispensarEtapa, gerarEtapas, iniciarEtapa, previsaoEntregaSugerida, retomarEtapa, transicaoOS, type ContextoTransicaoOS } from "@compartilhado/dominio/os";
@@ -13,7 +13,12 @@ import { totalCusto, validarMaoDeObra } from "@compartilhado/dominio/custos";
 import { aplicarMovimento } from "@compartilhado/dominio/estoque";
 import { calcularFechamento, checarCaixaAberto } from "@compartilhado/dominio/caixa";
 import { resumoPagamentosCliente, saldoACobrarCliente } from "@compartilhado/dominio/pagamentos";
+import { aplicarConfig } from "@compartilhado/dominio/config";
+import { validarTipoReparo } from "@compartilhado/dominio/tiposReparo";
+import { COMPRESSAO_FOTO, FASES_FOTO_ETAPA, FASES_FOTO_INTERNA, expiracaoFoto, fotosDaEtapa } from "@compartilhado/dominio/fotos";
+import { FASE_VISTORIA } from "../dominio/rotulos";
 import { gerarDemo, type EstadoDemo } from "./demo";
+import { apagarBlobs, apagarOrfaos, guardarBlobs, lerBlobs, limparBlobs } from "./fotosLocais";
 import { LIMITE_AUDITORIA, type ClienteFicha, type ClienteResumo, type NovoAtendimentoRapido, type OSVisao, type Repositorio, type Resultado } from "./repositorio";
 
 /**
@@ -78,10 +83,72 @@ function visao(os: OS): OSVisao {
     agendamento,
     pendencias: estado.pendencias.filter((p) => p.osId === os.id),
     titulos: estado.titulos.filter((t) => t.osId === os.id),
-    fotos: estado.fotos.filter((f) => f.osId === os.id),
+    fotos: estado.fotos.filter((f) => f.osId === os.id).map((f) => fotoParaLeitura(f, os)),
     custos: estado.custos.filter((c) => c.osId === os.id).sort((a, b) => compararMarcos(a.lancadoEm, b.lancadoEm)),
   };
 }
+
+// ---------------------------------------------------------------- fotos guardadas no aparelho
+
+/**
+ * Fotos tiradas no painel guardam no estado só um marcador: "idb:<id>" (blobs no IndexedDB) ou
+ * "sessao:<id>" (sem IndexedDB: só nesta aba). A leitura troca o marcador por blob: URLs (cache abaixo).
+ * Fotos do demo antigo seguem com a URL pública.
+ */
+const PREFIXO_IDB = "idb:";
+const PREFIXO_SESSAO = "sessao:";
+const ehLocal = (f: Foto) => f.url.startsWith(PREFIXO_IDB) || f.url.startsWith(PREFIXO_SESSAO);
+const urlsFoto = new Map<Id, { url: string; miniaturaUrl: string }>();
+
+function criarUrl(blob: Blob): string {
+  return typeof URL.createObjectURL === "function" ? URL.createObjectURL(blob) : "";
+}
+function liberarUrls(id: Id) {
+  const u = urlsFoto.get(id);
+  if (u && typeof URL.revokeObjectURL === "function") {
+    if (u.url) URL.revokeObjectURL(u.url);
+    if (u.miniaturaUrl) URL.revokeObjectURL(u.miniaturaUrl);
+  }
+  urlsFoto.delete(id);
+}
+
+let limpezaFotosFeita = false;
+let resolvendoFotos: Promise<void> = Promise.resolve();
+
+/** Garante blob: URLs para as fotos locais antes da leitura; foto "sessao:" perdida (aba recarregada) sai do estado. */
+function resolverFotos(): Promise<void> {
+  resolvendoFotos = resolvendoFotos.then(async () => {
+    const locais = estado.fotos.filter(ehLocal);
+    if (!limpezaFotosFeita) {
+      limpezaFotosFeita = true;
+      await apagarOrfaos(new Set(locais.filter((f) => f.url.startsWith(PREFIXO_IDB)).map((f) => f.id)));
+    }
+    const perdidas = new Set<Id>();
+    for (const f of locais) {
+      if (urlsFoto.has(f.id)) continue;
+      const blobs = await lerBlobs(f.id);
+      if (blobs) urlsFoto.set(f.id, { url: criarUrl(blobs.arquivo), miniaturaUrl: criarUrl(blobs.miniatura) });
+      else if (f.url.startsWith(PREFIXO_SESSAO)) perdidas.add(f.id);
+    }
+    if (perdidas.size) {
+      estado.fotos = estado.fotos.filter((f) => !perdidas.has(f.id));
+      salvar();
+    }
+  });
+  return resolvendoFotos;
+}
+
+/** Foto como as telas leem: URLs utilizáveis e a expiração pela retenção (L28). */
+function fotoParaLeitura(f: Foto, os: OS): Foto {
+  const { expiraEm, provisorio } = expiracaoFoto(f, os);
+  const base = { ...f, expiraEm, expiraProvisorio: provisorio };
+  if (!ehLocal(f)) return base;
+  const u = urlsFoto.get(f.id);
+  // blobs perdidos (armazenamento apagado): url vazia; a tela mostra "foto indisponível"
+  return { ...base, url: u?.url ?? "", miniaturaUrl: u?.miniaturaUrl ?? "" };
+}
+
+const ehImagem = (b: unknown): b is Blob => typeof Blob !== "undefined" && b instanceof Blob && b.size > 0 && b.type.startsWith("image/");
 
 // ---------------------------------------------------------------- auditoria
 
@@ -251,10 +318,12 @@ function mudarEtapas(
 export const repositorioMemoria: Repositorio = {
   async listarOS() {
     await pausa();
+    await resolverFotos();
     return estado.oss.map(visao);
   },
   async obterOS(id) {
     await pausa();
+    await resolverFotos();
     const os = estado.oss.find((o) => o.id === id);
     return os ? visao(os) : null;
   },
@@ -302,6 +371,7 @@ export const repositorioMemoria: Repositorio = {
   },
   async obterCliente(id): Promise<ClienteFicha | null> {
     await pausa();
+    await resolverFotos();
     const cliente = estado.clientes.find((c) => c.id === id);
     if (!cliente) return null;
     const oss = estado.oss.filter((o) => o.clienteId === id).map(visao).sort((a, b) => compararMarcos(b.os.criadoEm, a.os.criadoEm));
@@ -343,7 +413,20 @@ export const repositorioMemoria: Repositorio = {
   },
   async concluirEtapa(etapaId, dados) {
     await pausa();
-    return mudarEtapas(etapaId, "concluída", (etapas) => concluirEtapa(etapas, etapaId, dados, agora()));
+    const etapa = estado.etapas.find((e) => e.id === etapaId);
+    if (!etapa) return { ok: false, codigo: "etapa_nao_encontrada" };
+    // fotos indicadas: da mesma OS, "durante"/"final", sem etapa ou já desta etapa
+    const indicadas = (dados.fotoIds ?? []).map((id) => estado.fotos.find((f) => f.id === id));
+    if (indicadas.some((f) => !f || f.osId !== etapa.osId)) return { ok: false, codigo: "foto_nao_encontrada" };
+    const ligar = (indicadas as Foto[]).filter((f) => FASES_FOTO_ETAPA.includes(f.fase) && (!f.etapaId || f.etapaId === etapaId));
+    const temFoto = fotosDaEtapa(estado.fotos, etapa.osId, etapaId).length > 0 || ligar.length > 0 || dados.temFoto === true; // temFoto: legado
+    const r = mudarEtapas(etapaId, "concluída", (etapas) => concluirEtapa(etapas, etapaId, { pecasFeitas: dados.pecasFeitas, temFoto }, agora()));
+    if (r.ok && ligar.length) {
+      const ids = new Set(ligar.map((f) => f.id));
+      estado.fotos = estado.fotos.map((f) => (ids.has(f.id) ? { ...f, etapaId } : f));
+      salvar();
+    }
+    return r;
   },
   async bloquearEtapa(etapaId, motivo) {
     await pausa();
@@ -1094,7 +1177,111 @@ export const repositorioMemoria: Repositorio = {
     return { ok: true };
   },
 
+  async salvarConfig(parcial) {
+    await pausa();
+    const antes = estado.config;
+    const r = aplicarConfig(antes, parcial);
+    if (!r.ok) return { ok: false, codigo: r.codigo, campo: r.campo };
+    estado.config = r.config;
+    const nomes: Record<CampoConfig, string> = {
+      vagasEntrada: `entradas por dia ${antes.capacidadePadrao.vagasEntrada} → ${r.config.capacidadePadrao.vagasEntrada}`,
+      carrosSimultaneos: `carros ao mesmo tempo ${antes.capacidadePadrao.carrosSimultaneos} → ${r.config.capacidadePadrao.carrosSimultaneos}`,
+      pecasDia: `peças por dia ${antes.capacidadePadrao.pecasDia ?? "—"} → ${r.config.capacidadePadrao.pecasDia}`,
+      expediente: `expediente ${r.config.expediente.inicio}–${r.config.expediente.fim}`,
+      semaforo: `semáforo laranja ${r.config.semaforo.laranjaAntesHoras} h, vermelho ${r.config.semaforo.vermelhoBloqueioHoras} h`,
+    };
+    auditar("editar", "config_oficina", undefined, `Configuração confirmada: ${r.campos.map((c) => nomes[c]).join("; ")}`);
+    salvar();
+    return { ok: true };
+  },
+
+  async salvarTipoReparo(entrada) {
+    await pausa();
+    if (entrada.id && !estado.tiposReparo.some((t) => t.id === entrada.id)) return { ok: false, codigo: "tipo_nao_encontrado" };
+    const r = validarTipoReparo(entrada, estado.tiposReparo);
+    if (!r.ok) return r;
+    // criado ou revisto por quem cuida da oficina: deixa de ser o modelo provisório do demo.
+    // As OS que já entraram mantêm as etapas geradas na entrada.
+    if (entrada.id) {
+      const id = entrada.id;
+      estado.tiposReparo = estado.tiposReparo.map((t) => (t.id === id ? { ...t, nome: r.nome, etapas: r.etapas, provisorio: false } : t));
+      auditar("editar", "tipo_reparo", id, `Tipo de reparo ${r.nome} atualizado (${r.etapas.length} etapas)`);
+      salvar();
+      return { ok: true, id };
+    }
+    const id = novoId("tr");
+    estado.tiposReparo = [...estado.tiposReparo, { id, nome: r.nome, etapas: r.etapas, provisorio: false }];
+    auditar("criar", "tipo_reparo", id, `Tipo de reparo ${r.nome} criado (${r.etapas.map((e) => e.nome).join(", ")})`);
+    salvar();
+    return { ok: true, id };
+  },
+
+  // ------------------------------------------------------------ fotos
+  async adicionarFoto(osId, nova) {
+    await pausa();
+    const os = estado.oss.find((o) => o.id === osId);
+    if (!os) return { ok: false, codigo: "os_nao_encontrada" };
+    if (os.estado === "cancelada") return { ok: false, codigo: "transicao_invalida" };
+    if (!FASES_FOTO_INTERNA.includes(nova.fase)) return { ok: false, codigo: "fase_invalida" };
+    if (nova.etapaId) {
+      const etapa = estado.etapas.find((e) => e.id === nova.etapaId);
+      if (!etapa || etapa.osId !== osId) return { ok: false, codigo: "etapa_nao_encontrada" };
+      if (!FASES_FOTO_ETAPA.includes(nova.fase)) return { ok: false, codigo: "fase_invalida" };
+    }
+    if (!ehImagem(nova.arquivo) || !ehImagem(nova.miniatura)) return { ok: false, codigo: "arquivo_invalido" };
+    if (nova.arquivo.size > COMPRESSAO_FOTO.maxBytesSalva || nova.miniatura.size > COMPRESSAO_FOTO.maxBytesSalva) return { ok: false, codigo: "arquivo_grande" };
+    const id = novoId("f");
+    const { persistente } = await guardarBlobs(id, { arquivo: nova.arquivo, miniatura: nova.miniatura });
+    const urls = { url: criarUrl(nova.arquivo), miniaturaUrl: criarUrl(nova.miniatura) };
+    urlsFoto.set(id, urls);
+    const inteiro = (n: number | undefined) => (n !== undefined && Number.isInteger(n) && n > 0 ? n : undefined);
+    estado.fotos = [
+      ...estado.fotos,
+      {
+        id,
+        osId,
+        fase: nova.fase,
+        etapaId: nova.etapaId,
+        legenda: nova.legenda?.trim().slice(0, 120) || undefined,
+        url: `${persistente ? PREFIXO_IDB : PREFIXO_SESSAO}${id}`,
+        bytes: nova.arquivo.size,
+        largura: inteiro(nova.largura),
+        altura: inteiro(nova.altura),
+        autorId: perfilAtual(),
+        origem: "interna",
+        tiradaEm: agora(),
+      },
+    ];
+    const etapa = nova.etapaId ? estado.etapas.find((e) => e.id === nova.etapaId) : undefined;
+    atualizarOS(osId, {});
+    auditar("adicionar_foto", "foto", id, `Foto (${FASE_VISTORIA[nova.fase].toLowerCase()}${etapa ? `, ${etapa.nome}` : ""}) adicionada à OS #${os.numero}`);
+    salvar();
+    return persistente ? { ok: true, id, url: urls.url } : { ok: true, codigo: "fotos_temporarias", id, url: urls.url };
+  },
+
+  async removerFoto(fotoId) {
+    await pausa();
+    const foto = estado.fotos.find((f) => f.id === fotoId);
+    if (!foto) return { ok: false, codigo: "foto_nao_encontrada" };
+    if (foto.origem === "maxpar") return { ok: false, codigo: "foto_externa" };
+    if (foto.etapaId) {
+      const etapa = estado.etapas.find((e) => e.id === foto.etapaId);
+      // a única foto que comprova uma etapa já concluída fica (a etapa foi aceita por causa dela)
+      if (etapa?.exigeFoto && etapa.estado === "concluida" && fotosDaEtapa(estado.fotos, foto.osId, etapa.id).length <= 1)
+        return { ok: false, codigo: "foto_em_uso" };
+    }
+    estado.fotos = estado.fotos.filter((f) => f.id !== fotoId);
+    liberarUrls(fotoId);
+    if (ehLocal(foto)) await apagarBlobs(fotoId);
+    atualizarOS(foto.osId, {});
+    auditar("remover_foto", "foto", fotoId, `Foto (${FASE_VISTORIA[foto.fase].toLowerCase()}) removida da ${numeroOS(foto.osId)}`);
+    salvar();
+    return { ok: true };
+  },
+
   async restaurarDemo() {
+    for (const id of [...urlsFoto.keys()]) liberarUrls(id);
+    await limparBlobs();
     estado = gerarDemo();
     auditar("restaurar", "demo", undefined, "Demonstração restaurada: dados de exemplo gerados de novo");
     salvar();

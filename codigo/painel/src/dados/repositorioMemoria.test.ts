@@ -357,4 +357,132 @@ describe("repositório em memória", () => {
     const novo = await repo.salvarCliente({ nome: "Cliente digitado" });
     expect((await repo.obterCliente(novo.id!))!.cliente.demo).toBeUndefined();
   });
+
+  // ------------------------------------------------------------ sprint SF: fotos, tipos de reparo, configuração
+  const imagem = (bytes = 2000, type = "image/webp") => new Blob([new Uint8Array(bytes)], { type });
+  const novaFoto = (extra: Partial<Parameters<typeof repo.adicionarFoto>[1]> = {}) => ({
+    fase: "durante" as const,
+    arquivo: imagem(),
+    miniatura: imagem(200),
+    largura: 1600,
+    altura: 1200,
+    ...extra,
+  });
+
+  /** Leva a OS até a primeira etapa que exige foto, em execução. */
+  async function etapaQueExigeFoto(placa: string) {
+    const v = await osPorPlaca(placa);
+    for (let i = 0; i < 10; i++) {
+      const etapas = (await repo.obterOS(v.os.id))!.etapas;
+      const atual = etapas.find((e) => e.estado === "na_fila" || e.estado === "em_execucao")!;
+      if (atual.estado === "na_fila") await repo.iniciarEtapa(atual.id, "p-andre");
+      if (atual.exigeFoto) return { osId: v.os.id, etapaId: atual.id };
+      await repo.concluirEtapa(atual.id, { pecasFeitas: 1, temFoto: true });
+    }
+    throw new Error("sem etapa com foto");
+  }
+
+  it("foto real: sem IndexedDB fica na sessão (aviso fotos_temporarias) e a leitura devolve URLs utilizáveis", async () => {
+    let n = 0;
+    const criar = vi.fn(() => `blob:teste/${++n}`);
+    const revogar = vi.fn();
+    Object.assign(URL, { createObjectURL: criar, revokeObjectURL: revogar });
+    localStorage.setItem("ddoctor.perfil", "p-recepcao");
+    const v = await osPorPlaca("SCH4A22");
+    const r = await repo.adicionarFoto(v.os.id, novaFoto({ fase: "entrada", legenda: "  Lateral  " }));
+    expect(r).toMatchObject({ ok: true, codigo: "fotos_temporarias" });
+    expect(r.url).toMatch(/^blob:teste\//);
+    const foto = (await repo.obterOS(v.os.id))!.fotos.find((f) => f.id === r.id)!;
+    expect(foto).toMatchObject({ fase: "entrada", legenda: "Lateral", bytes: 2000, largura: 1600, altura: 1200, autorId: "p-recepcao", origem: "interna", expiraProvisorio: true });
+    expect(foto.url).toMatch(/^blob:/);
+    expect(foto.miniaturaUrl).toMatch(/^blob:/);
+    expect(foto.expiraEm).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // fotos do demo antigo seguem com a URL pública
+    expect((await repo.obterOS(v.os.id))!.fotos.some((f) => f.id !== r.id && !f.url.startsWith("blob:") && f.url.length > 0)).toBe(true);
+    const [linha] = await repo.listarAuditoria();
+    expect(linha).toMatchObject({ acao: "adicionar_foto", entidade: "foto", entidadeId: r.id });
+    expect((await repo.removerFoto(r.id!)).ok).toBe(true);
+    expect((await repo.obterOS(v.os.id))!.fotos.some((f) => f.id === r.id)).toBe(false);
+    expect(revogar).toHaveBeenCalled();
+    expect((await repo.listarAuditoria())[0]).toMatchObject({ acao: "remover_foto", entidadeId: r.id });
+  });
+
+  it("foto: recusa não-imagem, fase externa, etapa de outra OS e OS inexistente; foto da Maxpar não sai", async () => {
+    const v = await osPorPlaca("SCH4A22");
+    expect((await repo.adicionarFoto(v.os.id, novaFoto({ arquivo: new Blob(["x"], { type: "application/pdf" }) }))).codigo).toBe("arquivo_invalido");
+    expect((await repo.adicionarFoto(v.os.id, novaFoto({ arquivo: imagem(0) }))).codigo).toBe("arquivo_invalido");
+    expect((await repo.adicionarFoto(v.os.id, novaFoto({ arquivo: imagem(6 * 1024 * 1024) }))).codigo).toBe("arquivo_grande");
+    expect((await repo.adicionarFoto(v.os.id, { ...novaFoto(), fase: "externa" as never })).codigo).toBe("fase_invalida");
+    expect((await repo.adicionarFoto("os-nao-existe", novaFoto())).codigo).toBe("os_nao_encontrada");
+    const outra = (await repo.listarOS()).find((o) => o.os.id !== v.os.id && o.etapas.length > 0)!;
+    expect((await repo.adicionarFoto(v.os.id, novaFoto({ etapaId: outra.etapas[0].id }))).codigo).toBe("etapa_nao_encontrada");
+    expect((await repo.adicionarFoto(v.os.id, novaFoto({ fase: "entrada", etapaId: v.etapas[0].id }))).codigo).toBe("fase_invalida");
+    const maxpar = (await repo.listarOS()).flatMap((o) => o.fotos).find((f) => f.origem === "maxpar")!;
+    expect((await repo.removerFoto(maxpar.id)).codigo).toBe("foto_externa");
+    expect((await repo.removerFoto("f-nao-existe")).codigo).toBe("foto_nao_encontrada");
+  });
+
+  it("concluir etapa que exige foto: sem foto recusa; com foto ligada à etapa passa", async () => {
+    const { osId, etapaId } = await etapaQueExigeFoto("SCH4A22");
+    expect((await repo.concluirEtapa(etapaId, { pecasFeitas: 1 })).codigo).toBe("foto_obrigatoria");
+    // foto de entrada ou ligada a outra etapa não comprova
+    await repo.adicionarFoto(osId, novaFoto({ fase: "entrada" }));
+    expect((await repo.concluirEtapa(etapaId, { pecasFeitas: 1 })).codigo).toBe("foto_obrigatoria");
+    const f = await repo.adicionarFoto(osId, novaFoto({ fase: "final", etapaId }));
+    expect(f.ok).toBe(true);
+    expect((await repo.concluirEtapa(etapaId, { pecasFeitas: 1 })).ok).toBe(true);
+    // a única foto que comprova a etapa concluída não pode ser removida
+    expect((await repo.removerFoto(f.id!)).codigo).toBe("foto_em_uso");
+  });
+
+  it("concluir com fotoIds liga a foto avulsa à etapa; foto de outra OS é recusada", async () => {
+    const { osId, etapaId } = await etapaQueExigeFoto("SCH4A22");
+    const avulsa = await repo.adicionarFoto(osId, novaFoto());
+    const outraOS = (await repo.listarOS()).find((o) => o.os.id !== osId)!;
+    const deFora = await repo.adicionarFoto(outraOS.os.id, novaFoto());
+    expect((await repo.concluirEtapa(etapaId, { pecasFeitas: 1, fotoIds: [deFora.id!] })).codigo).toBe("foto_nao_encontrada");
+    expect((await repo.concluirEtapa(etapaId, { pecasFeitas: 1, fotoIds: [avulsa.id!] })).ok).toBe(true);
+    expect((await repo.obterOS(osId))!.fotos.find((x) => x.id === avulsa.id)?.etapaId).toBe(etapaId);
+  });
+
+  it("tipo de reparo novo nasce confirmado; nome repetido e etapas inválidas são recusados", async () => {
+    const etapas = [
+      { ordem: 1, nome: "Preparação", prazoPadraoHoras: 2, dispensavel: false, exigeFoto: false, exigeContagemPecas: false },
+      { ordem: 2, nome: "Pintura", prazoPadraoHoras: 6, dispensavel: false, exigeFoto: true, exigeContagemPecas: true },
+    ];
+    const r = await repo.salvarTipoReparo({ nome: "Para-choque", etapas });
+    expect(r.ok).toBe(true);
+    const tipo = (await repo.listarTiposReparo()).find((t) => t.id === r.id)!;
+    expect(tipo).toMatchObject({ nome: "Para-choque", provisorio: false });
+    expect(tipo.etapas).toHaveLength(2);
+    expect((await repo.salvarTipoReparo({ nome: "para-choque", etapas })).codigo).toBe("nome_duplicado");
+    expect((await repo.salvarTipoReparo({ nome: "Martelinho", etapas })).codigo).toBe("nome_duplicado");
+    expect((await repo.salvarTipoReparo({ nome: "Outro", etapas: [] })).codigo).toBe("sem_etapas");
+    expect((await repo.salvarTipoReparo({ nome: "Outro", etapas: [{ ...etapas[0], prazoPadraoHoras: 0 }] })).codigo).toBe("prazo_invalido");
+    expect((await repo.salvarTipoReparo({ id: "tr-x", nome: "Outro", etapas })).codigo).toBe("tipo_nao_encontrado");
+    // editar o provisório do demo confirma; o tipo novo serve para a entrada do carro
+    expect((await repo.salvarTipoReparo({ id: "tr-sra", nome: "SRA (arranhões)", etapas })).ok).toBe(true);
+    expect((await repo.listarTiposReparo()).find((t) => t.id === "tr-sra")?.provisorio).toBe(false);
+    const v = await osPorPlaca("RNA4S66");
+    expect((await repo.registrarEntrada(v.os.id, r.id!)).ok).toBe(true);
+    expect((await repo.obterOS(v.os.id))!.etapas.map((e) => e.nome)).toEqual(["Preparação", "Pintura"]);
+    expect((await repo.listarAuditoria()).some((a) => a.entidade === "tipo_reparo" && a.acao === "criar")).toBe(true);
+  });
+
+  it("configuração: valor fora do limite é recusado; capacidade salva sai do provisório e vale na agenda", async () => {
+    expect(await repo.salvarConfig({ capacidadePadrao: { vagasEntrada: 0 } })).toEqual({ ok: false, codigo: "valor_invalido", campo: "vagasEntrada" });
+    expect((await repo.salvarConfig({ capacidadePadrao: { carrosSimultaneos: 100 } })).codigo).toBe("valor_invalido");
+    expect((await repo.salvarConfig({ capacidadePadrao: { pecasDia: 1.5 } })).codigo).toBe("valor_invalido");
+    expect((await repo.salvarConfig({ expediente: { diasSemana: [1], inicio: "18:00", fim: "08:00" } })).codigo).toBe("expediente_invalido");
+    expect((await repo.obterConfig()).capacidadePadrao.vagasEntrada).toBe(4);
+    expect((await repo.salvarConfig({ capacidadePadrao: { vagasEntrada: 6, carrosSimultaneos: 15, pecasDia: 12 } })).ok).toBe(true);
+    const cfg = await repo.obterConfig();
+    expect(cfg.capacidadePadrao).toEqual({ vagasEntrada: 6, carrosSimultaneos: 15, pecasDia: 12 });
+    expect(cfg.confirmado).toMatchObject({ vagasEntrada: true, carrosSimultaneos: true, pecasDia: true });
+    expect(cfg.confirmado?.semaforo).toBeUndefined();
+    const dia = "2030-01-07";
+    expect((await repo.listarCapacidade(dia, dia))[0].vagasEntrada).toBe(6);
+    expect((await repo.listarAuditoria())[0]).toMatchObject({ acao: "editar", entidade: "config_oficina" });
+  });
 });
+
