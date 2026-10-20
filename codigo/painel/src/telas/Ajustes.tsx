@@ -1,24 +1,24 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import type { ConfigOficina, Pagador, Perfil, TipoReparo } from "@compartilhado/tipos";
-import { capacidadePecasDia } from "@compartilhado/dominio/config";
-import { useAcoes, useConfig, usePagadores, useTiposReparo } from "../dados/hooks";
+import type { Pagador, Perfil } from "@compartilhado/tipos";
+import { useAcoes, usePagadores } from "../dados/hooks";
 import { useSessao } from "../dados/sessao";
-import { podeEditar as podeEditarModulo } from "../dominio/permissoes";
+import { podeCriarTipoReparo, podeEditarConfig, podeEditar as podeEditarModulo } from "../dominio/permissoes";
 import { PAPEL } from "../dominio/rotulos";
 import { definirPin, sairDaSessao } from "../componentes/PinGate";
 import { Botao, CabecalhoPagina, Responsavel, Vazio } from "../componentes/ui/Basicos";
-import { Etiqueta, Provisorio, Semaforo } from "../componentes/ui/Estado";
+import { Etiqueta, Provisorio } from "../componentes/ui/Estado";
 import { Retorno } from "../componentes/gestao/Comuns";
-import { Linha, Tabela, Td, Th } from "../componentes/gestao/Tabela";
 import { CLASSE_CAMPO, TIPO_PAGADOR, descreverPrazo } from "../componentes/gestao/formato";
-import { Consulta, Dado, ListaSecoes, NavLateral, NotaProvisoria, Secao, type SecaoAjustes } from "../componentes/ajustes/Estrutura";
+import { Consulta, ListaSecoes, NavLateral, NotaProvisoria, Secao, type SecaoAjustes } from "../componentes/ajustes/Estrutura";
+import { TiposServico } from "../componentes/ajustes/TiposServico";
+import { Capacidade, PrazosECores } from "../componentes/ajustes/Configuracao";
 import { Categorias } from "../componentes/ajustes/Categorias";
 import { Checklist } from "../componentes/ajustes/Checklist";
 import { Auditoria } from "../componentes/ajustes/Auditoria";
 
 const SECOES: SecaoAjustes[] = [
-  { id: "tipos", nome: "Tipos de reparo e etapas", grupo: "Oficina" },
+  { id: "tipos", nome: "Tipos de serviço", grupo: "Oficina" },
   { id: "prazos", nome: "Prazos e cores", grupo: "Oficina" },
   { id: "agenda", nome: "Agenda e capacidade", grupo: "Oficina" },
   { id: "checklist", nome: "Checklist de entrada", grupo: "Oficina" },
@@ -32,26 +32,27 @@ const SECOES: SecaoAjustes[] = [
 
 /**
  * Ajustes (design §5): como o painel está configurado. Seções agrupadas com navegação lateral em 1366+
- * e lista no celular. Editáveis hoje: categorias financeiras, checklist de entrada, PIN e demonstração;
- * o resto é leitura até chegar a edição. Todo valor provisório aparece marcado.
+ * e lista no celular. Editáveis hoje: tipos de serviço, semáforo, capacidade da agenda, checklist, categorias
+ * financeiras, PIN e demonstração; expediente e pagadores são leitura. Todo valor provisório aparece marcado.
  * Módulo só de dono e gestor (arq. §9.1); a barreira real é a RLS.
  */
 export function Ajustes() {
   const { perfil, perfis } = useSessao();
   const editar = podeEditarModulo(perfil.papel, "ajustes");
+  const editarConfig = podeEditarConfig(perfil.papel);
   return (
     <>
       <CabecalhoPagina
         titulo="Ajustes"
-        resumo="Como o painel está configurado. Categorias, checklist e PIN já se editam aqui; tipos de reparo, prazos, agenda e pagadores ganham edição por partes."
+        resumo="Como o painel está configurado. Tipos de serviço, cores do prazo, capacidade, checklist, categorias e PIN se editam aqui; expediente e pagadores ainda são só leitura."
       />
       <div className="lg:grid lg:grid-cols-[208px_minmax(0,1fr)] lg:gap-10 items-start">
         <NavLateral secoes={SECOES} />
         <ListaSecoes secoes={SECOES} />
         <div className="flex flex-col gap-6 min-w-0 max-w-[960px]">
-          <TiposReparo />
-          <PrazosECores />
-          <Agenda />
+          <TiposServico podeEditar={podeCriarTipoReparo(perfil.papel)} />
+          <PrazosECores podeEditar={editarConfig} />
+          <Capacidade podeEditar={editarConfig} />
           <Checklist podeEditar={editar} />
           <Pagadores />
           <Categorias podeEditar={editar} />
@@ -65,166 +66,7 @@ export function Ajustes() {
   );
 }
 
-const simNao = (v: boolean) => (v ? "Sim" : <span className="text-tinta-fraca">Não</span>);
-
 // ------------------------------------------------------------------ seções
-
-function TiposReparo() {
-  const q = useTiposReparo();
-  return (
-    <Secao id="tipos" titulo="Tipos de reparo e etapas" descricao="Cada tipo gera as etapas da OS na entrada do carro, com o prazo de cada uma." nota={<NotaProvisoria texto="a confirmar no questionário" />}>
-      <Consulta q={q}>
-        {(tipos: TipoReparo[]) =>
-          tipos.length === 0 ? (
-            <Vazio icone="producao" titulo="Nenhum tipo de reparo" texto="Os tipos e suas etapas vêm do questionário do dono." />
-          ) : (
-            <div className="flex flex-col gap-6 p-5">
-              {tipos.map((t) => (
-                <div key={t.id} className="min-w-0">
-                  <h3 className="flex flex-wrap items-baseline gap-x-2 mb-2.5 text-[14px] font-semibold">
-                    {t.nome}
-                    <span className="text-[12px] font-normal text-tinta-suave numero">
-                      {t.etapas.length} {t.etapas.length === 1 ? "etapa" : "etapas"} · {t.etapas.reduce((s, e) => s + e.prazoPadraoHoras, 0)} h no total
-                    </span>
-                    {t.provisorio && <span className="sr-only">(provisório)</span>}
-                  </h3>
-                  <Tabela legenda={`Etapas de ${t.nome}`} fixa className="hidden md:block">
-                    <thead>
-                      <tr>
-                        <Th className="w-12">#</Th>
-                        <Th className="w-[40%]">Etapa</Th>
-                        <Th direita className="w-32">Prazo padrão</Th>
-                        <Th className="pl-6">Pode pular</Th>
-                        <Th>Exige foto</Th>
-                        <Th>Conta peças</Th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[...t.etapas]
-                        .sort((a, b) => a.ordem - b.ordem)
-                        .map((e) => (
-                          <Linha key={e.ordem}>
-                            <Td numero className="text-tinta-suave text-left!">
-                              {e.ordem}
-                            </Td>
-                            <Td className="font-medium">{e.nome}</Td>
-                            <Td numero>{t.provisorio ? <Provisorio>{e.prazoPadraoHoras} h</Provisorio> : `${e.prazoPadraoHoras} h`}</Td>
-                            <Td className="pl-6">{simNao(e.dispensavel)}</Td>
-                            <Td>{simNao(e.exigeFoto)}</Td>
-                            <Td>{simNao(e.exigeContagemPecas)}</Td>
-                          </Linha>
-                        ))}
-                    </tbody>
-                  </Tabela>
-                  <ol className="md:hidden border border-linha rounded-cartao overflow-hidden" aria-label={`Etapas de ${t.nome}`}>
-                    {[...t.etapas]
-                      .sort((a, b) => a.ordem - b.ordem)
-                      .map((e) => (
-                        <li key={e.ordem} className="flex items-start gap-3 px-3 py-2.5 border-b border-linha last:border-b-0">
-                          <span className="numero text-tinta-suave w-4 shrink-0">{e.ordem}</span>
-                          <span className="min-w-0 flex-1">
-                            <span className="flex items-baseline justify-between gap-3">
-                              <span className="font-medium">{e.nome}</span>
-                              <span className="numero">{t.provisorio ? <Provisorio>{e.prazoPadraoHoras} h</Provisorio> : `${e.prazoPadraoHoras} h`}</span>
-                            </span>
-                            <span className="block text-[12px] text-tinta-suave">
-                              {[e.dispensavel && "pode pular", e.exigeFoto && "exige foto", e.exigeContagemPecas && "conta peças"].filter(Boolean).join(" · ") ||
-                                "obrigatória, sem foto nem contagem"}
-                            </span>
-                          </span>
-                        </li>
-                      ))}
-                  </ol>
-                </div>
-              ))}
-            </div>
-          )
-        }
-      </Consulta>
-    </Secao>
-  );
-}
-
-const DIAS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
-
-function descreverExpediente(c: ConfigOficina): string {
-  const { diasSemana, inicio, fim, sabadoFim } = c.expediente;
-  const uteis = diasSemana.filter((d) => d >= 1 && d <= 5).sort();
-  const partes: string[] = [];
-  if (uteis.length) {
-    const faixa = uteis.length > 1 && uteis[uteis.length - 1] - uteis[0] === uteis.length - 1 ? `${DIAS[uteis[0]]}–${DIAS[uteis[uteis.length - 1]]}` : uteis.map((d) => DIAS[d]).join(", ");
-    partes.push(`${faixa} ${inicio}–${fim}`);
-  }
-  if (diasSemana.includes(6)) partes.push(`sáb ${inicio}–${sabadoFim ?? fim}`);
-  if (diasSemana.includes(0)) partes.push(`dom ${inicio}–${fim}`);
-  return partes.join(" · ") || "sem expediente cadastrado";
-}
-
-function PrazosECores() {
-  const q = useConfig();
-  return (
-    <Secao id="prazos" titulo="Prazos e cores" descricao="Quando o semáforo de cada etapa muda de cor, contando só as horas do expediente." nota={<NotaProvisoria texto="a confirmar no questionário" />}>
-      <Consulta q={q}>
-        {(c: ConfigOficina) => (
-          <dl>
-            <Dado nome="Expediente (conta as horas úteis)">
-              <Provisorio>{descreverExpediente(c)}</Provisorio>
-              <span className="block text-[12px] font-normal text-tinta-suave">Sem desconto de almoço.</span>
-            </Dado>
-            <Dado nome="Quando fica laranja">
-              <span className="flex flex-wrap items-center gap-2">
-                <Semaforo valor="laranja" />
-                <span>
-                  a <Provisorio>{c.semaforo.laranjaAntesHoras} h úteis</Provisorio> do prazo da etapa
-                </span>
-              </span>
-            </Dado>
-            <Dado nome="Quando fica vermelho">
-              <span className="flex flex-wrap items-center gap-2">
-                <Semaforo valor="vermelho" />
-                <span>
-                  prazo vencido, ou impedimento há mais de <Provisorio>{c.semaforo.vermelhoBloqueioHoras} h úteis</Provisorio>
-                </span>
-              </span>
-            </Dado>
-            <Dado nome="No prazo">
-              <span className="flex flex-wrap items-center gap-2">
-                <Semaforo valor="verde" />
-                <span className="font-normal text-tinta-suave">antes disso</span>
-              </span>
-            </Dado>
-          </dl>
-        )}
-      </Consulta>
-    </Secao>
-  );
-}
-
-function Agenda() {
-  const q = useConfig();
-  return (
-    <Secao id="agenda" titulo="Agenda e capacidade" descricao="Limites que a agenda e a produção prevista usam para avisar quando a oficina enche." nota={<NotaProvisoria texto="a confirmar no questionário" />}>
-      <Consulta q={q}>
-        {(c: ConfigOficina) => (
-          <dl>
-            <Dado nome="Entradas por dia (vagas)">
-              <Provisorio>{c.capacidadePadrao.vagasEntrada} carros</Provisorio>
-              <span className="block text-[12px] font-normal text-tinta-suave">Janelas manhã e tarde. A agenda não confirma além disso.</span>
-            </Dado>
-            <Dado nome="Carros ao mesmo tempo na oficina">
-              <Provisorio>{c.capacidadePadrao.carrosSimultaneos} carros</Provisorio>
-              <span className="block text-[12px] font-normal text-tinta-suave">Só aviso; não bloqueia.</span>
-            </Dado>
-            <Dado nome="Peças por dia na produção">
-              <Provisorio>{capacidadePecasDia(c)} peças</Provisorio>
-              <span className="block text-[12px] font-normal text-tinta-suave">Linha de capacidade da produção prevista, no Geral.</span>
-            </Dado>
-          </dl>
-        )}
-      </Consulta>
-    </Secao>
-  );
-}
 
 function Pagadores() {
   const q = usePagadores();

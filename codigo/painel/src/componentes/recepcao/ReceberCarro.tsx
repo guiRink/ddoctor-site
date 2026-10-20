@@ -16,18 +16,23 @@ import { Checklist, ProgressoChecklist } from "./Checklist";
 import { FormRecepcao, MedidorCombustivel, type DadosRecepcao } from "./FormRecepcao";
 import { kmLegivel, nomeCarro } from "../os/formato";
 import { MapaAvarias, Marcador } from "./MapaAvarias";
+import { useSessao } from "../../dados/sessao";
+import { podeCriarTipoReparo } from "../../dominio/permissoes";
+import { FormTipoReparo } from "../tipos-reparo/FormTipoReparo";
 
 /**
  * "Receber o carro": registra a entrada com a recepção em passos, num painel lateral (diálogo nativo:
  * Esc fecha, foco preso). 1 Dados (tipo de reparo, km, combustível, reclamação) · 2 Checklist ·
  * 3 Avarias · 4 Confirmar. Checklist e avarias podem ser pulados: a recepção fica registrada como incompleta.
+ * No passo 1, quem pode (podeCriarTipoReparo) cria uma categoria nova na hora ("+ Criar nova categoria"),
+ * que volta marcada.
  * Usado na ficha da OS (Próxima ação e aba Recepção) e no painel da Agenda.
  */
 const PASSOS = ["Dados", "Checklist", "Avarias", "Confirmar"] as const;
 
 export function ReceberCarro({
   v,
-  tipos,
+  tipos: tiposRecebidos,
   onFechar,
   onConcluido,
 }: {
@@ -41,9 +46,17 @@ export function ReceberCarro({
   const idTipo = useId();
   const config = useConfig();
   const acoes = useAcoes();
+  const { perfil } = useSessao();
+  const podeCriar = podeCriarTipoReparo(perfil.papel);
+
+  // categoria criada aqui: aparece já marcada, sem esperar a lista de tipos recarregar
+  const [criando, setCriando] = useState(false);
+  const [criado, setCriado] = useState<TipoReparo>();
+  const tipos = criado && !tiposRecebidos.some((t) => t.id === criado.id) ? [...tiposRecebidos, criado] : tiposRecebidos;
+  const focarCriado = useRef(false);
 
   const [passo, setPasso] = useState(0);
-  const [tipoId, setTipoId] = useState(v.os.tipoReparoId ?? (tipos.length === 1 ? tipos[0].id : ""));
+  const [tipoId, setTipoId] = useState(v.os.tipoReparoId ?? (tiposRecebidos.length === 1 ? tiposRecebidos[0].id : ""));
   const [dados, setDados] = useState<DadosRecepcao>({
     km: v.os.recepcao?.km,
     combustivel: v.os.recepcao?.combustivel,
@@ -60,6 +73,14 @@ export function ReceberCarro({
   useEffect(() => {
     corpo.current?.scrollTo?.({ top: 0 });
   }, [passo]);
+
+  // depois de criar a categoria, o foco vai para o rádio dela (a gaveta do formulário devolveria ao botão)
+  useEffect(() => {
+    if (!focarCriado.current || criando || !criado) return;
+    focarCriado.current = false;
+    const i = tipos.findIndex((t) => t.id === criado.id);
+    document.getElementById(`${idTipo}-${i}`)?.focus();
+  });
 
   const itens = config.data ? itensChecklist(config.data) : [];
   const tipo = tipos.find((t) => t.id === tipoId);
@@ -113,10 +134,13 @@ export function ReceberCarro({
       <div className="flex flex-col gap-6">
         <fieldset aria-describedby={erroTipo ? `${idTipo}-erro` : undefined}>
           <legend className="mb-1.5 text-[13px] font-medium text-tinta-suave">Tipo de reparo (gera as etapas da produção)</legend>
-          {tipos.length === 0 ? (
-            <p className="text-[13px] text-tinta-suave">Nenhum tipo de reparo cadastrado. Cadastre em Ajustes antes de receber o carro.</p>
+          {tipos.length === 0 && !podeCriar ? (
+            <p className="text-[13px] text-tinta-suave">Nenhum tipo de reparo cadastrado. Peça ao dono para cadastrar em Ajustes antes de receber o carro.</p>
           ) : (
             <div className={`flex flex-col border rounded-cartao overflow-hidden bg-cartao ${erroTipo ? "border-alerta" : "border-linha"}`}>
+              {tipos.length === 0 && (
+                <p className="px-3.5 py-3 border-b border-linha text-[13px] text-tinta-suave">Nenhum tipo de reparo cadastrado ainda. Crie o primeiro para gerar as etapas.</p>
+              )}
               {tipos.map((t, i) => {
                 const ativo = tipoId === t.id;
                 return (
@@ -149,9 +173,30 @@ export function ReceberCarro({
                       </span>
                       <span className="block mt-0.5 text-[12px] text-tinta-suave">{t.etapas.map((e) => e.nome).join(" → ")}</span>
                     </span>
+                    {criado?.id === t.id && (
+                      <span className="ml-auto shrink-0 self-center">
+                        <Etiqueta tom="ok">Nova</Etiqueta>
+                      </span>
+                    )}
                   </label>
                 );
               })}
+              {podeCriar && (
+                <button
+                  type="button"
+                  onClick={() => setCriando(true)}
+                  aria-haspopup="dialog"
+                  className="flex items-center gap-3 px-3.5 min-h-12 w-full text-left text-[14px] font-medium text-tinta hover:bg-cinza-50 transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-amarelo-escuro focus-visible:-outline-offset-2"
+                >
+                  <span aria-hidden="true" className="inline-grid place-items-center w-4 h-4 shrink-0 text-tinta-suave">
+                    <Icone nome="mais" tamanho={16} />
+                  </span>
+                  <span className="min-w-0">
+                    Criar nova categoria
+                    <span className="block text-[12px] font-normal text-tinta-suave">Para um serviço que ainda não está na lista.</span>
+                  </span>
+                </button>
+              )}
             </div>
           )}
           {erroTipo && (
@@ -161,6 +206,19 @@ export function ReceberCarro({
           )}
         </fieldset>
         <FormRecepcao valor={dados} onMudar={setDados} />
+        {criando && (
+          <FormTipoReparo
+            existentes={tipos}
+            onFechar={() => setCriando(false)}
+            onSalvo={(t) => {
+              setCriado(t);
+              setTipoId(t.id);
+              setErroTipo("");
+              focarCriado.current = true;
+              setCriando(false);
+            }}
+          />
+        )}
       </div>
     );
   } else if (passo === 1) {
