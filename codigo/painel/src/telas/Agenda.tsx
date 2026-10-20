@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { Agendamento, DataISO, Janela } from "@compartilhado/tipos";
+import { campoConfigProvisorio } from "@compartilhado/dominio/config";
 import { dataNoFuso, somarDias } from "@compartilhado/dominio/fuso";
 import { mensagemErro, useAcoes, useAgendamentos, useAgora, useCapacidade, useConfig, useOSs, useTiposReparo } from "../dados/hooks";
 import type { Resultado } from "../dados/repositorio";
@@ -163,7 +164,7 @@ export function Agenda() {
     <>
       <span className="numero">{plural(marcadas, "entrada marcada", "entradas marcadas")}</span> nesta semana ·{" "}
       <span className="numero">{plural(livres, "vaga livre", "vagas livres")}</span> · padrão de{" "}
-      {config.data?.provisorio ? (
+      {config.data && campoConfigProvisorio(config.data, "vagasEntrada") ? (
         <>
           <Provisorio>{plural(capacidadePadrao.vagasEntrada, "entrada", "entradas")} por dia</Provisorio>{" "}
           <span className="text-[12px] text-atencao font-medium">(provisório — a confirmar)</span>
