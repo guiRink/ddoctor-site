@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import type { OrcamentoVersao } from "@compartilhado/tipos";
 import { itensChecklist } from "@compartilhado/dominio/config";
@@ -19,6 +19,10 @@ import { hora, telefoneLegivel } from "../componentes/orcamentos/formato";
 import { MedidorCombustivel } from "../componentes/recepcao/FormRecepcao";
 import { kmLegivel, nomeCarro } from "../componentes/os/formato";
 import { LegendaAvarias, Marcador, VistasAvarias } from "../componentes/recepcao/MapaAvarias";
+import { Aviso } from "../componentes/ui/Campos";
+import { IconeEnvio } from "../componentes/orcamento/BotaoEnviarOrcamento";
+import { mensagemOrcamento, montarDocumento } from "../componentes/orcamento/documento";
+import { useEnvioOrcamento } from "../componentes/orcamento/envio";
 
 /**
  * Impressão do orçamento / OS em folha A4 retrato (fora do Layout). Na tela: barra com Voltar e Imprimir
@@ -45,17 +49,66 @@ export function ImprimirOS() {
   const consulta = useOS(id);
   const config = useConfig();
 
+  const sensivelBarra = veDadosSensiveis(perfil.papel);
+  const envio = useEnvioOrcamento(sensivelBarra ? consulta.data : null);
+  const [aviso, setAviso] = useState<{ tom: "ok" | "alerta"; texto: string } | null>(null);
+
+  async function compartilhar() {
+    if (!consulta.data) return;
+    setAviso(null);
+    try {
+      const texto = mensagemOrcamento(consulta.data, montarDocumento(consulta.data, new Date().toISOString()));
+      const r = await envio.compartilhar(texto);
+      if (r === "baixado") setAviso({ tom: "ok", texto: "PDF baixado." });
+    } catch {
+      setAviso({ tom: "alerta", texto: "Não consegui compartilhar. Baixe o PDF e anexe na conversa." });
+    }
+  }
+  function baixar() {
+    setAviso(null);
+    try {
+      envio.baixar();
+    } catch {
+      setAviso({ tom: "alerta", texto: "Não consegui gerar o PDF. Tente de novo." });
+    }
+  }
+
   const barra = (
     <div className="print:hidden sticky top-0 z-10 bg-cartao border-b border-linha">
-      <div className="mx-auto max-w-[210mm] flex items-center justify-between gap-3 px-4 h-14">
-        <Link to={`/orcamentos/${id}`} className="inline-flex items-center gap-1.5 h-11 text-[13px] font-medium text-tinta-suave no-underline hover:text-tinta">
+      <div className="mx-auto max-w-[210mm] flex items-center justify-between gap-2 px-4 h-14">
+        <Link to={`/orcamentos/${id}`} className="inline-flex items-center gap-1.5 h-11 shrink-0 text-[13px] font-medium text-tinta-suave no-underline hover:text-tinta">
           <Icone nome="voltar" tamanho={16} />
-          Voltar para a ficha
+          <span className="max-sm:hidden">Voltar para a ficha</span>
+          <span className="sm:hidden">Ficha</span>
         </Link>
-        <Botao variante="primario" icone="documento" onClick={() => window.print()} disabled={!consulta.data}>
-          Imprimir
-        </Botao>
+        <div className="flex items-center gap-2 min-w-0">
+          {sensivelBarra && envio.compartilha && (
+            <Botao onClick={compartilhar} disabled={!envio.pronto} aria-label="Compartilhar PDF" title="Compartilhar PDF">
+              <IconeEnvio nome="compartilhar" />
+              <span className="max-sm:hidden">Compartilhar</span>
+            </Botao>
+          )}
+          {sensivelBarra && (
+            <Botao onClick={baixar} disabled={!envio.pronto} aria-label="Baixar PDF" title="Baixar PDF">
+              <IconeEnvio nome="baixar" />
+              <span className="max-sm:hidden">Baixar PDF</span>
+            </Botao>
+          )}
+          <Botao variante="primario" icone="documento" onClick={() => window.print()} disabled={!consulta.data}>
+            Imprimir
+          </Botao>
+        </div>
       </div>
+      {(aviso || envio.erroCarga) && (
+        <div className="mx-auto max-w-[210mm] flex flex-wrap items-center gap-x-3 gap-y-1 px-4 pb-2.5">
+          {aviso ? <Aviso tom={aviso.tom}>{aviso.texto}</Aviso> : <Aviso tom="alerta">Não consegui preparar o PDF. Verifique a conexão.</Aviso>}
+          {envio.erroCarga && (
+            <Botao tamanho="denso" variante="fantasma" onClick={envio.tentarDeNovo}>
+              Tentar de novo
+            </Botao>
+          )}
+        </div>
+      )}
     </div>
   );
 

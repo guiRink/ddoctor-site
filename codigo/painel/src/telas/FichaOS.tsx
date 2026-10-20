@@ -46,6 +46,7 @@ import { NivelCombustivelTexto } from "../componentes/recepcao/FormRecepcao";
 import { kmLegivel, nomeCarro } from "../componentes/os/formato";
 import { NumeroDemo } from "../componentes/clientes/Comuns";
 import { contatoClicavel } from "@compartilhado/dominio/clientes";
+import { BotaoEnviarOrcamento } from "../componentes/orcamento/BotaoEnviarOrcamento";
 
 /**
  * Ficha da OS (docs/painel-design.md §5, revisão SE): cabeçalho com Placa grande, carro, cliente,
@@ -156,15 +157,20 @@ export function FichaOS() {
     <>
       <div className="flex items-center justify-between gap-3 -mt-3 mb-2">
         {voltar}
-        <Botao
-          tamanho="denso"
-          variante="contorno"
-          icone="documento"
-          onClick={() => window.open(hrefImprimir, "_blank", "noopener")}
-          aria-label={`Imprimir ${v.os.estado === "rascunho" || v.os.estado === "aguardando_aprovacao" ? "orçamento" : "ordem de serviço"} (abre em nova aba)`}
-        >
-          Imprimir
-        </Botao>
+        {/* quem vê valores manda o orçamento ao cliente (PDF, WhatsApp, imprimir); os demais só imprimem a OS */}
+        {sensivel ? (
+          <BotaoEnviarOrcamento v={v} primario={v.os.estado === "rascunho" || v.os.estado === "aguardando_aprovacao"} />
+        ) : (
+          <Botao
+            tamanho="denso"
+            variante="contorno"
+            icone="documento"
+            onClick={() => window.open(hrefImprimir, "_blank", "noopener")}
+            aria-label="Imprimir ordem de serviço (abre em nova aba)"
+          >
+            Imprimir
+          </Botao>
+        )}
       </div>
 
       {/* ---------------- cabeçalho: placa, carro, cliente, estado e próxima ação */}
