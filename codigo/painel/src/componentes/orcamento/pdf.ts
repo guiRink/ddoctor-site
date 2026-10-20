@@ -97,7 +97,8 @@ export function gerarPdfOrcamento(JsPDF: ConstrutorPdf, d: DocumentoOrcamento): 
   escrever(numeros, direita, y + 10.2, { align: "right" });
   fonte(9, "normal", COR.suave);
   escrever(`Emitido em ${d.emitido}`, direita, y + 14.6, { align: "right" });
-  const prazo = d.aprovado ?? (d.validade ? `Válido por ${d.validade.dias} dias (até ${d.validade.ate})` : undefined);
+  // Validade só sai no PDF do cliente depois que o dono confirmar o prazo (hoje é provisório).
+  const prazo = d.aprovado;
   if (prazo) escrever(prazo, direita, y + 18.8, { align: "right" });
   y += prazo ? 22.5 : 18.5;
   linha(M, y, direita, COR.tinta, 0.6);
