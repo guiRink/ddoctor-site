@@ -143,7 +143,7 @@ export function CartaoQuadro({
               (nome ? (
                 <span
                   title={nome}
-                  className={`inline-grid place-items-center shrink-0 rounded-full bg-cinza-200 text-tinta font-semibold ${grande ? "w-7 h-7 text-[11px]" : "w-[22px] h-[22px] text-[10px]"}`}
+                  className={`inline-grid place-items-center shrink-0 rounded-full bg-cinza-200 text-tinta font-semibold ${grande ? "w-7 h-7 text-[11px]" : "w-6 h-6 text-[11px]"}`}
                 >
                   <span aria-hidden="true">{iniciais(nome)}</span>
                   <span className="sr-only">{nome}</span>
