@@ -41,7 +41,7 @@ Todas as linhas abaixo estão como provisórias, com o valor sugerido do questio
 | L25 | Conta Supabase de produção, plano Free ou Pro | Dev local + projeto demo do Guilherme, só dados fictícios | provisória | 12/10/2026 · questionário 8.1 | — |
 | L26 | Endereço do painel: Cloudflare Pages + domínio ou GitHub Pages | GitHub Pages + HashRouter | provisória | 12/10/2026 · questionário 8.2 | Deploy atual |
 | L27 | Worker no PC da oficina ou na nuvem (R$ 30–70/mês) | PC da oficina | provisória | 12/10/2026 · questionário 8.3 | — |
-| L28 | Retenção de dados | 5 anos financeiro, 24 meses fotos, 12 meses snapshots/Calia | provisória | 12/10/2026 · questionário 8.4 | — |
+| L28 | Retenção de dados | Fotos: 12 meses depois da entrega, depois apagadas (com pacote para baixar antes); textos e números para sempre (estatística de anos); 12 meses snapshots/Calia | confirmada (fotos e dados) | 20/10/2026 · Guilherme, pelo dono | S1/S3 Storage e rotina de retenção |
 | L29 | Autorização escrita para leitura automática do portal | Sem ela o S6 não roda; só após L05/L06 favoráveis | aberta | 12/10/2026 · questionário 8.5 | — |
 | L30 | Capacidade de produção em peças por dia | 10 peças/dia (valor visto no sistema do concorrente, sem confirmação) | provisória | 13/10/2026 · Sprint SE, `docs/concorrente-analise.md` | SE Geral (produção prevista contra a capacidade) |
 | L31 | Itens do checklist de recepção do veículo | Checklist padrão de 21 itens, configurável em Ajustes | provisória | 13/10/2026 · Sprint SE | SE Receber o carro e Ajustes |
@@ -50,6 +50,8 @@ Todas as linhas abaixo estão como provisórias, com o valor sugerido do questio
 | L34 | Guardar CPF/CNPJ do cliente? | Guardado (validado) no cadastro PF/PJ; conflita com o provisório da L19 ("sem CPF") e exige decisão de LGPD antes do banco real | provisória | 13/10/2026 · Sprint SE | SE Clientes |
 | L35 | O fechamento do caixa do dia pode ser reaberto? | A confirmar com o dono; a QA do SE protegeu o caixa fechado (`docs/qa-sprintSE.md`) | aberta | 13/10/2026 · Sprint SE | SE Financeiro (caixa do dia) |
 | L36 | Valor da hora de mão de obra (custo da OS) | A confirmar com o dono; o painel usa um valor provisório no demo | aberta | 13/10/2026 · Sprint SE | SE Ficha da OS (Custos e Resultado) |
+| L37 | Infraestrutura sem mensalidade | Supabase grátis (conta do dono, Guilherme convidado), backup diário próprio fora do Supabase, fotos na Cloudflare R2 (10 GB grátis), site e painel na Cloudflare Pages com o domínio do dono | confirmada | 20/10/2026 · Guilherme (dono quer cortar gastos; US$ 25/mês do Supabase Pro descartado) | S1 em diante |
+| L38 | Volume de fotos | ~15–20 carros/semana × ~50–60 fotos; comprimidas no celular (~200 KB + miniatura) ≈ 12–14 GB em regime com a retenção de 12 meses | confirmada (estimativa) | 20/10/2026 · Guilherme | S3 fotos |
 | — | Produção pode "pegar" etapas livres na fila? | Sem resposta (`docs/qa-sprintSD.md` item 6) | aberta | 12/10/2026 · QA do SD | — |
 
 Nota L30–L36: IDs atribuídos pelo escrivão em 13/10/2026 às decisões novas do Sprint SE (o resumo não trouxe IDs); L34 e L19 se contradizem (CPF), e a L12 (4 entradas por dia) é outra medida que a L30 (10 peças/dia).
