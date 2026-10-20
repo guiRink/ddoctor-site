@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { EtapaOS, OS } from "@compartilhado/tipos";
 import { CONFIG_PADRAO } from "@compartilhado/dominio/config";
 import type { OSVisao } from "../../dados/repositorio";
-import { COLUNA_PRONTOS, contarItens, filtrarItens, formatarDia, montarColunas, montarItens, ordemEtapas } from "./quadro";
+import { COLUNA_PRONTOS, contarItens, densidadeTV, etapasSemCarro, filtrarItens, formatarDia, formatarPrazoCurto, lerVisao, montarColunas, montarItens, ordemEtapas, ordenarPorUrgencia } from "./quadro";
 
 const AGORA = "2026-10-13T10:00:00-03:00"; // terça, dentro do expediente
 
@@ -79,6 +79,13 @@ describe("montarItens e colunas", () => {
     const colunas = montarColunas(itens, oss);
     expect(colunas.map((c) => c.id)).toEqual(["Funilaria", "Pintura", COLUNA_PRONTOS]);
   });
+
+  it("lista etapas do fluxo sem carro e ordena por urgência com prontos no fim", () => {
+    expect(etapasSemCarro(itens, oss)).toEqual(["Polimento"]);
+    expect(etapasSemCarro(itens.filter((i) => i.coluna !== "Pintura"), oss).sort()).toEqual(["Pintura", "Polimento"]);
+    const ordem = ordenarPorUrgencia(itens).map((i) => i.v.os.id);
+    expect(ordem.at(-1)).toBe("3");
+  });
 });
 
 describe("formatarDia", () => {
@@ -87,5 +94,28 @@ describe("formatarDia", () => {
     expect(formatarDia("2026-10-14", AGORA)).toBe("amanhã");
     expect(formatarDia("2026-10-12", AGORA)).toBe("ontem");
     expect(formatarDia("2026-10-16", AGORA)).toBe("sex 16/10");
+  });
+});
+
+describe("apresentação", () => {
+  it("densidade da TV encolhe o cartão antes de paginar", () => {
+    expect(densidadeTV(820, 2, 12)).toEqual({ densidade: "cheio", porPagina: 2 });
+    expect(densidadeTV(820, 3, 12).densidade).toBe("medio");
+    expect(densidadeTV(820, 4, 12).densidade).toBe("compacto");
+    const muitos = densidadeTV(820, 12, 12);
+    expect(muitos.densidade).toBe("compacto");
+    expect(muitos.porPagina).toBe(6);
+  });
+
+  it("prazo curto mostra só a hora quando é hoje", () => {
+    expect(formatarPrazoCurto("2026-10-13T18:41:00-03:00", AGORA)).toBe("18:41");
+    expect(formatarPrazoCurto("2026-10-14T09:00:00-03:00", AGORA)).toBe("amanhã");
+    expect(formatarPrazoCurto("2026-10-09T09:00:00-03:00", AGORA)).toBe("09/10");
+  });
+
+  it("lê a visão salva com quadro como padrão", () => {
+    expect(lerVisao("lista")).toBe("lista");
+    expect(lerVisao(null)).toBe("quadro");
+    expect(lerVisao("outra")).toBe("quadro");
   });
 });

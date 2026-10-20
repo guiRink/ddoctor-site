@@ -14,7 +14,8 @@ import { formatarDia, formatarPrazo } from "./quadro";
 type Aviso = { tipo: "ok" | "erro"; texto: string } | null;
 
 /**
- * Painel lateral de ações de um carro no quadro (sem modal: o quadro continua visível e rolável).
+ * Painel lateral de ações de um carro no quadro (sem modal: o quadro continua visível e rolável, sem ser
+ * empurrado). 440 px à direita no computador; tela cheia no celular.
  * Atribuir responsável por etapa, dispensar etapa com motivo e abrir a ficha.
  */
 export function PainelOS({
@@ -58,11 +59,11 @@ export function PainelOS({
     <aside
       id="painel-os"
       aria-labelledby={idTitulo}
-      className="fixed z-40 inset-x-0 bottom-0 top-16 md:left-auto md:w-[420px] bg-cartao border-l border-linha elevacao flex flex-col"
+      className="fixed z-40 inset-0 md:top-14 md:left-auto md:w-[440px] bg-cartao text-tinta md:border-l md:border-linha elevacao flex flex-col pb-[env(safe-area-inset-bottom)]"
     >
-      <header className="flex items-center justify-between gap-3 px-5 h-14 border-b border-linha shrink-0">
+      <header className="flex items-center justify-between gap-3 pl-5 pr-2.5 h-14 border-b border-linha shrink-0">
         <p className="text-[13px] font-medium text-tinta-suave numero">OS {v.os.numero}</p>
-        <Botao variante="fantasma" tamanho="denso" icone="fechar" onClick={onFechar} aria-label="Fechar painel do carro" />
+        <Botao variante="fantasma" icone="fechar" onClick={onFechar} aria-label="Fechar painel do carro" title="Fechar (Esc)" />
       </header>
 
       <div className="flex-1 overflow-y-auto overscroll-contain">
@@ -239,7 +240,7 @@ function LinhaEtapa({
                   value={etapa.responsavelId ?? ""}
                   onChange={(e) => atribuir(e.target.value)}
                   disabled={acoes.atribuirResponsavel.isPending}
-                  className="appearance-none h-9 w-full min-w-0 pl-2.5 pr-8 bg-cartao cursor-pointer border border-linha-forte shadow-controle text-[13px] font-medium outline-none hover:border-tinta-fraca focus:border-tinta-fraca focus:ring-[3px] focus:ring-amarelo/30 transition-colors duration-150"
+                  className="appearance-none h-11 md:h-9 w-full min-w-0 pl-2.5 pr-8 bg-cartao cursor-pointer border border-linha-forte shadow-controle text-[13px] font-medium outline-none hover:border-tinta-fraca focus:border-tinta-fraca focus:ring-[3px] focus:ring-amarelo/30 transition-colors duration-150"
                 >
                   <option value="" disabled>
                     Sem responsável
