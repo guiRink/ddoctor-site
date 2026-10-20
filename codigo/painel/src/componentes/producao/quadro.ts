@@ -144,9 +144,25 @@ export interface ColunaQuadro {
   itens: ItemQuadro[];
 }
 
+/** Nomes de etapa na ordem do fluxo, a partir das etapas de todas as OS. */
+export function etapasDoFluxo(todas: readonly OSVisao[]): string[] {
+  return ordemEtapas(todas.filter((v) => v.etapas.length).map((v) => [...v.etapas].sort((a, b) => a.ordem - b.ordem).map((e) => e.nome)));
+}
+
+/** Etapas do fluxo sem nenhum carro agora (para a linha "Sem carro agora", sem gastar largura). */
+export function etapasSemCarro(itens: readonly ItemQuadro[], todas: readonly OSVisao[]): string[] {
+  const ocupadas = new Set(itens.map((i) => i.coluna));
+  return etapasDoFluxo(todas).filter((n) => !ocupadas.has(n));
+}
+
+/** Todos os cartões numa fila só, do mais urgente ao menos (lista e aba "Todas" do celular). */
+export function ordenarPorUrgencia(itens: readonly ItemQuadro[]): ItemQuadro[] {
+  return [...itens].sort((a, b) => Number(a.pronto) - Number(b.pronto) || compararItens(a, b));
+}
+
 /** Colunas não vazias na ordem do fluxo, com "Prontos para entrega" no fim. */
 export function montarColunas(itens: readonly ItemQuadro[], todas: readonly OSVisao[]): ColunaQuadro[] {
-  const ordem = ordemEtapas(todas.filter((v) => v.etapas.length).map((v) => [...v.etapas].sort((a, b) => a.ordem - b.ordem).map((e) => e.nome)));
+  const ordem = etapasDoFluxo(todas);
   const ids = [COLUNA_SEM_ETAPA, ...ordem, COLUNA_PRONTOS];
   for (const i of itens) if (!ids.includes(i.coluna)) ids.splice(ids.length - 1, 0, i.coluna);
   return ids
@@ -156,6 +172,46 @@ export function montarColunas(itens: readonly ItemQuadro[], todas: readonly OSVi
       itens: itens.filter((i) => i.coluna === id).sort(compararItens),
     }))
     .filter((c) => c.itens.length > 0);
+}
+
+// ------------------------------------------------------------------ visão (quadro ou lista) e densidade da TV
+
+export type VisaoProducao = "quadro" | "lista";
+export const CHAVE_VISAO = "ddoctor.producao.visao";
+
+export function lerVisao(valor: string | null | undefined): VisaoProducao {
+  return valor === "lista" ? "lista" : "quadro";
+}
+
+/** Densidade do cartão da TV: o cartão encolhe antes de a coluna paginar. */
+export type DensidadeTV = "cheio" | "medio" | "compacto";
+/** Altura mínima de cada densidade (px, medida em 1920×1080). */
+export const ALTURA_TV: Record<DensidadeTV, number> = { cheio: 372, medio: 222, compacto: 116 };
+
+/**
+ * Escolhe a maior densidade em que `n` cartões cabem na altura da coluna; se nem o compacto
+ * couber, devolve quantos compactos cabem por página (a coluna pagina sozinha).
+ */
+export function densidadeTV(altura: number, n: number, vao: number): { densidade: DensidadeTV; porPagina: number } {
+  const cabem = (h: number) => Math.max(1, Math.floor((altura + vao) / (h + vao)));
+  for (const d of ["cheio", "medio", "compacto"] as const) {
+    if (cabem(ALTURA_TV[d]) >= n) return { densidade: d, porPagina: n };
+  }
+  return { densidade: "compacto", porPagina: cabem(ALTURA_TV.compacto) };
+}
+
+/**
+ * Páginas da TV num tique do relógio de páginas. O conjunto de colunas troca a cada tique; a página
+ * de cada coluna só avança quando o conjunto dá a volta — assim toda página de toda coluna aparece
+ * (com o mesmo contador para os dois, a 2ª página de uma coluna podia cair sempre no outro conjunto).
+ */
+export function paginasTV(tique: number, paginasColunas: number): { paginaColunas: number; paginaDaColuna: (paginas: number) => number } {
+  const conjuntos = Math.max(1, paginasColunas);
+  const volta = Math.floor(tique / conjuntos);
+  return {
+    paginaColunas: tique % conjuntos,
+    paginaDaColuna: (paginas) => volta % Math.max(1, paginas),
+  };
 }
 
 // ------------------------------------------------------------------ formatação de datas (fuso da oficina)
@@ -186,4 +242,15 @@ export function formatarDataCurta(data: DataISO): string {
 /** Prazo de etapa: "hoje 16:30" ou "ter 13/10 10:00". */
 export function formatarPrazo(marco: MarcoISO, agora: MarcoISO): string {
   return `${formatarDia(dataNoFuso(marco), agora)} ${formatarHora(marco)}`;
+}
+
+/** Prazo curto para cartão estreito: "18:41" se for hoje; "amanhã", "ontem" ou "22/10". */
+export function formatarPrazoCurto(marco: MarcoISO, agora: MarcoISO): string {
+  const dia = dataNoFuso(marco);
+  const dif = diferencaDias(dataNoFuso(agora), dia);
+  if (dif === 0) return formatarHora(marco);
+  if (dif === 1) return "amanhã";
+  if (dif === -1) return "ontem";
+  const [, m, d] = dia.split("-");
+  return `${d}/${m}`;
 }

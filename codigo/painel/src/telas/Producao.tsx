@@ -1,27 +1,42 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useHref, useSearchParams } from "react-router-dom";
 import { useAgora, useConfig, useOSs, usePerfis } from "../dados/hooks";
 import { useSessao } from "../dados/sessao";
 import { podeEditar, podeVer } from "../dominio/permissoes";
-import { Botao, BotaoExterno, BotaoLink, CabecalhoPagina, Contagem, Erro, SUPERFICIE, Vazio } from "../componentes/ui/Basicos";
+import { Botao, BotaoExterno, BotaoLink, Erro, SUPERFICIE, Vazio } from "../componentes/ui/Basicos";
 import { GrupoFiltros } from "../componentes/ui/Filtros";
+import { FiltroSelecao } from "../componentes/ui/Campos";
+import { Abas, PainelAba } from "../componentes/ui/Abas";
 import { CartaoQuadro } from "../componentes/producao/CartaoQuadro";
+import { ListaProducao } from "../componentes/producao/ListaProducao";
 import { PainelOS } from "../componentes/producao/PainelOS";
+import { QuadroColunas } from "../componentes/producao/QuadroColunas";
 import {
+  CHAVE_VISAO,
   COLUNA_PRONTOS,
+  COLUNA_SEM_ETAPA,
   FILTROS,
   NOME_FILTRO,
   contarItens,
+  etapasSemCarro,
   filtrarItens,
   lerFiltro,
+  lerVisao,
   montarColunas,
   montarItens,
+  ordenarPorUrgencia,
   type FiltroQuadro,
+  type VisaoProducao,
 } from "../componentes/producao/quadro";
 
 const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
+const TODAS = "__todas";
 
-/** Produção — quadro do gestor (docs/painel-design.md §5: o quadro é o elemento dominante). */
+/**
+ * Produção — quadro do gestor (docs/painel-design.md §5.1).
+ * Computador: quadro de colunas fluidas ou lista por urgência (escolha salva no aparelho).
+ * Celular: abas de etapa + lista de cartões grandes; o carro abre em tela cheia.
+ */
 export function Producao() {
   const consulta = useOSs();
   const config = useConfig();
@@ -32,10 +47,12 @@ export function Producao() {
   const hrefTV = useHref("/producao/tv");
   const origemFoco = useRef<HTMLButtonElement | null>(null);
   const quadro = useRef<HTMLDivElement>(null);
-  const rolagem = useRolagemHorizontal(quadro);
+  const largo = useLargo();
+  const [visao, setVisao] = useVisao();
 
   const filtro = lerFiltro(params.get("filtro"));
   const responsavel = params.get("responsavel") ?? "";
+  const etapaCelular = params.get("etapa") ?? TODAS;
   const selecionadoId = params.get("os");
   const editar = podeEditar(perfil.papel, "producao");
 
@@ -52,6 +69,7 @@ export function Producao() {
       ),
     [setParams],
   );
+  const limpar = () => setParams({}, { replace: true });
 
   const fechar = useCallback(() => {
     mudar("os", null);
@@ -60,6 +78,14 @@ export function Producao() {
     else quadro.current?.focus();
   }, [mudar]);
 
+  const abrir = useCallback(
+    (id: string, origem: HTMLButtonElement) => {
+      origemFoco.current = origem;
+      mudar("os", id === selecionadoId ? null : id);
+    },
+    [mudar, selecionadoId],
+  );
+
   const perfis = useMemo(() => perfisQ.data ?? [], [perfisQ.data]);
   const itens = useMemo(
     () => (consulta.data && config.data ? montarItens(consulta.data, agora, config.data) : []),
@@ -67,10 +93,20 @@ export function Producao() {
   );
   const filtrados = useMemo(() => filtrarItens(itens, filtro, responsavel || undefined), [itens, filtro, responsavel]);
   const colunas = useMemo(() => montarColunas(filtrados, consulta.data ?? []), [filtrados, consulta.data]);
+  const porUrgencia = useMemo(() => ordenarPorUrgencia(filtrados), [filtrados]);
+  const semCarro = useMemo(() => etapasSemCarro(itens, consulta.data ?? []), [itens, consulta.data]);
   const totais = contarItens(itens);
   const porFiltro = (f: FiltroQuadro) => filtrarItens(itens, f, responsavel || undefined).length;
   const funcionarios = perfis.filter((p) => p.papel === "producao" && p.ativo);
   const selecionado = itens.find((i) => i.v.os.id === selecionadoId)?.v;
+  const filtrando = filtro !== "todos" || !!responsavel;
+  const carregando = consulta.isPending || config.isPending;
+  const erro = consulta.isError || config.isError || (!carregando && !consulta.data);
+
+  // celular: aba de etapa (só etapas com carro); se a aba sumiu com o filtro, volta para "Todas"
+  const colunaCelular = colunas.find((c) => c.id === etapaCelular);
+  const abaCelular = colunaCelular ? etapaCelular : TODAS;
+  const itensCelular = colunaCelular ? colunaCelular.itens : porUrgencia;
 
   const resumo = consulta.data ? (
     <span className="numero">
@@ -79,148 +115,179 @@ export function Producao() {
       {totais.impedidos > 0 && <span className="text-alerta font-semibold"> · {plural(totais.impedidos, "impedido", "impedidos")}</span>}
       {totais.prontos > 0 && <> · {plural(totais.prontos, "pronto para entrega", "prontos para entrega")}</>}
     </span>
-  ) : undefined;
+  ) : (
+    <span className="inline-block esqueleto h-4 w-64 align-middle" />
+  );
+
+  const segmentos = (
+    <GrupoFiltros<FiltroQuadro>
+      rotulo="Filtrar a produção"
+      mostrarRotulo={false}
+      valor={filtro}
+      onMudar={(f) => mudar("filtro", f === "todos" ? null : f)}
+      opcoes={FILTROS.map((f) => {
+        const n = porFiltro(f);
+        return {
+          valor: f,
+          texto: NOME_FILTRO[f],
+          contagem: consulta.data ? n : "–",
+          critico: (f === "atrasados" || f === "impedidos") && n > 0,
+        };
+      })}
+    />
+  );
+  const seletorResponsavel = (
+    <FiltroSelecao rotulo="Responsável" valor={responsavel} onMudar={(v) => mudar("responsavel", v || null)}>
+      <option value="">Todos</option>
+      {funcionarios.map((p) => (
+        <option key={p.id} value={p.id}>
+          {p.nome} ({itens.filter((i) => i.responsavelId === p.id).length})
+        </option>
+      ))}
+    </FiltroSelecao>
+  );
+  const botaoLimpar = filtrando && (
+    <Botao tamanho="denso" variante="fantasma" icone="fechar" onClick={limpar}>
+      Limpar filtros
+    </Botao>
+  );
+
+  let conteudo;
+  if (carregando) conteudo = largo ? visao === "lista" ? <ListaCarregando /> : <QuadroCarregando /> : <CelularCarregando />;
+  else if (erro) conteudo = <Erro mensagem="Não consegui carregar a produção." onTentar={() => (consulta.refetch(), config.refetch())} />;
+  else if (itens.length === 0)
+    conteudo = (
+      <div className={SUPERFICIE}>
+        <Vazio
+          icone="producao"
+          titulo="Nenhum carro na oficina agora"
+          texto="Os carros entram na produção quando a recepção registra a entrada na ficha da OS. As etapas são geradas pelo tipo de reparo."
+          acao={
+            podeVer(perfil.papel, "agenda") ? (
+              <BotaoLink para="/agenda" variante="secundario" icone="agenda">
+                Ver quem chega hoje
+              </BotaoLink>
+            ) : undefined
+          }
+        />
+      </div>
+    );
+  else if (filtrados.length === 0)
+    conteudo = (
+      <div className={SUPERFICIE}>
+        <Vazio
+          icone="filtro"
+          titulo={filtro === "todos" ? "Nenhum carro com esse responsável" : `Nenhum carro em “${NOME_FILTRO[filtro]}”`}
+          texto={filtro === "atrasados" || filtro === "impedidos" ? "Bom sinal: nada travado nesse recorte." : "Troque o filtro para ver os outros carros."}
+          acao={
+            <Botao variante="contorno" onClick={limpar}>
+              Ver todos os carros
+            </Botao>
+          }
+        />
+      </div>
+    );
+  else if (largo)
+    conteudo =
+      visao === "lista" ? (
+        <ListaProducao itens={porUrgencia} agora={agora} perfis={perfis} selecionadoId={selecionadoId} onAbrir={abrir} />
+      ) : (
+        <QuadroColunas colunas={colunas} agora={agora} perfis={perfis} selecionadoId={selecionadoId} onAbrir={abrir} refQuadro={quadro} />
+      );
+  else
+    conteudo = (
+      <>
+        <div className="sticky top-14 z-10 mb-4">
+          <Abas
+            rotulo="Etapas"
+            idBase="producao-etapa"
+            className="mb-0 bg-papel"
+            valor={abaCelular}
+            onMudar={(v) => mudar("etapa", v === TODAS ? null : v)}
+            abas={[
+              { valor: TODAS, texto: "Todas", contagem: filtrados.length },
+              ...colunas.map((c) => ({
+                valor: c.id,
+                texto: c.id === COLUNA_PRONTOS ? "Prontos" : c.id === COLUNA_SEM_ETAPA ? "Sem etapa" : c.nome,
+                contagem: c.itens.length,
+                critico: c.itens.some((i) => i.atrasado || i.impedido),
+              })),
+            ]}
+          />
+        </div>
+        <PainelAba idBase="producao-etapa" valor={abaCelular}>
+          <ul className="m-0 p-0 flex flex-col gap-3">
+            {itensCelular.map((i) => (
+              <CartaoQuadro
+                key={i.v.os.id}
+                item={i}
+                agora={agora}
+                perfis={perfis}
+                selecionado={i.v.os.id === selecionadoId}
+                onAbrir={abrir}
+                variante="grande"
+                mostrarEtapa={abaCelular === TODAS}
+              />
+            ))}
+          </ul>
+        </PainelAba>
+      </>
+    );
 
   return (
     <>
-      <CabecalhoPagina
-        titulo="Produção"
-        resumo={resumo}
-        acoes={
-          podeVer(perfil.papel, "tv") && (
-            <BotaoExterno href={hrefTV} icone="tv" className="max-md:hidden">
-              Abrir quadro da TV
-            </BotaoExterno>
-          )
-        }
-      />
-
-      {/* filtros */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 mb-5">
-        <GrupoFiltros<FiltroQuadro>
-          rotulo="Filtrar o quadro"
-          mostrarRotulo={false}
-          valor={filtro}
-          onMudar={(f) => mudar("filtro", f === "todos" ? null : f)}
-          opcoes={FILTROS.map((f) => {
-            const n = porFiltro(f);
-            return {
-              valor: f,
-              texto: NOME_FILTRO[f],
-              contagem: consulta.data ? n : "–",
-              critico: (f === "atrasados" || f === "impedidos") && n > 0,
-            };
-          })}
-        />
-        <label className="flex items-center gap-2">
-          <span className="text-[13px] font-medium text-tinta-suave">Responsável</span>
-          <span className="relative inline-flex">
-          <select
-            value={responsavel}
-            onChange={(e) => mudar("responsavel", e.target.value || null)}
-            className="appearance-none h-11 md:h-9 pl-3 pr-9 bg-cartao border border-linha-forte shadow-controle text-[13px] font-medium text-tinta outline-none cursor-pointer hover:border-tinta-fraca focus:border-tinta-fraca focus:ring-[3px] focus:ring-amarelo/30 transition-colors duration-150"
-          >
-            <option value="">Todos</option>
-            {funcionarios.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nome} ({itens.filter((i) => i.responsavelId === p.id).length})
-              </option>
-            ))}
-          </select>
-          </span>
-        </label>
-        {(filtro !== "todos" || responsavel) && (
-          <Botao tamanho="denso" variante="fantasma" icone="fechar" onClick={() => setParams({}, { replace: true })}>
-            Limpar filtros
-          </Botao>
-        )}
-        {(rolagem.esquerda || rolagem.direita) && (
-          <div className="hidden md:flex items-center gap-1 ml-auto">
-            <span className="text-[13px] text-tinta-suave mr-1.5">Mais colunas</span>
-            <Botao tamanho="denso" variante="contorno" icone="voltar" aria-label="Rolar o quadro para a esquerda" disabled={!rolagem.esquerda} onClick={() => rolagem.rolar(-1)} />
-            <Botao tamanho="denso" variante="contorno" icone="seta" aria-label="Rolar o quadro para a direita" disabled={!rolagem.direita} onClick={() => rolagem.rolar(1)} />
-          </div>
-        )}
-      </div>
-
-      {/* quadro */}
-      {consulta.isPending || config.isPending ? (
-        <QuadroCarregando />
-      ) : consulta.isError || config.isError || !consulta.data ? (
-        <Erro mensagem="Não consegui carregar o quadro de produção." onTentar={() => (consulta.refetch(), config.refetch())} />
-      ) : itens.length === 0 ? (
-        <div className={SUPERFICIE}>
-          <Vazio
-            icone="producao"
-            titulo="Nenhum carro na oficina agora"
-            texto="Os carros entram no quadro quando a recepção registra a entrada na ficha da OS. As etapas são geradas pelo tipo de reparo."
-            acao={
-              podeVer(perfil.papel, "agenda") ? (
-                <BotaoLink para="/agenda" variante="secundario" icone="agenda">
-                  Ver quem chega hoje
-                </BotaoLink>
-              ) : undefined
-            }
-          />
+      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 mb-5">
+        <div className="min-w-0">
+          <h1 className="titulo-pagina text-tinta">Produção</h1>
+          <p className="mt-1 text-tinta-suave text-[14px]">{resumo}</p>
         </div>
-      ) : colunas.length === 0 ? (
-        <div className={SUPERFICIE}>
-          <Vazio
-            icone="filtro"
-            titulo={filtro === "todos" ? "Nenhum carro com esse responsável" : `Nenhum carro em “${NOME_FILTRO[filtro]}”`}
-            texto={filtro === "atrasados" || filtro === "impedidos" ? "Bom sinal: nada travado nesse recorte." : "Troque o filtro para ver os outros carros."}
-            acao={
-              <Botao variante="contorno" onClick={() => setParams({}, { replace: true })}>
-                Ver todos os carros
-              </Botao>
-            }
-          />
+        {largo && podeVer(perfil.papel, "tv") && (
+          <BotaoExterno href={hrefTV} icone="tv">
+            Abrir quadro da TV
+          </BotaoExterno>
+        )}
+      </header>
+
+      {/* barra de ferramentas: uma linha no computador; fileira rolável no celular */}
+      {largo ? (
+        <div className="flex items-center gap-x-4 gap-y-3 flex-wrap mb-3">
+          {segmentos}
+          {seletorResponsavel}
+          {botaoLimpar}
+          <div className="ml-auto">
+            <GrupoFiltros<VisaoProducao>
+              rotulo="Visão"
+              mostrarRotulo={false}
+              valor={visao}
+              onMudar={setVisao}
+              opcoes={[
+                { valor: "quadro", texto: "Quadro" },
+                { valor: "lista", texto: "Lista" },
+              ]}
+            />
+          </div>
         </div>
       ) : (
-        <div
-          ref={quadro}
-          role="region"
-          aria-label="Quadro de produção por etapa"
-          tabIndex={0}
-          className={`flex flex-col gap-6 md:flex-row md:gap-3 md:overflow-x-auto md:pb-3 ${selecionado ? "md:pr-[420px]" : ""}`}
-        >
-          {colunas.map((c) => {
-            const execucao = c.itens.filter((i) => i.resumo.atual?.estado === "em_execucao").length;
-            const fila = c.itens.filter((i) => i.resumo.atual?.estado === "na_fila").length;
-            const parados = c.itens.filter((i) => i.impedido).length;
-            const partes = [execucao && `${execucao} em exec.`, parados && `${parados} ${parados === 1 ? "impedido" : "impedidos"}`, fila && `${fila} na fila`].filter(Boolean);
-            const pronto = c.id === COLUNA_PRONTOS;
-            return (
-              <section key={c.id} aria-label={`${c.nome}: ${c.itens.length}`} className="md:w-[256px] md:shrink-0 min-w-0">
-                <header className="flex items-center justify-between gap-2 h-10 mb-2 px-0.5">
-                  <h2 className="flex items-center gap-2 min-w-0 text-[15px] font-semibold">
-                    {pronto && <span aria-hidden="true" className="w-2 h-2 rounded-full bg-ok shrink-0" />}
-                    <span className="truncate">{c.nome}</span>
-                    <Contagem n={c.itens.length} tom={pronto ? "ok" : "neutro"} />
-                  </h2>
-                  {!pronto && partes.length > 0 && <span className="text-[12px] text-tinta-fraca numero whitespace-nowrap">{partes.join(" · ")}</span>}
-                </header>
-                <ul className="m-0 p-0 flex flex-col gap-2.5">
-                  {c.itens.map((i) => (
-                    <CartaoQuadro
-                      key={i.v.os.id}
-                      item={i}
-                      agora={agora}
-                      config={config.data!}
-                      perfis={perfis}
-                      selecionado={i.v.os.id === selecionadoId}
-                      onAbrir={(id, origem) => {
-                        origemFoco.current = origem;
-                        mudar("os", id === selecionadoId ? null : id);
-                      }}
-                    />
-                  ))}
-                </ul>
-              </section>
-            );
-          })}
+        <div className="-mx-4 px-4 mb-3 overflow-x-auto">
+          <div className="flex items-center gap-3 w-max pr-4">
+            {segmentos}
+            {seletorResponsavel}
+            {botaoLimpar}
+          </div>
         </div>
       )}
+
+      {largo && !carregando && !erro && itens.length > 0 && (
+        <p className="mb-4 text-[13px] text-tinta-suave min-h-5">
+          {semCarro.length > 0 && (
+            <>
+              <span className="text-tinta-fraca">Sem carro agora:</span> {semCarro.join(" · ")}
+            </>
+          )}
+        </p>
+      )}
+
+      {conteudo}
 
       {selecionado && config.data && (
         <PainelOS
@@ -238,17 +305,57 @@ export function Producao() {
   );
 }
 
+// ------------------------------------------------------------------ preferências da tela
+
+const LARGO = "(min-width: 768px)";
+
+/** Computador/tablet (quadro e lista) × celular (abas de etapa). */
+function useLargo(): boolean {
+  return useSyncExternalStore(
+    (avisar) => {
+      const m = window.matchMedia(LARGO);
+      m.addEventListener("change", avisar);
+      return () => m.removeEventListener("change", avisar);
+    },
+    () => window.matchMedia(LARGO).matches,
+    () => true,
+  );
+}
+
+/** Quadro ou Lista, salvo no aparelho. */
+function useVisao(): [VisaoProducao, (v: VisaoProducao) => void] {
+  const [visao, setVisao] = useState<VisaoProducao>(() => {
+    try {
+      return lerVisao(localStorage.getItem(CHAVE_VISAO));
+    } catch {
+      return "quadro";
+    }
+  });
+  const mudar = useCallback((v: VisaoProducao) => {
+    setVisao(v);
+    try {
+      localStorage.setItem(CHAVE_VISAO, v);
+    } catch {
+      /* sem armazenamento: vale só nesta visita */
+    }
+  }, []);
+  return [visao, mudar];
+}
+
+// ------------------------------------------------------------------ esqueletos
+
 function QuadroCarregando() {
   return (
-    <div role="status" aria-label="Carregando o quadro" className="flex flex-col gap-6 md:flex-row md:gap-3 overflow-hidden">
-      {[3, 2, 2, 1].map((n, c) => (
-        <div key={c} className="md:w-[256px] md:shrink-0">
-          <div className="h-10 mb-2 flex items-center">
-            <div className="esqueleto h-4 w-28" />
+    <div role="status" aria-label="Carregando o quadro" className="grid gap-3 overflow-hidden" style={{ gridTemplateColumns: "repeat(5, minmax(208px, 1fr))", maxWidth: 5 * 360 }}>
+      {[3, 2, 2, 1, 2].map((n, c) => (
+        <div key={c} className="rounded-cartao bg-cinza-100 p-1.5">
+          <div className="px-1.5 pt-1 pb-2">
+            <div className="esqueleto h-4 w-24" />
+            <div className="esqueleto h-3 w-32 mt-2" />
           </div>
-          <div className="flex flex-col gap-2.5">
+          <div className="flex flex-col gap-1.5">
             {Array.from({ length: n }, (_, i) => (
-              <div key={i} className="esqueleto h-[212px] rounded-cartao" />
+              <div key={i} className="h-[118px] rounded-cartao bg-cartao border border-linha" />
             ))}
           </div>
         </div>
@@ -257,35 +364,29 @@ function QuadroCarregando() {
   );
 }
 
-/** Indica se o quadro tem colunas escondidas à esquerda/direita (no macOS a barra de rolagem some). */
-function useRolagemHorizontal(ref: RefObject<HTMLDivElement | null>) {
-  const [estado, setEstado] = useState({ esquerda: false, direita: false });
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const medir = () => {
-      const largo = window.matchMedia("(min-width: 768px)").matches;
-      const esquerda = largo && el.scrollLeft > 4;
-      const direita = largo && el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
-      setEstado((a) => (a.esquerda === esquerda && a.direita === direita ? a : { esquerda, direita }));
-    };
-    medir();
-    el.addEventListener("scroll", medir, { passive: true });
-    window.addEventListener("resize", medir);
-    const obs = new ResizeObserver(medir);
-    obs.observe(el);
-    return () => {
-      el.removeEventListener("scroll", medir);
-      window.removeEventListener("resize", medir);
-      obs.disconnect();
-    };
-  });
-  return {
-    ...estado,
-    rolar: (sentido: 1 | -1) =>
-      ref.current?.scrollBy({
-        left: sentido * 268,
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-      }),
-  };
+function ListaCarregando() {
+  return (
+    <div role="status" aria-label="Carregando a lista" className={`${SUPERFICIE} overflow-hidden`}>
+      <div className="h-10 border-b border-linha" />
+      {Array.from({ length: 6 }, (_, i) => (
+        <div key={i} className="h-[60px] px-3 flex items-center gap-6 border-b border-linha last:border-b-0">
+          <div className="esqueleto h-7 w-24" />
+          <div className="esqueleto h-4 w-40" />
+          <div className="esqueleto h-4 w-28" />
+          <div className="esqueleto h-4 w-24 ml-auto" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CelularCarregando() {
+  return (
+    <div role="status" aria-label="Carregando a produção" className="flex flex-col gap-3">
+      <div className="esqueleto h-11 w-full" />
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="esqueleto h-[188px] rounded-cartao" />
+      ))}
+    </div>
+  );
 }

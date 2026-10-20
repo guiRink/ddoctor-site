@@ -355,11 +355,23 @@ export interface Foto {
   id: Id;
   osId: Id;
   fase: FaseVistoria;
+  /** Etapa da produção que a foto comprova ("durante"/"final"); concluirEtapa exige uma se a etapa pede foto. */
+  etapaId?: Id;
   legenda?: string;
-  url: string; // no demo, imagem pública; no S3, URL assinada do Storage privado
+  /** Imagem comprimida (~1600 px, ~200 KB). Demo antigo: imagem pública; memória: blob: URL; S1/S3: URL assinada (R2). */
+  url: string;
+  /** Miniatura (~320 px, ~20 KB) para listas e galerias; ausente = use `url`. */
+  miniaturaUrl?: string;
+  bytes?: number; // tamanho da imagem comprimida
+  largura?: number; // px
+  altura?: number; // px
   autorId?: Id;
   origem: "interna" | "maxpar";
   tiradaEm: MarcoISO;
+  /** Quando a foto será apagada pela retenção (L28: entrega + 12 meses). Calculado na leitura. */
+  expiraEm?: DataISO;
+  /** true enquanto a OS não foi entregue: expiraEm é estimativa (previsão de entrega ou data da foto + 12 meses). */
+  expiraProvisorio?: boolean;
 }
 
 // ---------------------------------------------------------------- pendências externas (ações no portal)
@@ -527,7 +539,14 @@ export interface ConfigOficina {
   capacidadePadrao: { vagasEntrada: number; carrosSimultaneos: number; pecasDia?: number };
   /** Itens do checklist de entrada; ausente = CHECKLIST_PADRAO (provisório). */
   checklist?: ChecklistItem[];
+  /** Geral: true enquanto há valor não confirmado pelo dono. Por campo, veja `confirmado` (campoConfigProvisorio). */
   provisorio: boolean;
+  /** Campos que o dono já confirmou em Ajustes (salvarConfig); ausente = segue o `provisorio` geral. */
+  confirmado?: Partial<Record<CampoConfig, boolean>>;
 }
+
+/** Campos da configuração que o dono confirma um a um (cada um sai do "provisório — a confirmar" ao salvar). */
+export const CAMPOS_CONFIG = ["vagasEntrada", "carrosSimultaneos", "pecasDia", "expediente", "semaforo"] as const;
+export type CampoConfig = (typeof CAMPOS_CONFIG)[number];
 
 export type Semaforo = "verde" | "laranja" | "vermelho" | "neutro";

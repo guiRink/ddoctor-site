@@ -92,7 +92,7 @@ export function FormRecepcao({
                 <label
                   key={n}
                   className={`flex-1 min-w-0 inline-flex flex-col items-center justify-center gap-1 h-14 md:h-12 px-1.5 rounded-controle cursor-pointer transition-colors duration-150 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-amarelo-escuro has-[:focus-visible]:outline-offset-1 ${
-                    ativo ? "bg-cartao text-tinta font-semibold shadow-[0_1px_2px_rgba(17,17,17,0.08)] ring-1 ring-linha" : "text-tinta-suave font-medium hover:text-tinta"
+                    ativo ? "bg-elevado text-tinta font-semibold shadow-segmento ring-1 ring-linha" : "text-tinta-suave font-medium hover:text-tinta"
                   }`}
                 >
                   <input

@@ -14,20 +14,23 @@
 ✅ S1a Dívida da QA que sobrevive — absorvido pelo SD (revisão QA aplicada; ver `docs/qa-sprintSD.md`)
 ✅ SD Design e telas v2 em memória (domínio compartilhado com 133 testes, repositório em memória, 14 telas, TV, celular, "Ver como" por papel; tag `sprint-SD`, publicado)
 ✅ SE Visual clean e o que faltava frente ao concorrente (clientes, recepção com checklist e avarias, custos e resultado da OS, pagamentos, estoque completo, caixa do dia, relatórios, produção prevista; 295 testes, demo v3) — pronto na branch `sprint/se-clean-concorrente`
-🔧 SE merge, tag `sprint-SE` e publicação — falta o checkpoint do Guilherme com o irmão
-🔧 Checkpoint do dono sobre as telas (SD + SE) — falta mandar o link e ouvir; decidir se a produção pode "pegar" etapas livres; decisões novas L30–L36 (CPF/CNPJ, capacidade, caixa, hora de mão de obra)
+✅ SE merge, tag `sprint-SE` e publicação (13/10/2026, com aval do Guilherme) · ✅ SF merge, tag `sprint-SF` e publicação (20/10/2026)
+✅ SF Pedidos do dono (modo escuro, orçamento em PDF/WhatsApp, foto real ao concluir etapa, nova categoria de serviço, Agenda e capacidade editável, Produção e TV refeitas; QA com 4 importantes corrigidos; 329 testes) — branch `sprint/sf-pedidos-dono`, merge e publicação em 20/10/2026
+🔧 Checkpoint do dono sobre as telas (SD + SE + SF) — falta mandar o link ao irmão e ouvir; decidir se a produção pode "pegar" etapas livres; decisões novas L30–L36 e L39–L44 (CPF/CNPJ, capacidade, caixa, hora de mão de obra, validade do orçamento, permissões)
+❌ Domínio do dono (hospedagem Cloudflare Pages) e conta Supabase do dono — aguardando
 ❌ G1 Inspeção Maxpar → `docs/maxpar-g1.md` (necessário antes do S5/S6)
 ❌ G2 Supabase produção · ❌ G3 Calia · ❌ G4a endereço do painel · ❌ G4b host do worker
-❌ Docker Desktop ou OrbStack no Mac (pré-requisito do S1)
+❌ OrbStack (ou Docker Desktop) no Mac (pré-requisito do S1)
 
 ## Painel — Fase 1 · Pátio fora da planilha
 ❌ Banco núcleo (migrations, RLS, auditoria, funções), RepositorioSupabase, login por papel, `listarProducao` sem dados pessoais e custos fora da `OSVisao` — S1 (próximo)
+❌ Permissões no banco para fotos, configuração e tipos de serviço (RLS + pgTAP) e fotos no Cloudflare R2 (telas prontas no SF, no aparelho) — S1/S3
 ❌ Tabelas novas do SE no banco (`custo_os`, `fornecedor`, `categoria_financeira`, `fechamento_caixa`, recepção/avarias, `baixa.parcelas`; `movimento_estoque.tipo` mudou) — S1
 ❌ Clientes, veículos, OS e ficha; entrada rápida — S2 (telas prontas em memória no SD/SE, incluindo Clientes com CPF/CNPJ e Receber o carro em 4 passos; falta o banco real)
 ❌ Agenda com capacidade e reserva atômica; pendências externas — S2 (grade e fila prontas em memória no SD; falta reserva atômica no banco)
 ❌ Tipos de reparo, etapas e semáforo configuráveis — S3 (semáforo e etapas fixos no domínio do SD; configuração trava em L09)
 ❌ Produção: kanban, TV, celular, terminal com PIN — S3 (quadro, TV e Minhas tarefas prontos em memória no SD; falta terminal com PIN)
-❌ Vistorias e fotos privadas — S3 (galeria por fase pronta no SD; fotos reais e privadas faltam)
+❌ Vistorias e fotos privadas — S3 (galeria por fase no SD; no SF foto real comprimida no aparelho ao concluir etapa e nas Vistorias, no demo; faltam armazenamento privado e RLS)
 ❌ Piloto do pátio (5 dias úteis) — P1
 
 ## Painel — Fase 2 · Financeiro fora do Excel

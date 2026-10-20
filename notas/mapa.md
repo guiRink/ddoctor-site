@@ -1,9 +1,9 @@
 # GusPainel (D doctor) — mapa
 
 ## Estado atual (sempre atualizado, sempre curto)
-- Onde está: Sprint SE (visual clean + o que faltava frente ao ERP de um concorrente) fechado em 13/10/2026 na branch `sprint/se-clean-concorrente`: 295 testes, lint sem erros, build ok, demo v3 (`ddoctor.demo.v3`), tudo fictício. Antes disso, o SD (12/10) entregou as 14 telas em memória. Banco real ainda não existe (tudo em memória). Merge, tag `sprint-SE` e publicação ficam para depois do checkpoint, a critério do Guilherme.
-- Próximo passo: Guilherme mostra o painel ao irmão (checkpoint) e envia o questionário (`docs/questionario-dono.md`; as 7 decisões novas L30–L36 ainda não estão nele); instalar Docker Desktop ou OrbStack; depois S1 (Supabase local: migrations do núcleo mais as tabelas novas do SE, RLS, RepositorioSupabase, login por papel, `listarProducao`).
-- Bloqueios: dono responder o questionário (1.1 tipos de reparo e etapas, trava o S3; 5.1 planilha financeira, trava o S4); L34 (guardar CPF/CNPJ do cliente, LGPD) antes de o S1 criar a coluna; dono decidir se a produção pode "pegar" etapas livres na fila (`docs/qa-sprintSD.md` item 6); Docker Desktop ou OrbStack no Mac (pré-requisito do S1); conta Supabase; endereço completo e horário da oficina para a landing; confirmar se Porto/Azul chegam via Carglass e não via Maxpar.
+- Onde está: Sprint SF (pedidos do dono via Guilherme, depois de ver o SE) fechado em 20/10/2026 na branch `sprint/sf-pedidos-dono`; merge e publicação em 20/10/2026 (feitos pelo Guilherme logo após este registro). 329 testes, lint sem erros, build ok, jsPDF em chunk separado. Banco real ainda não existe (tudo em memória, fotos no IndexedDB do aparelho no demo). Antes: SE (13/10, visual clean) e SD (12/10, 14 telas em memória).
+- Próximo passo: Guilherme manda o link ao irmão (checkpoint); aguardar o domínio (hospedagem Cloudflare Pages) e a conta Supabase do dono; instalar OrbStack; depois S1 (Supabase local: migrations do núcleo mais as tabelas novas do SE, RLS, RepositorioSupabase, login por papel, `listarProducao`, mais permissões de fotos/config/tipos de serviço e fotos no R2).
+- Bloqueios: dono responder o questionário (1.1 tipos de reparo e etapas, trava o S3; 5.1 planilha financeira, trava o S4; as decisões L30–L36 e L39–L44 ainda não estão nele); L34 (guardar CPF/CNPJ do cliente, LGPD) antes de o S1 criar a coluna; dono decidir se a produção pode "pegar" etapas livres na fila (`docs/qa-sprintSD.md` item 6); domínio do dono e conta Supabase dele; OrbStack (ou Docker Desktop) no Mac (pré-requisito do S1); endereço completo e horário da oficina para a landing; confirmar se Porto/Azul chegam via Carglass e não via Maxpar.
 - Fontes atuais: `docs/painel-execucao.md`, `docs/painel-arquitetura.md`, `docs/painel-informacoes.md`, `docs/painel-design.md`. O plano antigo (`docs/painel-plano.md`) é só histórico do Sprint 0.
 
 ---
@@ -25,7 +25,7 @@ Todas as linhas abaixo estão como provisórias, com o valor sugerido do questio
 | L09 | Tipos de reparo, etapas em ordem e prazo de cada etapa | 4 tipos de informações (`docs/painel-informacoes.md` §4) | provisória | 12/10/2026 · questionário 1.1 | SD domínio; trava o S3 |
 | L10 | Expediente, sábado, dias úteis ou corridos, prazo total por tipo | Seg–sex 8–18, sáb 8–12; soma das etapas + 20 %; feriados não contam | provisória | 12/10/2026 · questionário 2.1 e 1.2 | SD domínio (horas úteis) |
 | L11 | Quando o carro fica laranja? E vermelho? Quem muda prazo? | Laranja a partir de 8 h úteis (só limiar absoluto), vermelho vencido ou impedimento > 4 h úteis; dono e gestor mudam prazo; semáforo só em "na oficina" | provisória | 12/10/2026 · questionário 2.2 a 2.4 | SD domínio (semáforo) |
-| L12 | Entradas por dia, carros ao mesmo tempo, cabine ou boxes que limitam | 4 por dia; 12 simultâneos (só aviso); boxes das placas | provisória | 12/10/2026 · questionário 3.1 a 3.3 | SD Agenda (capacidade) |
+| L12 | Entradas por dia, carros ao mesmo tempo, cabine ou boxes que limitam | 4 por dia; 12 simultâneos (só aviso); boxes das placas | provisória | 12/10/2026 · questionário 3.1 a 3.3 | SD Agenda (capacidade); SF Ajustes → Agenda e capacidade editável ("Confirmar" tira o provisório) |
 | L13 | Vistoria final obrigatória? Peças por peça ou por ponto? Garantia | Aviso; por peça autorizada; 90 dias, OS "garantia" sem título | provisória | 12/10/2026 · questionário 1.5 | SD domínio e Vistorias |
 | L14 | Não compareceu: tolerância e quem marca? Previsão ao cliente é data ou data + hora? | 2 h após a janela, recepção; só data | provisória | 12/10/2026 · questionário 3.4 e 3.5 | SD Agenda |
 | L15 | Quem trabalha, função, celular próprio ou terminal, e-mail | 1 dono, 1 recepção, 3 produção em terminal | provisória | 12/10/2026 · questionário 4.1 e 4.2 | SD Funcionários (fictícios) |
@@ -41,9 +41,9 @@ Todas as linhas abaixo estão como provisórias, com o valor sugerido do questio
 | L25 | Conta Supabase de produção, plano Free ou Pro | Dev local + projeto demo do Guilherme, só dados fictícios | provisória | 12/10/2026 · questionário 8.1 | — |
 | L26 | Endereço do painel: Cloudflare Pages + domínio ou GitHub Pages | GitHub Pages + HashRouter | provisória | 12/10/2026 · questionário 8.2 | Deploy atual |
 | L27 | Worker no PC da oficina ou na nuvem (R$ 30–70/mês) | PC da oficina | provisória | 12/10/2026 · questionário 8.3 | — |
-| L28 | Retenção de dados | Fotos: 12 meses depois da entrega, depois apagadas (com pacote para baixar antes); textos e números para sempre (estatística de anos); 12 meses snapshots/Calia | confirmada (fotos e dados) | 20/10/2026 · Guilherme, pelo dono | S1/S3 Storage e rotina de retenção |
+| L28 | Retenção de dados | Fotos: 12 meses depois da entrega, depois apagadas (com pacote para baixar antes); textos e números para sempre (estatística de anos); 12 meses snapshots/Calia | confirmada (fotos e dados) | 20/10/2026 · Guilherme, pelo dono | SF mostra a retenção de 12 meses nas fotos; S1/S3 Storage e rotina de retenção |
 | L29 | Autorização escrita para leitura automática do portal | Sem ela o S6 não roda; só após L05/L06 favoráveis | aberta | 12/10/2026 · questionário 8.5 | — |
-| L30 | Capacidade de produção em peças por dia | 10 peças/dia (valor visto no sistema do concorrente, sem confirmação) | provisória | 13/10/2026 · Sprint SE, `docs/concorrente-analise.md` | SE Geral (produção prevista contra a capacidade) |
+| L30 | Capacidade de produção em peças por dia | 10 peças/dia (valor visto no sistema do concorrente, sem confirmação) | provisória | 13/10/2026 · Sprint SE, `docs/concorrente-analise.md` | SE Geral (produção prevista contra a capacidade); SF Ajustes → Agenda e capacidade (editável; Geral e Agenda deixam de marcar provisório quando o dono confirma) |
 | L31 | Itens do checklist de recepção do veículo | Checklist padrão de 21 itens, configurável em Ajustes | provisória | 13/10/2026 · Sprint SE | SE Receber o carro e Ajustes |
 | L32 | Categorias financeiras de receita | Lista padrão provisória, editável em Ajustes | provisória | 13/10/2026 · Sprint SE | SE Financeiro e Ajustes |
 | L33 | A partir de quantos dias o estoque conta como parado | 90 dias | provisória | 13/10/2026 · Sprint SE | SE Estoque |
@@ -51,8 +51,16 @@ Todas as linhas abaixo estão como provisórias, com o valor sugerido do questio
 | L35 | O fechamento do caixa do dia pode ser reaberto? | A confirmar com o dono; a QA do SE protegeu o caixa fechado (`docs/qa-sprintSE.md`) | aberta | 13/10/2026 · Sprint SE | SE Financeiro (caixa do dia) |
 | L36 | Valor da hora de mão de obra (custo da OS) | A confirmar com o dono; o painel usa um valor provisório no demo | aberta | 13/10/2026 · Sprint SE | SE Ficha da OS (Custos e Resultado) |
 | L37 | Infraestrutura sem mensalidade | Supabase grátis (conta do dono, Guilherme convidado), backup diário próprio fora do Supabase, fotos na Cloudflare R2 (10 GB grátis), site e painel na Cloudflare Pages com o domínio do dono | confirmada | 20/10/2026 · Guilherme (dono quer cortar gastos; US$ 25/mês do Supabase Pro descartado) | S1 em diante |
-| L38 | Volume de fotos | ~15–20 carros/semana × ~50–60 fotos; comprimidas no celular (~200 KB + miniatura) ≈ 12–14 GB em regime com a retenção de 12 meses | confirmada (estimativa) | 20/10/2026 · Guilherme | S3 fotos |
+| L38 | Volume de fotos | ~15–20 carros/semana × ~50–60 fotos; comprimidas no celular (~200 KB + miniatura) ≈ 12–14 GB em regime com a retenção de 12 meses | confirmada (estimativa) | 20/10/2026 · Guilherme | SF compressão no aparelho (~200 KB + miniatura); S3 fotos |
+| L39 | Validade do orçamento | 15 dias; não sai no PDF do cliente até o dono confirmar o prazo | provisória | 20/10/2026 · Sprint SF | SF Enviar orçamento (PDF) |
+| L40 | Quem edita a capacidade (Agenda e capacidade) | O pedido era "só o dono"; seguiu a matriz de permissões, então o gestor também edita | provisória | 20/10/2026 · Sprint SF | SF Ajustes → Agenda e capacidade |
+| L41 | Quem pode criar categoria de serviço (tipo de reparo) | Recepção também pode, no Receber o carro e em Ajustes → Tipos de serviço | provisória | 20/10/2026 · Sprint SF | SF Tipos de serviço |
+| L42 | Tema padrão do painel | Automático (segue o aparelho); escolha Claro/Escuro/Automático salva por aparelho; placa e impressão sempre claras, TV escura | provisória | 20/10/2026 · Sprint SF | SF Modo escuro |
+| L43 | Peças no cartão da TV | Não aparecem mais (cartões se ajustam ao espaço) | provisória | 20/10/2026 · Sprint SF | SF Quadro da TV |
+| L44 | O que o PDF mostra no orçamento de seguradora | O total autorizado | provisória | 20/10/2026 · Sprint SF | SF Enviar orçamento (PDF) |
 | — | Produção pode "pegar" etapas livres na fila? | Sem resposta (`docs/qa-sprintSD.md` item 6) | aberta | 12/10/2026 · QA do SD | — |
+
+Nota L39–L44: IDs atribuídos pelo escrivão em 20/10/2026 às decisões provisórias novas do Sprint SF (o resumo não trouxe IDs).
 
 Nota L30–L36: IDs atribuídos pelo escrivão em 13/10/2026 às decisões novas do Sprint SE (o resumo não trouxe IDs); L34 e L19 se contradizem (CPF), e a L12 (4 entradas por dia) é outra medida que a L30 (10 peças/dia).
 
@@ -61,6 +69,32 @@ Nota L20: a ficha original sugeria "não desconta", mas o estudo da Maxpar (§2.
 ---
 
 ## Histórico (mais recente primeiro)
+
+### 20/10/2026 Sprint SF — Pedidos do dono (fechado; merge e publicação em 20/10/2026)
+**Decisões tomadas** (todas provisórias, a confirmar com o dono — L39 a L44):
+- Validade do orçamento de 15 dias fica fora do PDF do cliente até o dono confirmar o prazo — porquê: o prazo é palpite; não pode virar promessa ao cliente.
+- Gestor também edita a capacidade — porquê: o pedido era "só o dono", mas a matriz de permissões já deixa o gestor mudar prazos; seguiu-se a matriz.
+- Recepção pode criar categoria de serviço — porquê: é quem recebe o carro e encontra o tipo que falta na hora.
+- Tema padrão automático, salvo por aparelho; placa e impressão sempre claras, TV escura — porquê: placa e papel precisam de contraste fixo; a TV é lida de longe.
+- Peças saem do cartão da TV — porquê: os cartões passaram a se ajustar ao espaço e a TV mostra todas as etapas.
+- No orçamento de seguradora o PDF mostra o total autorizado — porquê: é o valor que a seguradora aprovou.
+- Fotos comprimidas no aparelho (~200 KB + miniatura), com a retenção de 12 meses (L28) mostrada ao usuário — porquê: segue a infraestrutura sem mensalidade (L37, L38).
+
+**O que foi implementado:**
+- Modo escuro: Claro, Escuro ou Automático, lembrado por aparelho.
+- Enviar orçamento: PDF real (jsPDF carregado sob demanda, em chunk separado); no celular compartilha direto (WhatsApp); no computador baixa o PDF e abre o WhatsApp com a mensagem pronta.
+- Concluir etapa com foto de verdade (câmera, galeria ou arquivo), guardada no IndexedDB no demo; Vistorias também adicionam fotos.
+- Nova categoria de serviço com suas etapas, em Receber o carro e em Ajustes → Tipos de serviço.
+- Ajustes → Agenda e capacidade editável (entradas por dia, carros simultâneos, peças por dia, semáforo); "Confirmar" tira o selo de provisório (Geral e Agenda acompanham).
+- Produção e TV refeitas: todas as etapas na tela, etapas vazias numa linha só, visão Quadro/Lista, abas por etapa no celular, painel do carro sobreposto; TV com cartões que se ajustam e paginação por coluna.
+- QA: nada bloqueava; 4 itens importantes corrigidos (paginação da TV, prévia do PDF, provisório na Agenda, fotos resilientes) mais menores (envio só para quem edita orçamentos, Vistorias durante o envio). 329 testes, lint 0 erros, build ok.
+
+**O que ficou de fora (de propósito):**
+- Permissões no banco para fotos, configuração e tipos de serviço (RLS + pgTAP) — S1, junto com o banco real.
+- Fotos no Cloudflare R2 — S1/S3; no demo ficam no aparelho.
+
+**Arquivos relevantes:**
+- `notas/sprints/sprint-SF.md`, `codigo/painel/src/`, `codigo/compartilhado/src/`
 
 ### 13/10/2026 Sprint SE — Visual clean e o que faltava frente ao concorrente (fechado na branch, falta checkpoint)
 **Decisões tomadas:**

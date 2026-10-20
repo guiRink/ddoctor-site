@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ConfigOficina, DataISO } from "@compartilhado/tipos";
-import { capacidadePecasDia } from "@compartilhado/dominio/config";
+import { campoConfigProvisorio, capacidadePecasDia } from "@compartilhado/dominio/config";
 import { diaSemana } from "@compartilhado/dominio/fuso";
 import { producaoPrevista, proximosDiasUteis, type DiaPrevisto } from "@compartilhado/dominio/producao";
 import type { OSVisao } from "../../dados/repositorio";
@@ -40,8 +40,14 @@ export function ProducaoPrevista({ oss, config, hoje }: { oss: OSVisao[]; config
     >
       <div className="px-4 pt-3 pb-1">
         <p className="text-[13px] text-tinta-suave numero">
-          Próximos {n} dias úteis · capacidade <Provisorio>{capacidade} peças/dia</Provisorio>{" "}
-          <span className="text-tinta-fraca">· provisório — a confirmar</span>
+          Próximos {n} dias úteis · capacidade{" "}
+          {campoConfigProvisorio(config, "pecasDia") ? (
+            <>
+              <Provisorio>{capacidade} peças/dia</Provisorio> <span className="text-tinta-fraca">· provisório — a confirmar</span>
+            </>
+          ) : (
+            `${capacidade} peças/dia`
+          )}
         </p>
       </div>
       <div className="px-4 pt-2">

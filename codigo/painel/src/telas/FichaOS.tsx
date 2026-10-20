@@ -46,6 +46,7 @@ import { NivelCombustivelTexto } from "../componentes/recepcao/FormRecepcao";
 import { kmLegivel, nomeCarro } from "../componentes/os/formato";
 import { NumeroDemo } from "../componentes/clientes/Comuns";
 import { contatoClicavel } from "@compartilhado/dominio/clientes";
+import { BotaoEnviarOrcamento } from "../componentes/orcamento/BotaoEnviarOrcamento";
 
 /**
  * Ficha da OS (docs/painel-design.md §5, revisão SE): cabeçalho com Placa grande, carro, cliente,
@@ -135,6 +136,8 @@ export function FichaOS() {
   const sensivel = veDadosSensiveis(papel);
   const custos = veCustosOS(papel);
   const podeAgir = podeEditar(papel, "orcamentos");
+  const podeEnviar = podeAgir && sensivel;
+  const emOrcamento = v.os.estado === "rascunho" || v.os.estado === "aguardando_aprovacao";
   const estado = ESTADO_OS[v.os.estado];
   const semaforo = v.etapas.length ? semaforoOS(v.os, v.etapas, agora, config.data) : "neutro";
   const ativo = !["encerrada", "cancelada"].includes(v.os.estado);
@@ -156,15 +159,22 @@ export function FichaOS() {
     <>
       <div className="flex items-center justify-between gap-3 -mt-3 mb-2">
         {voltar}
-        <Botao
-          tamanho="denso"
-          variante="contorno"
-          icone="documento"
-          onClick={() => window.open(hrefImprimir, "_blank", "noopener")}
-          aria-label={`Imprimir ${v.os.estado === "rascunho" || v.os.estado === "aguardando_aprovacao" ? "orçamento" : "ordem de serviço"} (abre em nova aba)`}
-        >
-          Imprimir
-        </Botao>
+        {/* quem edita orçamentos e vê valores manda o orçamento ao cliente (PDF, WhatsApp, imprimir). Fora da fase de
+            orçamento o "Imprimir" fica direto no cabeçalho; quem não envia (financeiro, produção) só imprime. */}
+        <div className="flex items-center gap-2">
+          {(!emOrcamento || !podeEnviar) && (
+            <Botao
+              tamanho="denso"
+              variante="contorno"
+              icone="documento"
+              onClick={() => window.open(hrefImprimir, "_blank", "noopener")}
+              aria-label="Imprimir ordem de serviço (abre em nova aba)"
+            >
+              Imprimir
+            </Botao>
+          )}
+          {podeEnviar && <BotaoEnviarOrcamento v={v} primario={emOrcamento} />}
+        </div>
       </div>
 
       {/* ---------------- cabeçalho: placa, carro, cliente, estado e próxima ação */}

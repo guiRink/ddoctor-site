@@ -6,6 +6,9 @@ import { Icone } from "../componentes/Icone";
 import { MarcaD } from "../componentes/ui/Marca";
 import { CartaoTV } from "../componentes/producao/CartaoTV";
 import {
+  ALTURA_TV,
+  COLUNA_PRONTOS,
+  COLUNA_SEM_ETAPA,
   NOME_FILTRO,
   contarItens,
   filtrarItens,
@@ -14,8 +17,8 @@ import {
   lerFiltro,
   montarColunas,
   montarItens,
-  type ColunaQuadro,
-  type ItemQuadro,
+  densidadeTV,
+  paginasTV,
 } from "../componentes/producao/quadro";
 
 const ATUALIZAR_MS = 15_000;
@@ -24,34 +27,11 @@ const SEM_ATUALIZAR_MS = 60_000; // acima disso o rodapé avisa que o quadro pod
 const CABECALHO_PX = 104;
 const RODAPE_PX = 56;
 const CORPO_Y_PX = 40; // respiro vertical do corpo
-const TITULO_COLUNA_PX = 56;
-const CARTAO_MIN_PX = 380;
-const COLUNA_MIN_PX = 340;
+const TITULO_COLUNA_PX = 60;
+const COLUNA_MIN_PX = 236; // até 7 colunas em 1920 (placa g cabe); acima disso, páginas de colunas
+const PLACA_TV_PX = 264 + 40; // placa tv + respiro do cartão: abaixo disso a placa encolhe
 const VAO_PX = 20;
-
-/** Uma fatia de coluna que cabe na altura da tela (colunas longas continuam ao lado). */
-interface Fatia {
-  chave: string;
-  nome: string;
-  parte: number;
-  partes: number;
-  total: number;
-  itens: ItemQuadro[];
-}
-
-function fatiar(colunas: ColunaQuadro[], porColuna: number): Fatia[] {
-  return colunas.flatMap((c) => {
-    const partes = Math.max(1, Math.ceil(c.itens.length / porColuna));
-    return Array.from({ length: partes }, (_, i) => ({
-      chave: `${c.id}-${i}`,
-      nome: c.nome,
-      parte: i + 1,
-      partes,
-      total: c.itens.length,
-      itens: c.itens.slice(i * porColuna, (i + 1) * porColuna),
-    }));
-  });
-}
+const VAO_CARTAO_PX = 12;
 
 function useTamanhoTela() {
   const ler = () => ({ l: window.innerWidth, a: window.innerHeight });
@@ -66,7 +46,8 @@ function useTamanhoTela() {
 
 /**
  * Quadro da TV da oficina (docs/painel-design.md §4): fundo preto, sem menu, sem cursor, sem foco e
- * sem rolagem. Atualiza a cada 15 s e, se não couber, troca de página a cada 20 s.
+ * sem rolagem. Atualiza a cada 15 s. Todas as etapas com carro numa tela, em colunas fluidas; cada coluna
+ * encolhe os cartões (cheio → médio → compacto) antes de paginar sozinha a cada 20 s (§5.1).
  * Filtro fixo pela URL: #/producao/tv?filtro=atrasados|hoje|impedidos.
  */
 export function ProducaoTV() {
@@ -91,25 +72,29 @@ export function ProducaoTV() {
   const totais = contarItens(itens);
   const colunas = useMemo(() => montarColunas(filtrarItens(itens, filtro), consulta.data ?? []), [itens, filtro, consulta.data]);
 
-  const porColuna = Math.max(1, Math.floor((a - CABECALHO_PX - RODAPE_PX - CORPO_Y_PX - TITULO_COLUNA_PX) / CARTAO_MIN_PX));
-  const porPagina = Math.max(1, Math.floor((l - 64 + VAO_PX) / (COLUNA_MIN_PX + VAO_PX)));
-  const fatias = fatiar(colunas, porColuna);
-  const paginas = Math.max(1, Math.ceil(fatias.length / porPagina));
-
-  const [pagina, setPagina] = useState(0);
+  // colunas fluidas: todas as etapas com carro numa tela (até ~6); acima disso, páginas de colunas
+  const alturaColuna = a - CABECALHO_PX - RODAPE_PX - CORPO_Y_PX - TITULO_COLUNA_PX;
+  const colunasPorTela = Math.max(1, Math.floor((l - 64 + VAO_PX) / (COLUNA_MIN_PX + VAO_PX)));
+  const paginasColunas = Math.max(1, Math.ceil(colunas.length / colunasPorTela));
+  const [tique, setTique] = useState(0);
+  const densidades = colunas.map((c) => densidadeTV(alturaColuna, c.itens.length, VAO_CARTAO_PX));
+  const algumaColunaPagina = densidades.some((d, i) => d.porPagina < colunas[i].itens.length);
   useEffect(() => {
-    if (paginas < 2) return;
-    const t = setInterval(() => setPagina((p) => p + 1), PAGINA_MS);
+    if (paginasColunas < 2 && !algumaColunaPagina) return;
+    const t = setInterval(() => setTique((p) => p + 1), PAGINA_MS);
     return () => clearInterval(t);
-  }, [paginas]);
-  const atual = pagina % paginas;
-  const visiveis = fatias.slice(atual * porPagina, (atual + 1) * porPagina);
+  }, [paginasColunas, algumaColunaPagina]);
+  const { paginaColunas, paginaDaColuna } = paginasTV(tique, paginasColunas);
+  const inicio = paginaColunas * colunasPorTela;
+  const visiveis = colunas.slice(inicio, inicio + colunasPorTela).map((c, i) => ({ coluna: c, ...densidades[inicio + i] }));
+  const estreito = (l - 64 - (visiveis.length - 1) * VAO_PX) / Math.max(1, visiveis.length) < PLACA_TV_PX;
 
   const atualizadoEm = consulta.dataUpdatedAt;
   const desatualizado = atualizadoEm > 0 && Date.parse(agora) - atualizadoEm > SEM_ATUALIZAR_MS;
 
   return (
-    <div className="fixed inset-0 bg-preto text-papel cursor-none select-none overflow-hidden flex flex-col">
+    // escura por desenho em qualquer tema: o escopo claro mantém `text-papel`/`text-cartao` claros (docs/painel-design.md "Tema escuro")
+    <div data-tema="claro" className="fixed inset-0 bg-preto text-papel cursor-none select-none overflow-hidden flex flex-col">
       {/* cabeçalho */}
       <header className="shrink-0 flex items-center gap-8 px-8 border-b border-linha-clara" style={{ height: CABECALHO_PX }}>
         <div className="flex items-center gap-5 shrink-0">
@@ -138,35 +123,49 @@ export function ProducaoTV() {
       {/* corpo */}
       <main className="flex-1 min-h-0 px-8 py-5" style={{ paddingTop: CORPO_Y_PX / 2, paddingBottom: CORPO_Y_PX / 2 }}>
         {consulta.isPending || config.isPending ? (
-          <Carregando colunas={Math.min(porPagina, 5)} />
+          <Carregando colunas={Math.min(colunasPorTela, 5)} />
         ) : !consulta.data || !config.data ? (
           <Aviso icone="alerta" titulo="Sem conexão com o painel" texto={`Tentando de novo a cada ${ATUALIZAR_MS / 1000} segundos.`} />
-        ) : fatias.length === 0 ? (
+        ) : colunas.length === 0 ? (
           <Aviso
             icone="ok"
             titulo={filtro === "todos" ? "Nenhum carro na produção agora" : `Nenhum carro em “${NOME_FILTRO[filtro].toLowerCase()}”`}
             texto={filtro === "todos" ? "Os carros aparecem aqui quando a recepção registra a entrada." : "Tudo em dia neste recorte."}
           />
         ) : (
-          <div className="h-full flex gap-5">
-            {visiveis.map((f) => (
-              <section key={f.chave} className="flex-1 min-w-0 max-w-[460px] flex flex-col">
-                <header className="shrink-0 flex items-center justify-between gap-3 mb-3" style={{ height: TITULO_COLUNA_PX - 12 }}>
-                  <h2 className="titulo text-[32px] leading-none truncate">
-                    {f.nome}
-                    {f.parte > 1 && <span className="text-papel-suave font-medium"> (cont.)</span>}
-                  </h2>
-                  <span className="inline-grid place-items-center min-w-11 h-10 px-3 rounded-full bg-grafite-3 text-[24px] font-semibold text-papel numero leading-none whitespace-nowrap">
-                    {f.total}
-                  </span>
-                </header>
-                <div className="flex-1 min-h-0 grid gap-3" style={{ gridTemplateRows: `repeat(${porColuna}, minmax(0, 1fr))` }}>
-                  {f.itens.map((i) => (
-                    <CartaoTV key={i.v.os.id} item={i} agora={agora} perfis={perfisQ.data ?? []} />
-                  ))}
-                </div>
-              </section>
-            ))}
+          <div className="h-full flex" style={{ gap: VAO_PX }}>
+            {visiveis.map(({ coluna, densidade, porPagina }) => {
+              const paginas = Math.max(1, Math.ceil(coluna.itens.length / porPagina));
+              const pagina = paginaDaColuna(paginas);
+              const itensPagina = coluna.itens.slice(pagina * porPagina, (pagina + 1) * porPagina);
+              const pronto = coluna.id === COLUNA_PRONTOS;
+              return (
+                <section key={coluna.id} className="flex-1 min-w-0 max-w-[560px] flex flex-col">
+                  <header className="shrink-0 flex items-center justify-between gap-3 border-b-2 border-linha-clara mb-3" style={{ height: TITULO_COLUNA_PX - 12 }}>
+                    <h2 className={`flex items-center gap-3 min-w-0 titulo leading-none ${estreito ? "text-[28px]" : "text-[32px]"}`}>
+                      {pronto && <span aria-hidden="true" className="w-3.5 h-3.5 rounded-full bg-ok shrink-0" />}
+                      <span className="truncate">{pronto ? "Prontos" : coluna.id === COLUNA_SEM_ETAPA ? "Sem etapa" : coluna.nome}</span>
+                    </h2>
+                    <span className="flex items-center gap-3 shrink-0">
+                      {paginas > 1 && (
+                        <span className="text-[20px] font-medium text-papel-suave numero">
+                          {pagina + 1}/{paginas}
+                        </span>
+                      )}
+                      <span className="inline-grid place-items-center min-w-11 h-10 px-3 rounded-full bg-grafite-3 text-[24px] font-semibold text-papel numero leading-none">
+                        {coluna.itens.length}
+                      </span>
+                    </span>
+                  </header>
+                  {/* altura fixa por densidade: cartões da mesma linha alinham entre colunas */}
+                  <div className="flex-1 min-h-0 grid content-start" style={{ gap: VAO_CARTAO_PX, gridAutoRows: ALTURA_TV[densidade] }}>
+                    {itensPagina.map((i) => (
+                      <CartaoTV key={i.v.os.id} item={i} agora={agora} perfis={perfisQ.data ?? []} densidade={densidade} estreito={estreito} />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
           </div>
         )}
       </main>
@@ -194,14 +193,14 @@ export function ProducaoTV() {
           </li>
         </ul>
         <div className="flex items-center gap-3 text-papel-suave numero">
-          {paginas > 1 && (
+          {paginasColunas > 1 && (
             <>
               <span className="font-medium">
-                Página {atual + 1} de {paginas}
+                Etapas {paginaColunas + 1} de {paginasColunas}
               </span>
               <span className="flex gap-1.5" aria-hidden="true">
-                {Array.from({ length: paginas }, (_, i) => (
-                  <span key={i} className={`w-3 h-3 rounded-full ${i === atual ? "bg-amarelo" : "bg-grafite-3"}`} />
+                {Array.from({ length: paginasColunas }, (_, i) => (
+                  <span key={i} className={`w-3 h-3 rounded-full ${i === paginaColunas ? "bg-amarelo" : "bg-grafite-3"}`} />
                 ))}
               </span>
             </>

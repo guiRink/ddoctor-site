@@ -216,6 +216,8 @@ export const ACAO_AUDITORIA: Record<string, string> = {
   entrada_compra: "Entrada no estoque",
   consumo_interno: "Consumo interno",
   ajuste: "Ajuste de estoque",
+  adicionar_foto: "Adicionou foto",
+  remover_foto: "Removeu foto",
 };
 
 /** Rótulo da ação; ação desconhecida vira "Texto com espaços". */
@@ -285,6 +287,35 @@ export const ERRO: Record<string, string> = {
   data_futura: "Essa data ainda não chegou. Use hoje ou um dia que já passou.",
   os_quitada: "Esta OS já está quitada.",
   os_fechada: "Esta OS já foi entregue, encerrada ou cancelada; a recepção não pode mais ser alterada.",
+  // sprint SF: fotos reais, tipos de reparo e configuração editável
+  arquivo_invalido: "Esse arquivo não é uma foto que o painel consiga abrir. Use JPG, PNG, WebP ou a câmera.",
+  arquivo_grande: "Foto grande demais (acima de 25 MB). Tire de novo ou escolha outra.",
+  fotos_temporarias: "Foto salva só nesta aba: o navegador não deixou guardar no aparelho (modo privado?). Ela some ao fechar.",
+  foto_nao_encontrada: "Foto não encontrada. Atualize a tela.",
+  foto_externa: "Foto da vistoria da Maxpar: não pode ser removida pelo painel.",
+  foto_em_uso: "É a única foto que comprova uma etapa já concluída; não pode ser removida.",
+  fase_invalida: "Escolha a fase da foto: entrada, durante ou final (foto de etapa: durante ou final).",
+  nome_duplicado: "Já existe um tipo de reparo com esse nome.",
+  sem_etapas: "Inclua ao menos uma etapa.",
+  etapa_invalida: "Cada etapa precisa de nome (até 60 letras); no máximo 20 etapas.",
+  ordem_invalida: "A ordem das etapas tem buraco ou repetição. Reorganize e salve de novo.",
+  prazo_invalido: "Informe o prazo da etapa em horas, maior que zero (até 200 h).",
+  tipo_nao_encontrado: "Tipo de reparo não encontrado. Atualize a tela.",
+  expediente_invalido: "Expediente inválido: marque ao menos um dia e use início antes do fim (HH:MM).",
+  nada_a_salvar: "Nada mudou para salvar.",
+};
+
+/**
+ * Mensagem do valor_invalido de salvarConfig por campo (Resultado.campo), com os limites de LIMITES_CONFIG.
+ * Uso: `ERRO_CAMPO_CONFIG[r.campo ?? ""] ?? mensagemErro(r.codigo)`.
+ */
+export const ERRO_CAMPO_CONFIG: Record<string, string> = {
+  vagasEntrada: "Entradas por dia: um número inteiro de 1 a 30.",
+  carrosSimultaneos: "Carros ao mesmo tempo: um número inteiro de 1 a 60.",
+  pecasDia: "Peças por dia: um número inteiro de 1 a 200.",
+  laranjaAntesHoras: "Laranja: um número inteiro de horas úteis, de 1 a 80.",
+  vermelhoBloqueioHoras: "Vermelho por impedimento: um número inteiro de horas úteis, de 1 a 80.",
+  sabadoFim: "Fim do sábado: use HH:MM, depois do início do expediente.",
 };
 
 export const MENU: { modulo: Modulo; rota: string; nome: string; icone: NomeIcone; grupo: "operacao" | "gestao" | "sistema" }[] = [

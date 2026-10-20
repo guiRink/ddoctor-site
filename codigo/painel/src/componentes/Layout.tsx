@@ -6,6 +6,7 @@ import { useSessao } from "../dados/sessao";
 import { Icone } from "./Icone";
 import { iniciais } from "./ui/Basicos";
 import { MarcaD } from "./ui/Marca";
+import { SeletorTema } from "./ui/SeletorTema";
 import { sairDaSessao } from "./PinGate";
 
 /** Casca do painel: barra lateral (desktop), barra inferior (celular), topo com busca e "Ver como". */
@@ -86,21 +87,24 @@ export function Layout() {
           })}
         </nav>
         <div className="shrink-0 border-t border-linha p-3">
-          <div className="flex items-center gap-2.5 px-1.5">
+          <div className="flex items-center gap-2 px-1">
             <span className="inline-grid place-items-center w-8 h-8 rounded-full bg-cinza-200 text-tinta text-[12px] font-semibold shrink-0">{iniciais(perfil.nome)}</span>
             <span className="min-w-0 flex-1 leading-tight">
-              <span className="block text-[13px] font-semibold truncate">{perfil.nome}</span>
+              <span className="block text-[13px] font-semibold truncate" title={perfil.nome}>{perfil.nome}</span>
               <span className="block text-[12px] text-tinta-fraca">{PAPEL[perfil.papel]}</span>
             </span>
-            <button
-              type="button"
-              onClick={sair}
-              title="Sair"
-              aria-label="Sair"
-              className="inline-grid place-items-center w-8 h-8 rounded-controle text-tinta-fraca hover:text-tinta hover:bg-cinza-100 transition-colors duration-150"
-            >
-              <Icone nome="sair" tamanho={16} />
-            </button>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <SeletorTema />
+              <button
+                type="button"
+                onClick={sair}
+                title="Sair"
+                aria-label="Sair"
+                className="inline-grid place-items-center w-7 h-7 rounded-controle text-tinta-fraca hover:text-tinta hover:bg-cinza-100 transition-colors duration-150"
+              >
+                <Icone nome="sair" tamanho={16} />
+              </button>
+            </div>
           </div>
         </div>
       </aside>
@@ -240,6 +244,7 @@ export function Layout() {
                 ))}
               </nav>
               <div className="border-t border-linha px-5 py-3 flex flex-col gap-3">
+                <SeletorTema variante="segmentos" />
                 <label className="flex flex-col gap-1.5 text-[13px] font-medium text-tinta-suave">
                   Ver o painel como (demonstração)
                   <select

@@ -1,13 +1,18 @@
 import { useId, useState, type FormEvent } from "react";
-import type { ConfigOficina, EtapaOS, MarcoISO } from "@compartilhado/tipos";
+import type { ConfigOficina, EtapaOS, Foto, Id, MarcoISO } from "@compartilhado/tipos";
+import { fotosDaEtapa } from "@compartilhado/dominio/fotos";
 import { progressoEtapas, semaforoEtapa } from "@compartilhado/dominio/semaforo";
 import { formatarDuracao, tempoBloqueada, tempoEmExecucao, tempoEmFila } from "@compartilhado/dominio/tempos";
-import type { OSVisao } from "../../dados/repositorio";
+import type { DadosConclusaoEtapa, OSVisao } from "../../dados/repositorio";
 import { mensagemErro, useAcoes } from "../../dados/hooks";
+import { useSessao } from "../../dados/sessao";
+import { podeAdicionarFoto, podeRemoverFoto } from "../../dominio/permissoes";
 import { ESTADO_ETAPA, TECNICA } from "../../dominio/rotulos";
 import { Botao, SUPERFICIE } from "../ui/Basicos";
 import { Etiqueta, Semaforo } from "../ui/Estado";
 import { Placa } from "../ui/Placa";
+import { CapturaFoto, type EstadoCaptura } from "../fotos/CapturaFoto";
+import { Icone } from "../Icone";
 import { formatarPrazo } from "./quadro";
 
 /** Motivos de impedimento (docs/painel-informacoes.md §3.5). "Outro" exige o texto. */
@@ -47,6 +52,7 @@ export function CartaoTarefa({
   onRetorno: (r: Retorno) => void;
 }) {
   const acoes = useAcoes();
+  const { perfil } = useSessao();
   const [modo, setModo] = useState<Modo>("normal");
   const [erro, setErro] = useState("");
   const id = useId();
@@ -177,6 +183,12 @@ export function CartaoTarefa({
           {modo === "concluir" && (
             <FormConcluir
               etapa={etapa}
+              osId={v.os.id}
+              fotos={fotosDaEtapa(v.fotos, v.os.id, etapa.id)}
+              // a foto da última etapa é a do carro pronto ("final"); as outras, "durante"
+              fase={proxima ? "durante" : "final"}
+              podeFotografar={podeAdicionarFoto(perfil.papel)}
+              podeRemover={(f) => podeRemoverFoto(perfil.papel, f, perfil.id)}
               ocupado={acoes.concluirEtapa.isPending}
               onVoltar={() => {
                 setModo("normal");
@@ -227,31 +239,47 @@ function pecasDoServico(v: OSVisao) {
 
 function FormConcluir({
   etapa,
+  osId,
+  fotos,
+  fase,
+  podeFotografar,
+  podeRemover,
   ocupado,
   onVoltar,
   onConfirmar,
 }: {
   etapa: EtapaOS;
+  osId: Id;
+  /** Fotos já ligadas a esta etapa. */
+  fotos: Foto[];
+  fase: "durante" | "final";
+  podeFotografar: boolean;
+  podeRemover: (f: Foto) => boolean;
   ocupado: boolean;
   onVoltar: () => void;
-  onConfirmar: (dados: { pecasFeitas?: number; temFoto?: boolean }) => void;
+  onConfirmar: (dados: DadosConclusaoEtapa) => void;
 }) {
   const id = useId();
   const pedeContagem = etapa.pecasPrevistas !== undefined || Boolean(etapa.exigeContagemPecas);
   const [pecas, setPecas] = useState(etapa.exigeContagemPecas ? "" : String(etapa.pecasPrevistas ?? 0));
-  const [foto, setFoto] = useState(false);
+  const [captura, setCaptura] = useState<EstadoCaptura>({ ids: fotos.map((f) => f.id), ocupado: false });
+  // sem exigência, a foto é opcional e fica recolhida (abre sozinha se já houver foto da etapa)
+  const [abrirOpcional, setAbrirOpcional] = useState(fotos.length > 0);
   const n = Number(pecas);
   const pecasOk = !pedeContagem || (pecas.trim() !== "" && Number.isInteger(n) && n >= 0);
-  const pode = pecasOk && (!etapa.exigeFoto || foto) && !ocupado;
+  const qtdFotos = captura.ids.length;
+  const fotoOk = !etapa.exigeFoto || qtdFotos > 0;
+  const pode = pecasOk && fotoOk && !captura.ocupado && !ocupado;
+  const mostrarCaptura = podeFotografar && (etapa.exigeFoto || abrirOpcional);
 
   function enviar(e: FormEvent) {
     e.preventDefault();
     if (!pode) return;
-    onConfirmar({ pecasFeitas: pedeContagem ? n : undefined, temFoto: etapa.exigeFoto ? foto : undefined });
+    onConfirmar({ pecasFeitas: pedeContagem ? n : undefined, fotoIds: qtdFotos ? captura.ids : undefined });
   }
 
   return (
-    <form onSubmit={enviar} className="flex flex-col gap-4 border-t border-linha pt-4">
+    <form onSubmit={enviar} className="flex flex-col gap-5 border-t border-linha pt-4">
       <p className="text-[16px] font-semibold">Concluir {etapa.nome}</p>
 
       {pedeContagem && (
@@ -292,24 +320,66 @@ function FormConcluir({
         </div>
       )}
 
-      {etapa.exigeFoto && (
-        <label
-          className={`flex items-center gap-3 min-h-14 px-3 rounded-controle border cursor-pointer transition-colors duration-150 ${foto ? "border-amarelo-escuro bg-amarelo-claro" : "border-linha-forte bg-cartao"}`}
-        >
-          <input type="checkbox" checked={foto} onChange={(e) => setFoto(e.target.checked)} className="w-6 h-6 shrink-0" />
-          <span className="text-[16px] font-medium leading-snug">Tirei a foto do serviço pronto</span>
-        </label>
+      {etapa.exigeFoto || mostrarCaptura ? (
+        <section aria-labelledby={`${id}-fotos`} className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <h4 id={`${id}-fotos`} className="text-[14px] font-medium">
+              {fase === "final" ? "Foto do carro pronto" : "Foto do serviço pronto"}
+              {!etapa.exigeFoto && <span className="font-normal text-tinta-fraca"> · opcional</span>}
+            </h4>
+            {qtdFotos > 0 ? (
+              <Etiqueta tom="ok">{qtdFotos === 1 ? "1 foto" : `${qtdFotos} fotos`}</Etiqueta>
+            ) : (
+              etapa.exigeFoto && <Etiqueta tom="neutro">Obrigatória</Etiqueta>
+            )}
+          </div>
+          {podeFotografar ? (
+            <CapturaFoto
+              osId={osId}
+              fase={fase}
+              etapaId={etapa.id}
+              fotos={fotos}
+              podeRemover={podeRemover}
+              rotulo={`Fotos de ${etapa.nome}`}
+              onEstado={setCaptura}
+            />
+          ) : (
+            <p className="text-[13px] text-tinta-suave">Seu acesso não permite tirar foto. Peça a quem está no carro.</p>
+          )}
+          {etapa.exigeFoto && qtdFotos === 0 && !captura.ocupado && (
+            <p className="text-[13px] text-tinta-suave">Esta etapa exige foto. Tire ao menos uma antes de concluir; pode tirar várias.</p>
+          )}
+        </section>
+      ) : (
+        podeFotografar && (
+          <button
+            type="button"
+            aria-expanded={false}
+            onClick={() => setAbrirOpcional(true)}
+            className="flex items-center gap-3 min-h-12 px-3 -mx-1 rounded-controle text-left text-[15px] font-medium text-tinta-suave hover:text-tinta hover:bg-cinza-100 transition-colors duration-150"
+          >
+            <Icone nome="camera" tamanho={20} className="shrink-0" />
+            <span className="flex-1">Adicionar foto <span className="font-normal text-tinta-fraca">(opcional)</span></span>
+            <Icone nome="baixo" tamanho={18} className="shrink-0" />
+          </button>
+        )
       )}
-      {etapa.exigeFoto && !foto && <p className="-mt-2 text-[13px] text-tinta-suave">Esta etapa exige foto. Tire a foto antes de concluir.</p>}
 
       {!pedeContagem && !etapa.exigeFoto && <p className="text-[14px] text-tinta-suave">Confirme que terminou esta etapa. A próxima entra na fila.</p>}
 
-      <Botao type="submit" variante="primario" tamanho="grande" icone="ok" className="w-full" disabled={!pode}>
-        {ocupado ? "Concluindo…" : "Confirmar conclusão"}
-      </Botao>
-      <Botao variante="fantasma" className="w-full" onClick={onVoltar}>
-        Voltar
-      </Botao>
+      <div className="flex flex-col gap-2">
+        <Botao type="submit" variante="primario" tamanho="grande" icone="ok" className="w-full" disabled={!pode} aria-describedby={!pode && captura.ocupado ? `${id}-espera` : undefined}>
+          {ocupado ? "Concluindo…" : "Confirmar conclusão"}
+        </Botao>
+        {captura.ocupado && (
+          <p id={`${id}-espera`} className="text-[13px] text-tinta-suave text-center">
+            Aguarde a foto terminar de salvar.
+          </p>
+        )}
+        <Botao variante="fantasma" className="w-full" onClick={onVoltar}>
+          Voltar
+        </Botao>
+      </div>
     </form>
   );
 }
