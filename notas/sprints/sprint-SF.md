@@ -9,4 +9,4 @@ Branch `sprint/sf-pedidos-dono`. Pedidos que o dono passou pelo Guilherme depois
 - [x] Criar nova categoria de serviço (tipo de reparo) na hora de escolher, com as etapas dela
 - [x] Ajustes → "Agenda e capacidade" editável pelo dono (carros ao mesmo tempo, entradas por dia, peças por dia)
 - [x] Produção e quadro da TV refeitos: dinâmicos, todas as etapas visíveis, fáceis no celular, mais bonitos
-- [ ] Crítica do designer, revisão QA, notas, merge e publicação
+- [x] Crítica do designer, revisão QA, notas, merge e publicação (merge e publicação em 20/10/2026)
