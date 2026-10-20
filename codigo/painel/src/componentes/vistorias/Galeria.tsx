@@ -162,6 +162,7 @@ function FotoAmpliada({
       onClose={() => onTrocar(null)}
       onKeyDown={teclas}
       aria-label={f ? `Foto ampliada: ${textoAlt(f)}` : "Foto ampliada"}
+      data-tema="claro"
       className="m-auto p-0 border-0 rounded-cartao overflow-hidden bg-preto text-papel w-[min(1200px,96vw)] max-h-[96svh] backdrop:bg-preto/85"
     >
       {f && indice !== null && (

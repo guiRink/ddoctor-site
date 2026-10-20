@@ -109,7 +109,8 @@ export function ProducaoTV() {
   const desatualizado = atualizadoEm > 0 && Date.parse(agora) - atualizadoEm > SEM_ATUALIZAR_MS;
 
   return (
-    <div className="fixed inset-0 bg-preto text-papel cursor-none select-none overflow-hidden flex flex-col">
+    // escura por desenho em qualquer tema: o escopo claro mantém `text-papel`/`text-cartao` claros (docs/painel-design.md "Tema escuro")
+    <div data-tema="claro" className="fixed inset-0 bg-preto text-papel cursor-none select-none overflow-hidden flex flex-col">
       {/* cabeçalho */}
       <header className="shrink-0 flex items-center gap-8 px-8 border-b border-linha-clara" style={{ height: CABECALHO_PX }}>
         <div className="flex items-center gap-5 shrink-0">

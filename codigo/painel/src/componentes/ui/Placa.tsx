@@ -3,6 +3,7 @@ import { normalizarPlaca } from "@compartilhado/dominio/placa";
 /**
  * Placa no formato Mercosul — o identificador visual de cada carro em todo o painel
  * (docs/painel-design.md §3). Faixa azul com "BRASIL", corpo branco, caracteres largos.
+ * Branca em qualquer tema (é uma placa real): `data-tema="claro"` fixa os tokens dentro dela.
  */
 type Tamanho = "p" | "m" | "g" | "tv";
 
@@ -32,6 +33,7 @@ export function Placa({
   const valor = normalizarPlaca(placa);
   return (
     <span
+      data-tema="claro"
       className={`inline-flex flex-col bg-cartao border-preto select-all overflow-hidden ${t.borda} ${
         encolher ? `w-full ${t.maximo}` : `shrink-0 ${t.largura}`
       } ${className}`}

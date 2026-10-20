@@ -49,7 +49,7 @@ export function Marcador({
   return (
     <span
       aria-hidden="true"
-      className={`inline-grid place-items-center shrink-0 rounded-full font-semibold leading-none numero shadow-[0_0_0_2px_#fff] ${COR_TIPO[tipo]} ${DIAMETRO[tamanho]} ${
+      className={`inline-grid place-items-center shrink-0 rounded-full font-semibold leading-none numero shadow-[0_0_0_2px_var(--tema-cartao)] ${COR_TIPO[tipo]} ${DIAMETRO[tamanho]} ${
         selecionado ? "outline-2 outline-offset-2 outline-amarelo-escuro" : ""
       } ${className}`}
     >
@@ -176,7 +176,7 @@ export function MapaAvarias({
             aria-selected={ativa}
             onClick={() => setVista(v)}
             className={`shrink-0 inline-flex items-center gap-1.5 h-10 md:h-8 px-3 rounded-controle text-[13px] whitespace-nowrap transition-colors duration-150 ${
-              ativa ? "bg-cartao text-tinta font-semibold shadow-[0_1px_2px_rgba(17,17,17,0.08)] ring-1 ring-linha" : "text-tinta-suave font-medium hover:text-tinta"
+              ativa ? "bg-elevado text-tinta font-semibold shadow-segmento ring-1 ring-linha" : "text-tinta-suave font-medium hover:text-tinta"
             }`}
           >
             {VISTA_AVARIA[v]}

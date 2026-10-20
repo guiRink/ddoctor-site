@@ -216,7 +216,7 @@ export function FiltroSelecao({
 // ------------------------------------------------------------------ escolhas
 
 const OPCAO_SEGMENTO = "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-amarelo-escuro has-[:focus-visible]:outline-offset-1";
-const SEGMENTO_ATIVO = "bg-cartao text-tinta font-semibold shadow-[0_1px_2px_rgba(17,17,17,0.08)] ring-1 ring-linha";
+const SEGMENTO_ATIVO = "bg-elevado text-tinta font-semibold shadow-segmento ring-1 ring-linha";
 const SEGMENTO_INATIVO = "text-tinta-suave font-medium hover:text-tinta";
 
 /**

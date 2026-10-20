@@ -61,7 +61,7 @@ export function ImprimirOS() {
 
   if (consulta.isError || config.isError) {
     return (
-      <div className="min-h-svh bg-papel">
+      <div data-tema="claro" className="min-h-svh bg-papel">
         {barra}
         <div className="mx-auto max-w-[210mm] p-4">
           <Erro mensagem="Não consegui carregar esta OS para impressão." onTentar={() => [consulta, config].forEach((c) => c.refetch())} />
@@ -71,7 +71,7 @@ export function ImprimirOS() {
   }
   if (consulta.isPending || !config.data) {
     return (
-      <div className="min-h-svh bg-papel">
+      <div data-tema="claro" className="min-h-svh bg-papel">
         {barra}
         <div className="mx-auto max-w-[210mm] p-4">
           <Esqueleto linhas={8} />
@@ -81,7 +81,7 @@ export function ImprimirOS() {
   }
   if (consulta.data === null) {
     return (
-      <div className="min-h-svh bg-papel">
+      <div data-tema="claro" className="min-h-svh bg-papel">
         {barra}
         <div className="mx-auto max-w-[210mm] p-4">
           <Erro mensagem="OS não encontrada. Ela pode ter sido removida junto com os dados de demonstração." />
@@ -109,7 +109,7 @@ export function ImprimirOS() {
   const emitido = `${dataLonga(dataNoFuso(agora))} ${hora(agora)}`;
 
   return (
-    <div className="min-h-svh bg-papel print:bg-cartao print:min-h-0">
+    <div data-tema="claro" className="min-h-svh bg-papel print:bg-cartao print:min-h-0">
       <style>{ESTILO_IMPRESSAO}</style>
       {barra}
 

@@ -44,7 +44,7 @@ export function GrupoFiltros<T extends string>({
                 onClick={() => onMudar(o.valor)}
                 className={`shrink-0 inline-flex items-center gap-1.5 h-10 md:h-8 px-3 rounded-controle text-[13px] whitespace-nowrap transition-colors duration-150 ${
                   ativo
-                    ? "bg-cartao text-tinta font-semibold shadow-[0_1px_2px_rgba(17,17,17,0.08)] ring-1 ring-linha"
+                    ? "bg-elevado text-tinta font-semibold shadow-segmento ring-1 ring-linha"
                     : "text-tinta-suave font-medium hover:text-tinta"
                 }`}
               >

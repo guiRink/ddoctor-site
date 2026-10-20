@@ -15,7 +15,7 @@ const VARIANTE: Record<Variante, string> = {
   contorno: "bg-cartao text-tinta border border-linha-forte shadow-controle hover:bg-cinza-50 hover:border-tinta-fraca",
   perigo: "bg-cartao text-alerta border border-alerta/35 shadow-controle hover:bg-alerta-claro hover:border-alerta",
   fantasma: "bg-transparent text-tinta-suave hover:text-tinta hover:bg-cinza-100",
-  escuro: "bg-preto text-cartao hover:bg-grafite-3",
+  escuro: "bg-tinta text-cartao hover:bg-tinta/85",
 };
 
 // Alturas: denso 36 (40 no celular), padrão 40 (44 no celular), grande 56 (produção no celular).

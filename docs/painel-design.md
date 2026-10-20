@@ -1,6 +1,6 @@
 # Painel D doctor — sistema visual
 
-Data: 12/10/2026, revisado em 13/10/2026 (sprint SE; revisão final de consistência no fim do SE). Fonte da verdade da aparência do painel; complementa o `DESIGN.md` (identidade da landing). Quem mantém: `designer-painel`. Toda tela nova segue este documento; padrão novo entra aqui antes de entrar no código.
+Data: 12/10/2026, revisado em 13/10/2026 (sprint SE; revisão final de consistência no fim do SE) e em 20/10/2026 (tema escuro, sprint SF — §7). Fonte da verdade da aparência do painel; complementa o `DESIGN.md` (identidade da landing). Quem mantém: `designer-painel`. Toda tela nova segue este documento; padrão novo entra aqui antes de entrar no código.
 
 ## Revisão SE (13/10/2026) — direção clean
 
@@ -93,13 +93,14 @@ Movimento: só para mudança de estado, 150–200 ms, `cubic-bezier(.22,1,.36,1)
 | Impressão (`ImprimirOS`) | OS/orçamento em A4 | Fora do `Layout`: barra branca com Voltar e "Imprimir" (primário), escondida na impressão. Folha A4 retrato (`@page` 12 mm), branca, corpo 12 px, marca `MarcaD` + "D doctor" à esquerda, "Ordem de serviço" e número à direita, régua preta de 2 px sob o cabeçalho; seções separadas por `linha`; tabelas sem fundo; total em 600; assinaturas com linha preta. Só a Placa e a marca têm cor. |
 | `Vazio` / `Erro` / `Carregando` | Estados | Vazio ensina a próxima ação (ícone em quadrado `cinza-100` raio 8); Erro em `alerta-claro` raio 8 com "Tentar de novo"; Carregando é esqueleto `cinza-100` na forma do conteúdo, nunca spinner no meio. |
 | `Provisorio` | Valor ainda não confirmado pelo dono | Sublinhado pontilhado `atencao` + dica "provisório — a confirmar". |
+| `SeletorTema` (`ui/SeletorTema.tsx`, lógica em `ui/tema.ts`) | Escolha do tema pelo usuário (sprint SF) | Claro / Escuro / Automático, salvo no aparelho (`localStorage` `ddoctor.tema`; "Automático" = sem chave). Barra lateral: botão só ícone 28 px (sol, lua ou meio-círculo) entre o perfil e o Sair; abre menu para cima (`role="menu"`, opções `menuitemradio` 36 px com ícone 16 e visto na marcada; setas, Home/End, Esc devolve o foco). Celular: `Segmentado` de largura total "Tema" no menu "Mais", acima do "Ver como". Ícones novos no `Icone`: `sol`, `lua`, `automatico`. |
 
 ## 4. Superfícies
 
 | Superfície | Tela | Padrão |
 | --- | --- | --- |
-| Recepção / escritório (1366–1920 px) | Todas as abas | Barra lateral **branca** 232 px com borda direita: `MarcaD` + "D doctor / Painel da oficina"; grupos com cabeçalho 12/500 `tinta-fraca` (sentence case); itens 36 px, ícone 18 + texto 14/500 `tinta-suave`; ativo `cinza-100`, texto 600 `tinta`, ícone `amarelo-escuro`; rodapé com avatar, nome, papel e botão Sair só ícone. Topo branco 56 px: busca (campo `papel` raio 6 com ícone, até 448 px), "Ver como" discreto, botão primário **Novo atendimento** 36 px. Conteúdo em `papel`, largura máxima 1440 px, margens 32 px. |
-| Celular (390 px) | Produção "Minhas tarefas", consultas rápidas do dono | Topo branco com `MarcaD`, busca e "+" amarelo 40 px. Menu vira barra inferior **branca** com borda superior, 5 itens (ícone 22 + rótulo 11 em até 2 linhas, nunca cortado); ativo em tinta 600 com traço amarelo de 2 px no topo. "Mais" abre folha branca com raio 12 no topo. Botões de ação 56 px, um cartão por tarefa, Iniciar/Concluir/Impedimento grandes e separados. |
+| Recepção / escritório (1366–1920 px) | Todas as abas | Barra lateral **branca** 232 px com borda direita: `MarcaD` + "D doctor / Painel da oficina"; grupos com cabeçalho 12/500 `tinta-fraca` (sentence case); itens 36 px, ícone 18 + texto 14/500 `tinta-suave`; ativo `cinza-100`, texto 600 `tinta`, ícone `amarelo-escuro`; rodapé com avatar, nome, papel, `SeletorTema` e botão Sair, os dois só ícone 28 px. Topo branco 56 px: busca (campo `papel` raio 6 com ícone, até 448 px), "Ver como" discreto, botão primário **Novo atendimento** 36 px. Conteúdo em `papel`, largura máxima 1440 px, margens 32 px. |
+| Celular (390 px) | Produção "Minhas tarefas", consultas rápidas do dono | Topo branco com `MarcaD`, busca e "+" amarelo 40 px. Menu vira barra inferior **branca** com borda superior, 5 itens (ícone 22 + rótulo 11 em até 2 linhas, nunca cortado); ativo em tinta 600 com traço amarelo de 2 px no topo. "Mais" abre folha branca com raio 12 no topo (lista completa, "Tema", "Ver como" e Sair). Botões de ação 56 px, um cartão por tarefa, Iniciar/Concluir/Impedimento grandes e separados. |
 | TV (1920×1080) | Produção TV | Continua escura: fundo `preto` `#111`, cartões `grafite`/`grafite-2` raio 8, colunas por etapa, cabeçalho do cartão na cor do semáforo, `Placa` tamanho `tv`, tempo e responsável em 24 px+, rodapé com relógio e "atualizado há X s". Rótulos em sentence case (sem caixa-alta espaçada). Sem cursor, sem foco, sem rolagem: se não couber, rotaciona páginas a cada 20 s. Motivo do impedimento em até 2 linhas; legenda separa cor (No prazo · Atenção · Atrasado · Pronto) do ícone de impedido. |
 | PIN | Entrada | Fundo `papel`, cartão branco raio 12 centralizado com `MarcaD`, campo 48 px e botão primário de largura total. |
 
@@ -121,3 +122,36 @@ Movimento: só para mudança de estado, 150–200 ms, `cubic-bezier(.22,1,.36,1)
 ## 6. Texto
 
 Português do Brasil, frases curtas, verbo no botão ("Registrar entrada", "Concluir etapa"). Datas "12/10", "seg 12/10"; horas "14:30"; durações "2 h 15 min"; dinheiro "R$ 1.234,56". Nada de "Lorem", nada de número inventado sobre a oficina fora do modo demonstração.
+
+## 7. Tema escuro (sprint SF)
+
+Pedido do dono: modo escuro com opção para o usuário escolher. **Claro continua o padrão do desenho**; o escuro é o mesmo painel com outros valores — mesmos nomes de token, mesma hierarquia, mesma regra de cor.
+
+**Como funciona.** Os tokens que mudam com o tema estão em `@theme inline` apontando para variáveis `--tema-*` (`estilos.css`). Os valores claros ficam em `:root, [data-tema="claro"]`; os escuros em `:root[data-tema="escuro"], [data-tema="escuro"]` e, para "Automático", em `@media (prefers-color-scheme: dark) { :root:not([data-tema="claro"]) }` (os dois blocos escuros têm os mesmos valores: mude juntos). Como a classe usa `var(--tema-…)` direto, `bg-cartao`, `text-tinta`, `border-linha`, `ok/atencao/alerta(-claro)` etc. trocam sozinhas, **sem `dark:` nas telas**. O `<html data-tema>` é aplicado por um script inline no `index.html` antes do primeiro render (sem piscar), que também acerta `<meta name="theme-color">` (`#FFFFFF` / `#17181A`). Em desenvolvimento, `?tema=claro|escuro|automatico` fixa o tema (capturas), como o `?dev=1`.
+
+| Token | Claro | Escuro |
+| --- | --- | --- |
+| `papel` (fundo) | `#F7F7F5` | `#0F0F10` |
+| `cartao` (superfícies) | `#FFFFFF` | `#17181A` |
+| `elevado` (novo: opção selecionada de `Segmentos`/`Segmentado`) | `#FFFFFF` | `#2A2B2F` |
+| `cinza-50` / `cinza-100` / `cinza-200` | `#FAFAF9` / `#F2F2EF` / `#E8E7E3` | `#1B1C1F` / `#1F2023` / `#2C2D32` |
+| `tinta` / `tinta-suave` / `tinta-fraca` | `#111111` / `#6B6B6B` / `#8C8C87` | `#EDEDED` / `#A1A1A6` / `#77777D` |
+| `linha` / `linha-forte` | `#E7E5E0` / `#D5D3CD` | `#2A2B2F` / `#3A3B40` |
+| `amarelo-claro` / `amarelo-tinta` | `#FEF7D6` / `#7A5C00` | amarelo 12 % / `#F2CF4A` |
+| `ok` / `ok-claro` | `#1F7A4A` / `#EAF5EE` | `#4CC38A` / verde 14 % |
+| `atencao` / `atencao-claro` | `#B45309` / `#FDF1E2` | `#F0A050` / laranja 14 % |
+| `alerta` / `alerta-claro` | `#B93A2C` / `#FCEDEB` | `#F2766A` / vermelho 14 % |
+| `maxpar` / `maxpar-claro` | `#2F4A7A` / `#EAEFF7` | `#93B1E6` / azul 14 % |
+| `shadow-cartao` / `-controle` / `-segmento` / `-flutuante` | 4 % / 4 % / 8 % / 20 % de `#111` | preto 30 % / 30 % / 40 % / 70 % + contorno branco 6 % no flutuante |
+| Seta do select | `#6B6B6B` | `#A1A1A6` |
+
+**Fixos (iguais nos dois temas):** `amarelo` `#F2C200` e `amarelo-escuro` (o botão primário é amarelo com texto **preto** em qualquer tema), `preto`, `grafite`, `grafite-2`, `grafite-3`, `linha-clara`, `papel-suave`, `papel-fraco`, raios, fonte.
+
+**Regras.**
+1. **Nada de cor fixa nas telas.** Sem `bg-white`, `text-black`, `#fff`, `bg-[#…]` ou `rgba(` em classe; em valor arbitrário use a variável (`shadow-[0_0_0_2px_var(--tema-cartao)]`). Texto claro sobre cor de estado usa `text-cartao` (no escuro vira texto escuro sobre a cor clara — contraste AA nos dois).
+2. **A `Placa` é sempre branca com faixa azul** (é uma placa real): o componente tem `data-tema="claro"`.
+3. **A impressão é sempre clara** (papel é branco): as raízes de `ImprimirOS` têm `data-tema="claro"`.
+4. **A TV e a galeria de fotos são escuras por desenho, em qualquer tema**: usam só tokens fixos (`preto`, `grafite*`, `papel-suave`) e a raiz tem `data-tema="claro"`, para `text-papel` e `text-cartao` continuarem claros. Não mudam com a escolha do usuário.
+5. Superfície nova escura por desenho ou clara por obrigação segue o mesmo padrão: `data-tema="claro"` na raiz.
+6. `color-scheme` acompanha o tema (barras de rolagem, calendário e campos nativos).
+7. Toda tela nova é capturada nos dois temas (`?tema=escuro`) antes de ir ao dono.

@@ -7,6 +7,20 @@
     <meta name="robots" content="noindex" />
     <meta name="theme-color" content="#FFFFFF" />
     <title>Painel — D doctor</title>
+    <script>
+      // Tema antes do primeiro render (sem piscar). Mesma regra de src/componentes/ui/tema.ts.
+      (function () {
+        var t = "automatico";
+        try {
+          var s = localStorage.getItem("ddoctor.tema");
+          if (s === "claro" || s === "escuro") t = s;
+        } catch (e) {}
+        document.documentElement.setAttribute("data-tema", t);
+        var escuro = t === "escuro" || (t === "automatico" && !!window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        var m = document.querySelector('meta[name="theme-color"]');
+        if (m) m.setAttribute("content", escuro ? "#17181A" : "#FFFFFF");
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

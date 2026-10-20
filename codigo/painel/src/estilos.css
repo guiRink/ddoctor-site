@@ -20,28 +20,51 @@
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
-/* Tokens — docs/painel-design.md §2 (revisão SE: direção clean, 13/10/2026).
-   Os NOMES ficam (as telas usam); os VALORES mudaram. */
+/* Tokens — docs/painel-design.md §2 (revisão SE: direção clean, 13/10/2026) e "Tema escuro" (sprint SF).
+   Os NOMES do Tailwind ficam (as telas usam). Os tokens que mudam com o tema apontam para variáveis
+   `--tema-*` (definidas abaixo, por tema); com `@theme inline` a classe usa `var(--tema-…)` direto, então
+   `bg-cartao`, `text-tinta` etc. trocam sozinhas — inclusive dentro de um escopo `[data-tema]` (Placa, TV,
+   impressão), porque a variável é resolvida no próprio elemento. */
+@theme inline {
+  --color-amarelo-claro: var(--tema-amarelo-claro);
+  --color-amarelo-tinta: var(--tema-amarelo-tinta); /* texto sobre amarelo-claro */
+
+  --color-papel: var(--tema-papel); /* fundo da aplicação */
+  --color-cartao: var(--tema-cartao); /* superfícies: cartões, tabelas, barra lateral, topo */
+  --color-elevado: var(--tema-elevado); /* opção selecionada sobre trilho cinza (segmentos) */
+  --color-cinza-50: var(--tema-cinza-50); /* hover de linha de tabela/lista */
+  --color-cinza-100: var(--tema-cinza-100); /* hover de menu, trilho de segmentos, pílula neutra */
+  --color-cinza-200: var(--tema-cinza-200); /* item ativo do menu, avatar */
+  --color-tinta: var(--tema-tinta);
+  --color-tinta-suave: var(--tema-tinta-suave);
+  --color-tinta-fraca: var(--tema-tinta-fraca);
+  --color-linha: var(--tema-linha);
+  --color-linha-forte: var(--tema-linha-forte);
+
+  /* estados (sóbrios): texto da cor sobre tint */
+  --color-ok: var(--tema-ok);
+  --color-ok-claro: var(--tema-ok-claro);
+  --color-atencao: var(--tema-atencao);
+  --color-atencao-claro: var(--tema-atencao-claro);
+  --color-alerta: var(--tema-alerta);
+  --color-alerta-claro: var(--tema-alerta-claro);
+  --color-maxpar: var(--tema-maxpar);
+  --color-maxpar-claro: var(--tema-maxpar-claro);
+
+  /* sombra só como profundidade, nunca enfeite */
+  --shadow-cartao: var(--tema-sombra-cartao);
+  --shadow-controle: var(--tema-sombra-controle);
+  --shadow-segmento: var(--tema-sombra-segmento);
+  --shadow-flutuante: var(--tema-sombra-flutuante);
+}
+
+/* Tokens fixos: iguais nos dois temas. */
 @theme {
-  /* marca: amarelo só para ação primária, item ativo, foco e "hoje" */
+  /* marca: amarelo só para ação primária, item ativo, foco e "hoje" (texto preto em cima, sempre) */
   --color-amarelo: #f2c200;
   --color-amarelo-escuro: #d9a800;
-  --color-amarelo-claro: #fef7d6;
-  --color-amarelo-tinta: #7a5c00; /* texto sobre amarelo-claro */
 
-  /* neutros claros */
-  --color-papel: #f7f7f5; /* fundo da aplicação */
-  --color-cartao: #ffffff; /* superfícies: cartões, tabelas, barra lateral, topo */
-  --color-cinza-50: #fafaf9; /* hover de linha de tabela/lista */
-  --color-cinza-100: #f2f2ef; /* hover de menu, trilho de segmentos, pílula neutra */
-  --color-cinza-200: #e8e7e3; /* item ativo do menu, avatar */
-  --color-tinta: #111111;
-  --color-tinta-suave: #6b6b6b;
-  --color-tinta-fraca: #8c8c87;
-  --color-linha: #e7e5e0;
-  --color-linha-forte: #d5d3cd;
-
-  /* escuros (TV, galeria, botão escuro) */
+  /* escuros por desenho (placa, TV, galeria): não mudam com o tema */
   --color-preto: #111111;
   --color-grafite: #1a1a1a;
   --color-grafite-2: #1f1f1f;
@@ -50,34 +73,117 @@
   --color-papel-suave: rgba(247, 247, 245, 0.72);
   --color-papel-fraco: rgba(247, 247, 245, 0.5);
 
-  /* estados (sóbrios): texto escuro da cor sobre tint claro */
-  --color-ok: #1f7a4a;
-  --color-ok-claro: #eaf5ee;
-  --color-atencao: #b45309;
-  --color-atencao-claro: #fdf1e2;
-  --color-alerta: #b93a2c;
-  --color-alerta-claro: #fcedeb;
-  --color-maxpar: #2f4a7a;
-  --color-maxpar-claro: #eaeff7;
-
   --font-sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
 
   /* raio: 8 cartões, 6 controles e etiquetas retangulares; pílulas em rounded-full */
   --radius-cartao: 8px;
   --radius-controle: 6px;
 
-  /* sombra só como profundidade, nunca enfeite */
-  --shadow-cartao: 0 1px 2px rgba(17, 17, 17, 0.04);
-  --shadow-controle: 0 1px 1px rgba(17, 17, 17, 0.04);
-  --shadow-flutuante: 0 12px 32px -12px rgba(17, 17, 17, 0.2), 0 2px 6px rgba(17, 17, 17, 0.05);
-
   --ease-saida: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---- Tema claro (padrão). Também vale num escopo `[data-tema="claro"]` dentro de uma página escura:
+   a Placa (é uma placa real), a TV e a galeria (escuras por desenho, só com tokens fixos — o escopo garante
+   que `text-papel`/`text-cartao` continuem claros) e a folha de impressão (papel é branco). */
+:root,
+[data-tema="claro"] {
+  color-scheme: light;
+  --tema-amarelo-claro: #fef7d6;
+  --tema-amarelo-tinta: #7a5c00;
+  --tema-papel: #f7f7f5;
+  --tema-cartao: #ffffff;
+  --tema-elevado: #ffffff;
+  --tema-cinza-50: #fafaf9;
+  --tema-cinza-100: #f2f2ef;
+  --tema-cinza-200: #e8e7e3;
+  --tema-tinta: #111111;
+  --tema-tinta-suave: #6b6b6b;
+  --tema-tinta-fraca: #8c8c87;
+  --tema-linha: #e7e5e0;
+  --tema-linha-forte: #d5d3cd;
+  --tema-ok: #1f7a4a;
+  --tema-ok-claro: #eaf5ee;
+  --tema-atencao: #b45309;
+  --tema-atencao-claro: #fdf1e2;
+  --tema-alerta: #b93a2c;
+  --tema-alerta-claro: #fcedeb;
+  --tema-maxpar: #2f4a7a;
+  --tema-maxpar-claro: #eaeff7;
+  --tema-sombra-cartao: 0 1px 2px rgba(17, 17, 17, 0.04);
+  --tema-sombra-controle: 0 1px 1px rgba(17, 17, 17, 0.04);
+  --tema-sombra-segmento: 0 1px 2px rgba(17, 17, 17, 0.08);
+  --tema-sombra-flutuante: 0 12px 32px -12px rgba(17, 17, 17, 0.2), 0 2px 6px rgba(17, 17, 17, 0.05);
+  --tema-seta-select: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6b6b' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* ---- Tema escuro: escolhido (`data-tema="escuro"`) ou automático com o sistema escuro (bloco seguinte).
+   Os dois blocos têm OS MESMOS valores — mude os dois juntos. */
+:root[data-tema="escuro"],
+[data-tema="escuro"] {
+  color-scheme: dark;
+  --tema-amarelo-claro: rgba(242, 194, 0, 0.12);
+  --tema-amarelo-tinta: #f2cf4a;
+  --tema-papel: #0f0f10;
+  --tema-cartao: #17181a;
+  --tema-elevado: #2a2b2f;
+  --tema-cinza-50: #1b1c1f;
+  --tema-cinza-100: #1f2023;
+  --tema-cinza-200: #2c2d32;
+  --tema-tinta: #ededed;
+  --tema-tinta-suave: #a1a1a6;
+  --tema-tinta-fraca: #77777d;
+  --tema-linha: #2a2b2f;
+  --tema-linha-forte: #3a3b40;
+  --tema-ok: #4cc38a;
+  --tema-ok-claro: rgba(76, 195, 138, 0.14);
+  --tema-atencao: #f0a050;
+  --tema-atencao-claro: rgba(240, 160, 80, 0.14);
+  --tema-alerta: #f2766a;
+  --tema-alerta-claro: rgba(242, 118, 106, 0.14);
+  --tema-maxpar: #93b1e6;
+  --tema-maxpar-claro: rgba(147, 177, 230, 0.14);
+  --tema-sombra-cartao: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --tema-sombra-controle: 0 1px 1px rgba(0, 0, 0, 0.3);
+  --tema-sombra-segmento: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --tema-sombra-flutuante: 0 16px 40px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --tema-seta-select: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a1a1a6' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    color-scheme: dark;
+    --tema-amarelo-claro: rgba(242, 194, 0, 0.12);
+    --tema-amarelo-tinta: #f2cf4a;
+    --tema-papel: #0f0f10;
+    --tema-cartao: #17181a;
+    --tema-elevado: #2a2b2f;
+    --tema-cinza-50: #1b1c1f;
+    --tema-cinza-100: #1f2023;
+    --tema-cinza-200: #2c2d32;
+    --tema-tinta: #ededed;
+    --tema-tinta-suave: #a1a1a6;
+    --tema-tinta-fraca: #77777d;
+    --tema-linha: #2a2b2f;
+    --tema-linha-forte: #3a3b40;
+    --tema-ok: #4cc38a;
+    --tema-ok-claro: rgba(76, 195, 138, 0.14);
+    --tema-atencao: #f0a050;
+    --tema-atencao-claro: rgba(240, 160, 80, 0.14);
+    --tema-alerta: #f2766a;
+    --tema-alerta-claro: rgba(242, 118, 106, 0.14);
+    --tema-maxpar: #93b1e6;
+    --tema-maxpar-claro: rgba(147, 177, 230, 0.14);
+    --tema-sombra-cartao: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --tema-sombra-controle: 0 1px 1px rgba(0, 0, 0, 0.3);
+    --tema-sombra-segmento: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --tema-sombra-flutuante: 0 16px 40px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    --tema-seta-select: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a1a1a6' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
 }
 
 @layer base {
   html {
-    background: var(--color-papel);
-    color: var(--color-tinta);
+    background: var(--tema-papel);
+    color: var(--tema-tinta);
     font-family: var(--font-sans);
     font-size: 16px;
     -webkit-text-size-adjust: 100%;
@@ -90,11 +196,11 @@
   input, select, textarea, button { font: inherit; color: inherit; }
   /* campos ganham o raio de controle sem precisar de classe (as telas não usam rounded-*) */
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { border-radius: var(--radius-controle); }
-  input[type="checkbox"], input[type="radio"] { accent-color: var(--color-tinta); }
-  input::placeholder, textarea::placeholder { color: var(--color-tinta-fraca); }
+  input[type="checkbox"], input[type="radio"] { accent-color: var(--tema-tinta); }
+  input::placeholder, textarea::placeholder { color: var(--tema-tinta-fraca); }
   button { cursor: pointer; }
   button:disabled { cursor: not-allowed; }
-  html { scrollbar-color: var(--color-linha-forte) transparent; scrollbar-width: thin; }
+  html { scrollbar-color: var(--tema-linha-forte) transparent; scrollbar-width: thin; }
   h1, h2, h3, h4 { margin: 0; }
   p { margin: 0; }
 }
@@ -105,7 +211,7 @@
 select:not([multiple]):not([size]) {
   appearance: none;
   -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6b6b' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-image: var(--tema-seta-select);
   background-repeat: no-repeat;
   background-position: right 10px center;
   background-size: 16px 16px;
@@ -156,18 +262,18 @@ select:not([multiple]):not([size]):disabled { cursor: not-allowed; }
 }
 
 @utility hachurado {
-  background: repeating-linear-gradient(-45deg, var(--color-linha-forte) 0 2px, transparent 2px 6px);
+  background: repeating-linear-gradient(-45deg, var(--tema-linha-forte) 0 2px, transparent 2px 6px);
 }
 
 /* Menus e painéis que flutuam. */
 @utility elevacao {
-  box-shadow: var(--shadow-flutuante);
+  box-shadow: var(--tema-sombra-flutuante);
 }
 
 /* Esqueleto de carregamento */
 @keyframes pulso { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 @utility esqueleto {
-  background: var(--color-cinza-100);
+  background: var(--tema-cinza-100);
   border-radius: var(--radius-controle);
   animation: pulso 1.4s ease-in-out infinite;
 }
