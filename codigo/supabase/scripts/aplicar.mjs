@@ -13,6 +13,8 @@ const PROJETOS = {
 };
 
 const alvo = process.argv[2];
+// --so-migrations: só aplica as migrations (todas são idempotentes) e o seed padrão; não recarrega os dados de exemplo.
+const soMigrations = process.argv.includes("--so-migrations");
 const projeto = PROJETOS[alvo];
 if (!projeto) {
   console.error("Diga onde aplicar: node scripts/aplicar.mjs teste   (ou oficial)");
@@ -89,7 +91,7 @@ try {
   await sql.unsafe(ler("seed/producao.sql"));
   console.log("✔ seed padrão (tipos de serviço, checklist, categorias, configuração)");
 
-  if (projeto.seedTeste) {
+  if (projeto.seedTeste && !soMigrations) {
     etapa = "seed/teste.sql";
     await sql.unsafe(ler("seed/teste.sql"));
     console.log("✔ dados de exemplo (só no teste)");
