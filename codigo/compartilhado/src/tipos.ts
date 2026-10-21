@@ -535,7 +535,16 @@ export interface RegistroAuditoria {
 
 export interface ConfigOficina {
   expediente: { diasSemana: number[]; inicio: string; fim: string; sabadoFim?: string }; // diasSemana: 0=dom … 6=sáb
-  semaforo: { laranjaAntesHoras: number; vermelhoBloqueioHoras: number };
+  semaforo: {
+    /** Legado (antes do SG): laranja a N h úteis do prazo. Só vale para etapa sem prazoHoras (> 0). */
+    laranjaAntesHoras: number;
+    vermelhoBloqueioHoras: number;
+    /**
+     * Fração do prazo da etapa já consumida a partir da qual o cartão fica laranja (0–1).
+     * Ausente = LARANJA_FRACAO_PADRAO (0,8; provisório, a confirmar com o dono). Revisão SG, item 3.
+     */
+    laranjaFracao?: number;
+  };
   capacidadePadrao: { vagasEntrada: number; carrosSimultaneos: number; pecasDia?: number };
   /** Itens do checklist de entrada; ausente = CHECKLIST_PADRAO (provisório). */
   checklist?: ChecklistItem[];
