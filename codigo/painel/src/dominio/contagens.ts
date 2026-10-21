@@ -4,13 +4,14 @@
 import type { Agendamento, Centavos, ConfigOficina, DataISO, EstadoOS, EtapaOS, Id, Janela, MarcoISO, OrcamentoVersao, Pagador, Papel, PendenciaExterna, TituloReceber } from "@compartilhado/tipos";
 import { DIAS_PRONTO_NAO_BUSCOU_PADRAO, DIAS_VISTORIA_VENCENDO_PADRAO } from "@compartilhado/dominio/config";
 import { somaCentavos } from "@compartilhado/dominio/dinheiro";
-import { baixasValidas, estadoTitulo, saldoTitulo } from "@compartilhado/dominio/financeiro";
+import { estadoTitulo, saldoTitulo } from "@compartilhado/dominio/financeiro";
 import { compararMarcos, dataNoFuso, diferencaDias, paraMs } from "@compartilhado/dominio/fuso";
-import { titulosDoCliente, valorEsperadoCliente } from "@compartilhado/dominio/pagamentos";
+import { clienteDeveOS } from "@compartilhado/dominio/pagamentos";
 import { etapaAtual, situacaoCartao, type SituacaoCartao } from "@compartilhado/dominio/semaforo";
 import type { OSVisao } from "../dados/repositorio";
 import { rotuloHaQuanto, rotuloPrazo, rotuloHorario } from "./horarios";
 import { TIPO_PENDENCIA } from "./rotulos";
+import { ehNomeDeSeguradora, nomeSeguradora } from "./seguradora";
 
 export interface Contagem<T> {
   total: number;
@@ -33,13 +34,11 @@ const telefoneDe = (v: OSVisao) => v.cliente.telefone || v.cliente.whatsapp || u
 const restantes = (v: OSVisao) => [...v.etapas].filter((e) => !FECHADAS.has(e.estado)).sort((a, b) => a.ordem - b.ordem);
 
 /**
- * Quanto o CLIENTE ainda paga na retirada: franquia + complemento (seguradora) ou valor aprovado (particular),
- * menos o que ele já pagou (baixas dos títulos de pagador tipo "cliente"). Nunca negativo.
+ * Quanto o CLIENTE ainda paga na retirada — a mesma conta da ficha (clienteDeveOS): versão aprovada vigente,
+ * franquia + complemento (seguradora) ou max(aprovado, títulos do cliente) (particular), menos o que ele já pagou.
  */
 export function clienteDeve(v: OSVisao, pagadores: readonly Pagador[]): Centavos {
-  const esperado = valorEsperadoCliente(v.os.origem, versaoAtual(v));
-  const pago = somaCentavos(baixasValidas(titulosDoCliente(v.titulos, pagadores)).map((b) => b.valor));
-  return Math.max(0, esperado - pago);
+  return clienteDeveOS({ origem: v.os.origem, versoes: v.versoes, titulos: v.titulos, pagadores }).falta;
 }
 
 // ---------------------------------------------------------------- Na oficina
@@ -287,13 +286,13 @@ export interface GrupoDevedor extends Devedor {
   titulos: number;
 }
 
-/** Quem deve o título: pagador maxpar/seguradora → seguradora do atendimento; cliente → nome do cliente. */
+/** Quem deve o título: pagador maxpar/seguradora → seguradora do atendimento (regra de seguradoraDaOS, nunca "Maxpar"); cliente → nome do cliente. */
 export function devedorDoTitulo(t: TituloReceber, pagadores: readonly Pagador[], v?: OSVisao): Devedor {
   const p = pagadores.find((x) => x.id === t.pagadorId);
   if (p?.tipo === "cliente") return { tipo: "cliente", nome: v?.cliente.nome ?? p.nome };
   if (p?.tipo === "maxpar" || p?.tipo === "seguradora") {
-    const seguradora = v?.atendimentos.find((a) => a.seguradora)?.seguradora;
-    return { tipo: "seguradora", nome: seguradora ?? (p.tipo === "seguradora" ? p.nome : "Seguradora") };
+    const seguradora = v ? nomeSeguradora(v) : undefined;
+    return { tipo: "seguradora", nome: seguradora ?? (p.tipo === "seguradora" && ehNomeDeSeguradora(p.nome) ? p.nome : "Seguradora") };
   }
   return { tipo: "outro", nome: p?.nome ?? "Outro" };
 }

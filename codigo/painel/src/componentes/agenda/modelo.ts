@@ -3,6 +3,7 @@ import { vagasOcupadas, vagasRestantes } from "@compartilhado/dominio/agenda";
 import { janelaDoDia } from "@compartilhado/dominio/expediente";
 import { dataNoFuso, diferencaDias, paraMs } from "@compartilhado/dominio/fuso";
 import type { OSVisao } from "../../dados/repositorio";
+import { nomeSeguradora } from "../../dominio/seguradora";
 import { naDia, periodoTexto, plural, primeiroNome } from "./formato";
 
 // Montagem da visão da Agenda a partir dos dados. As regras (quem ocupa vaga, quanto sobra)
@@ -271,7 +272,7 @@ export function mensagemNovoHorario(v: OSVisao, data: DataISO, janela: Janela): 
 export function origemCurta(v: OSVisao | undefined, veSeguradora: boolean): string | undefined {
   if (!v) return undefined;
   if (v.os.origem === "particular") return "Particular";
-  const seg = veSeguradora ? v.atendimentos.find((a) => a.seguradora)?.seguradora : undefined;
+  const seg = veSeguradora ? nomeSeguradora(v) : undefined;
   const nome = seg ?? "Seguradora";
   return v.os.origem === "misto" ? `${nome} + particular` : nome;
 }

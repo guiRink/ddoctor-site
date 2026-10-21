@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { TituloReceber } from "../tipos";
+import type { OrcamentoVersao, Pagador, TituloReceber } from "../tipos";
 import { FORMAS_PAGAMENTO } from "../tipos";
-import { normalizarFormaPagamento, resumoPagamentosOS } from "./pagamentos";
+import { clienteDeveOS, normalizarFormaPagamento, resumoPagamentosOS } from "./pagamentos";
 
 const titulo = (p: Partial<TituloReceber>): TituloReceber => ({
   id: "t",
@@ -49,5 +49,53 @@ describe("resumoPagamentosOS", () => {
       saldo: 0,
     });
     expect(resumoPagamentosOS([])).toEqual({ total: 0, recebido: 0, saldo: 0 });
+  });
+});
+
+describe("clienteDeveOS (regra única do 'cliente deve')", () => {
+  const pagadores: Pagador[] = [
+    { id: "cliente", nome: "Cliente", tipo: "cliente", prazo: { dias: 0, base: "entrega", diasUteis: false, provisorio: true } },
+    { id: "hdi", nome: "HDI", tipo: "seguradora", prazo: { dias: 30, base: "nf", diasUteis: false, provisorio: true } },
+  ];
+  const ver = (p: Partial<OrcamentoVersao>): OrcamentoVersao => ({
+    id: `v${p.numeroVersao ?? 1}`,
+    osId: "os1",
+    tipo: "externo",
+    numeroVersao: 1,
+    fonte: "manual",
+    estado: "aprovado",
+    itens: [{ id: "i", peca: "Capô", tecnica: "martelinho", valor: 40000, statusItem: "autorizado" }],
+    criadoEm: "2026-10-10T09:00:00-03:00",
+    ...p,
+  });
+
+  it("seguradora: franquia + complemento da versão APROVADA vigente, não da mais nova enviada", () => {
+    const r = clienteDeveOS({
+      origem: "maxpar",
+      versoes: [ver({ numeroVersao: 3, estado: "enviado", franquia: 99900 }), ver({ numeroVersao: 2, franquia: 16000, complementoParticular: 5000 }), ver({ numeroVersao: 1, franquia: 1000 })],
+      titulos: [titulo({ id: "s", pagadorId: "hdi", valor: 40000, baixas: [b(40000)] })],
+      pagadores,
+    });
+    expect(r.versao?.numeroVersao).toBe(2);
+    expect(r).toMatchObject({ esperado: 21000, pago: 0, falta: 21000 });
+  });
+
+  it("particular: max(aprovado, títulos do cliente); baixa de título cancelado não conta", () => {
+    const r = clienteDeveOS({
+      origem: "particular",
+      versoes: [ver({ tipo: "interno" })],
+      titulos: [
+        titulo({ id: "a", valor: 50000, estado: "parcial", baixas: [b(20000)] }),
+        titulo({ id: "c", valor: 40000, estado: "cancelado", baixas: [b(40000)] }),
+      ],
+      pagadores,
+    });
+    expect(r).toMatchObject({ esperado: 50000, cobrado: 50000, pago: 20000, falta: 30000 });
+  });
+
+  it("sem versão aprovada nem título: nada a pagar; pago acima do esperado não fica negativo", () => {
+    expect(clienteDeveOS({ origem: "particular", versoes: [ver({ estado: "enviado" })], titulos: [], pagadores })).toMatchObject({ versao: undefined, esperado: 0, falta: 0 });
+    const r = clienteDeveOS({ origem: "maxpar", versoes: [ver({ franquia: 16000 })], titulos: [titulo({ valor: 16000, estado: "recebido", baixas: [b(16000)] })], pagadores });
+    expect(r).toMatchObject({ esperado: 16000, pago: 16000, falta: 0 });
   });
 });

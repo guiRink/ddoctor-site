@@ -94,7 +94,7 @@ export function CartaoTV({
         {cab.texto}
       </span>
       {urgenteNoCabecalho ? (
-        <span className="shrink-0 rounded-full bg-amarelo text-preto px-2.5 text-[18px] font-semibold leading-7">Urgente</span>
+        <span className="shrink-0 rounded-full bg-cartao text-alerta px-2.5 text-[18px] font-semibold leading-7">Urgente</span>
       ) : (
         <span className={`font-medium leading-none whitespace-nowrap numero truncate ${compacto || estreito ? "text-[18px]" : "text-[20px]"}`}>{estado}</span>
       )}
@@ -111,7 +111,7 @@ export function CartaoTV({
           <div className="flex-1 min-h-0 flex flex-col justify-center gap-1 px-4 py-2">
             <div className="flex items-center justify-between gap-2">
               <Placa placa={v.veiculo.placa} tamanho="m" />
-              {urgente && <span className="shrink-0 rounded-full bg-amarelo text-preto px-2.5 text-[16px] font-semibold leading-7">Urgente</span>}
+              {urgente && <span className="shrink-0 rounded-full bg-alerta text-cartao px-2.5 text-[16px] font-semibold leading-7">Urgente</span>}
             </div>
             <p className="text-[20px] leading-tight truncate numero">
               <span className="font-semibold">{v.veiculo.modelo ?? "Modelo não informado"}</span>
@@ -125,7 +125,7 @@ export function CartaoTV({
               <p className="text-[24px] font-semibold leading-tight truncate">{v.veiculo.modelo ?? "Modelo não informado"}</p>
               <p className="text-[18px] text-papel-suave leading-tight truncate numero">{linha}</p>
             </div>
-            {urgente && <span className="shrink-0 rounded-full bg-amarelo text-preto px-3 text-[18px] font-semibold leading-8">Urgente</span>}
+            {urgente && <span className="shrink-0 rounded-full bg-alerta text-cartao px-3 text-[18px] font-semibold leading-8">Urgente</span>}
           </div>
         )}
       </article>
@@ -157,7 +157,7 @@ export function CartaoTV({
           {placa}
           <div className="flex items-center justify-between gap-3 min-w-0">
             <p className="text-[28px] font-semibold tracking-[-0.01em] leading-[1.15] truncate">{v.veiculo.modelo ?? "Modelo não informado"}</p>
-            {urgente && !urgenteNoCabecalho && <span className="shrink-0 rounded-full bg-amarelo text-preto px-3 text-[18px] font-semibold leading-8">Urgente</span>}
+            {urgente && !urgenteNoCabecalho && <span className="shrink-0 rounded-full bg-alerta text-cartao px-3 text-[18px] font-semibold leading-8">Urgente</span>}
           </div>
           <div className="flex items-center justify-between gap-4 min-w-0">
             {item.pronto ? <span className="text-[24px] text-papel-suave">Entrega {entrega}</span> : responsavel}
@@ -180,7 +180,7 @@ export function CartaoTV({
         <p className={`mt-2 shrink-0 font-semibold ${estreito ? "text-[28px]" : "text-[32px]"} tracking-[-0.01em] leading-[1.1] truncate`}>{v.veiculo.modelo ?? "Modelo não informado"}</p>
         <div className="shrink-0 flex items-center justify-between gap-3 min-w-0">
           <p className="text-[20px] text-papel-suave leading-snug truncate">{[v.veiculo.cor, v.tipoReparo?.nome].filter(Boolean).join(" · ") || "—"}</p>
-          {urgente && !urgenteNoCabecalho && <span className="shrink-0 rounded-full bg-amarelo text-preto px-3 text-[18px] font-semibold leading-8">Urgente</span>}
+          {urgente && !urgenteNoCabecalho && <span className="shrink-0 rounded-full bg-alerta text-cartao px-3 text-[18px] font-semibold leading-8">Urgente</span>}
         </div>
 
         {bloqueio ? (

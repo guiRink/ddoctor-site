@@ -14,6 +14,7 @@ import type { Fonte } from "@compartilhado/tipos";
 import { mensagemErro, useAcoes, useAgora, useConfig, useOS, usePagadores, usePerfis, useTiposReparo } from "../dados/hooks";
 import type { OSVisao } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
+import { rotuloPrazo } from "../dominio/horarios";
 import { podeEditar, podeVer, veCustosOS, veDadosSensiveis } from "../dominio/permissoes";
 import {
   ESTADO_ETAPA,
@@ -46,7 +47,6 @@ import { AbaResultado } from "../componentes/os/AbaResultado";
 import { NivelCombustivelTexto } from "../componentes/recepcao/FormRecepcao";
 import { kmLegivel, nomeCarro } from "../componentes/os/formato";
 import { acaoPrimariaDoTopo, clienteDeve, numerosEtapas, prometidoAoCliente, textoEtapas, type ClienteDeve } from "../componentes/os/ficha";
-import { formatarPrazo } from "../componentes/producao/quadro";
 import { NumeroDemo } from "../componentes/clientes/Comuns";
 import { contatoClicavel } from "@compartilhado/dominio/clientes";
 import { BotaoEnviarOrcamento } from "../componentes/orcamento/BotaoEnviarOrcamento";
@@ -660,6 +660,10 @@ function LinhaEtapa({ e, numero, agora, config, perfis }: { e: EtapaOS; numero: 
   const bloq = tempoBloqueada(e, agora);
   if (bloq > 0) tempos.push(`impedida ${formatarDuracao(bloq)}`);
   const motivo = e.estado === "bloqueada" ? e.bloqueios.at(-1)?.motivo : undefined;
+  // prazo da etapa no mesmo texto da Produção (horas úteis): "até hoje 16h", "atrasado 3 h"
+  const rotulo = e.prazoEm ? rotuloPrazo(e.prazoEm, agora, config) : undefined;
+  const prazoVencido = !!e.prazoEm && paraMs(agora) > paraMs(e.prazoEm);
+  const prazo = !rotulo ? undefined : prazoVencido ? rotulo : rotulo === "antes de abrir" ? "prazo: antes de abrir" : `até ${rotulo}`;
   return (
     <li
       className={`grid grid-cols-[28px_minmax(0,1fr)_auto] sm:grid-cols-[28px_minmax(0,1.2fr)_minmax(0,1fr)_auto] gap-x-3 gap-y-1 items-center px-4 py-3 border-b border-linha last:border-b-0 ${
@@ -683,7 +687,7 @@ function LinhaEtapa({ e, numero, agora, config, perfis }: { e: EtapaOS; numero: 
       </span>
       <span className="flex flex-col items-end gap-1">
         {ativa ? <Semaforo valor={cor} texto={e.estado === "bloqueada" ? "Impedida" : undefined} /> : <Etiqueta tom={est.tom}>{est.texto}</Etiqueta>}
-        {ativa && e.prazoEm && <span className="text-[12px] text-tinta-suave numero">até {formatarPrazo(e.prazoEm, agora)}</span>}
+        {ativa && prazo && <span className={`text-[12px] numero ${prazoVencido ? "text-alerta font-medium" : "text-tinta-suave"}`}>{prazo}</span>}
       </span>
     </li>
   );

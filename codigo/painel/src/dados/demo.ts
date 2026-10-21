@@ -263,6 +263,18 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
     }
     return dia;
   };
+  /**
+   * Entrega prometida da demo: `dias` dias úteis de hoje, mas um prazo futuro que cairia no sábado (meio
+   * expediente) passa para o dia útil seguinte. Escolha só da demonstração: sem isso, na sexta à tarde todo
+   * carro "para amanhã" ficava laranja (o trabalho que falta não cabe nas 4 h do sábado).
+   */
+  const previsaoDaDemo = (dias: number): string => {
+    const dia = diasUteisDeHoje(dias);
+    if (dias <= 0 || new Date(`${dia}T12:00:00Z`).getUTCDay() !== 6) return dia;
+    let seguinte = somarDias(dia, 1);
+    for (let n = 0; !janelaDoDia(seguinte, config) && n < 7; n++) seguinte = somarDias(seguinte, 1);
+    return seguinte;
+  };
 
   const pagadores: Pagador[] = [
     { id: "pg-maxpar", nome: "Maxpar", tipo: "maxpar", prazo: { dias: 30, base: "servico_realizado", diasUteis: false, provisorio: true } },
@@ -727,7 +739,7 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
       estado: c.estado,
       prioridade: c.prioridade ?? 0,
       atendimentosExternos: atIds,
-      previsaoEntrega: c.previsaoDias !== undefined ? diasUteisDeHoje(c.previsaoDias) : entregueMs ? dataISO(new Date(entregueMs)) : undefined,
+      previsaoEntrega: c.previsaoDias !== undefined ? previsaoDaDemo(c.previsaoDias) : entregueMs ? dataISO(new Date(entregueMs)) : undefined,
       entradaRealEm: naOficina ? iso(new Date(agoraMs - Math.max(1, c.abertoHaDias - 1) * DIA)) : undefined,
       prontaEm: ["pronta", "entregue", "encerrada"].includes(c.estado) ? iso(new Date((entregueMs ?? agoraMs) - 5 * HORA)) : undefined,
       entregueEm: entregueMs ? iso(new Date(entregueMs)) : undefined,

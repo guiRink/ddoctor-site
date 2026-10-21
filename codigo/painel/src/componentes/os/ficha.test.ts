@@ -151,6 +151,17 @@ describe("faltasParaEntregar", () => {
     );
     expect(faltasParaEntregar(v, clienteDeve(v, PAGADORES))).toEqual([]);
   });
+
+  it("foto final de uma etapa não conta como foto de saída", () => {
+    const v = visao(
+      {
+        versoes: [versao()],
+        fotos: [{ id: "f", osId: "os-1", etapaId: "e3", fase: "final", url: "x", origem: "interna", tiradaEm: AGORA } as OSVisao["fotos"][number]],
+      },
+      { estado: "pronta" },
+    );
+    expect(faltasParaEntregar(v, clienteDeve(v, PAGADORES)).map((f) => f.texto)).toEqual(["Nenhuma foto de saída"]);
+  });
 });
 
 describe("acaoPrimariaDoTopo", () => {

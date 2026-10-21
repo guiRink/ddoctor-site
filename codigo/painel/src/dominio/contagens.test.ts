@@ -5,6 +5,7 @@ import { paraMs } from "@compartilhado/dominio/fuso";
 import { situacaoCartao } from "@compartilhado/dominio/semaforo";
 import type { OSVisao } from "../dados/repositorio";
 import { gerarDemo, type EstadoDemo } from "../dados/demo";
+import { filtrarPorEstado } from "../componentes/orcamentos/lista";
 import {
   clienteDeve,
   devedorDoTitulo,
@@ -151,11 +152,11 @@ describe("saemHoje", () => {
     expect(r.itens.map((i) => i.v.os.id)).toEqual(["2", "3", "1"]);
     expect(r.itens[2]).toMatchObject({ pronto: false, situacao: "atencao", etapasRestantes: 2, falta: "Polimento e Montagem" });
   });
-  it("a cobrar do cliente: franquia menos o já pago; particular = aprovado menos o pago", () => {
+  it("a cobrar do cliente: franquia menos o já pago; particular = max(aprovado, títulos) menos o pago (= ficha)", () => {
     const r = saemHoje(oss, agora, cfg, pagadores);
     expect(r.itens.map((i) => [i.v.os.id, i.aCobrarCliente])).toEqual([
       ["2", 0],
-      ["3", 20000], // interno: aprovado 40000 (o negado fica fora) − 20000 já pagos
+      ["3", 50000], // interno: aprovado 40000 (o negado fica fora), mas o título lançado é 70000 → 70000 − 20000 já pagos
       ["1", 16000],
     ]);
   });
@@ -238,6 +239,12 @@ describe("dinheiroVencido", () => {
     const direta: Pagador = { ...pagadores[0], id: "pg-d", nome: "Porto Seguro", tipo: "seguradora" };
     expect(devedorDoTitulo(t({ pagadorId: "pg-d" }), [...pagadores, direta])).toEqual({ tipo: "seguradora", nome: "Porto Seguro" });
     expect(devedorDoTitulo(t({}), pagadores)).toEqual({ tipo: "seguradora", nome: "Seguradora" });
+  });
+  it("atendimento com 'Maxpar' no campo seguradora: usa a seguradora de verdade ou 'Seguradora' (= seguradoraDaOS)", () => {
+    const comMaxpar = visao("9", {}, { atendimentos: [{ id: "a1", fonte: "manual", seguradora: "Maxpar", statusNormalizado: "autorizado", estadoConciliacao: "ok" }] });
+    expect(devedorDoTitulo(t({}), pagadores, comMaxpar).nome).toBe("Seguradora");
+    comMaxpar.atendimentos.push({ id: "a2", fonte: "manual", seguradora: "Liberty", statusNormalizado: "autorizado", estadoConciliacao: "ok" });
+    expect(devedorDoTitulo(t({}), pagadores, comMaxpar).nome).toBe("Liberty");
   });
 });
 
@@ -347,9 +354,23 @@ describe("demonstração (quarta 21/10/2026)", () => {
       expect([venc.total, venc.valor]).toEqual([2, 156000]);
       expect(venc.porDevedor.map((g) => g.nome)).not.toContain("Maxpar");
       expect(paraFazerHoje(oss, e.agendamentos, agoraDemo, e.config).total).toBe(7);
+      // aba "Na oficina" de Atendimentos = o mesmo número do Geral/Produção/TV
+      expect(filtrarPorEstado(oss, "na_oficina")).toHaveLength(na.total);
       const contagem = (s: string) => na.itens.filter((i) => i.situacao === s).length;
       expect(contagem("atencao")).toBeLessThanOrEqual(2);
       expect([contagem("atrasado"), contagem("impedido")]).toEqual([1, 1]);
+    });
+  }
+});
+
+describe("demonstração na sexta à tarde e no sábado (revisão SG: laranja)", () => {
+  for (const agoraDemo of ["2026-10-23T14:30:00-03:00", "2026-10-23T17:30:00-03:00", "2026-10-24T10:00:00-03:00"]) {
+    it(`${agoraDemo}: no máximo 2 laranja e os mesmos 2 parados`, () => {
+      const e = gerarDemo(paraMs(agoraDemo));
+      const oss = visoes(e);
+      const na = naOficina(oss, agoraDemo, e.config);
+      expect(na.itens.filter((i) => i.situacao === "atencao").length).toBeLessThanOrEqual(2);
+      expect(paradosEAtrasados(oss, agoraDemo, e.config).total).toBe(2);
     });
   }
 });

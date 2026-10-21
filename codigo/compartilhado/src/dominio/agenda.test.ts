@@ -81,6 +81,18 @@ describe("reagendar", () => {
     expect(r.novo).toMatchObject({ estado: "proposto", expiraEm: m("2026-10-12T12:00"), id: "b-r" });
     expect(r.agendamentos.find((x) => x.id === "b")?.motivoCancelamento).toBe("cliente pediu");
   });
+  it("proposta arrastada sem nova validade mantém o prazo da anterior (e o desfazer também)", () => {
+    const comPrazo = lista.map((x) => (x.id === "b" ? { ...x, expiraEm: m("2026-10-12T20:00") } : x));
+    const r = reagendar(comPrazo, "b", "2026-10-15", "manha", agora);
+    if (!r.ok) throw new Error(r.codigo);
+    expect(r.novo).toMatchObject({ estado: "proposto", expiraEm: m("2026-10-12T20:00") });
+    const volta = reagendar(r.agendamentos, r.novo.id, "2026-10-13", "manha", agora, { novoId: "b-volta" });
+    if (!volta.ok) throw new Error(volta.codigo);
+    expect(volta.novo).toMatchObject({ estado: "proposto", expiraEm: m("2026-10-12T20:00") });
+    // confirmado não ganha expiraEm
+    const c = reagendar(comPrazo, "a", "2026-10-15", "manha", agora, { expiraEm: m("2026-10-12T20:00") });
+    expect(c.ok && c.novo.expiraEm).toBeUndefined();
+  });
   it("guardas", () => {
     expect(reagendar(lista, "zz", "2026-10-14", "manha", agora)).toEqual({ ok: false, codigo: "agendamento_nao_encontrado" });
     expect(reagendar(lista, "d", "2026-10-14", "manha", agora)).toEqual({ ok: false, codigo: "transicao_invalida" });

@@ -217,6 +217,18 @@ describe("aplicar e ordenar", () => {
     expect(ids(filtrarPorEstado(lista, "na_oficina,pronta"))).toEqual(["barato", "medio"]);
   });
 
+  it("aba Na oficina = em serviço + prontos (o mesmo número do Geral); Prontos continua como recorte", () => {
+    expect(ids(filtrarPorEstado(lista, "na_oficina"))).toEqual(["barato", "medio"]);
+    expect(ids(filtrarPorEstado(lista, "pronta"))).toEqual(["medio"]);
+  });
+
+  it("origem com_seguradora tira só os particulares (link do quadro Esperando seguradora)", () => {
+    const f = lerFiltros(new URLSearchParams("estado=aguardando_aprovacao&origem=com_seguradora"));
+    expect(f.origem).toBe("com_seguradora");
+    const l = [...lista, os("misto", "aguardando_aprovacao", { origem: "misto" }), os("part", "aguardando_aprovacao", { origem: "particular" })];
+    expect(ids(filtrarPorEstado(filtrarSemEstado(l, f, HOJE), f.estado))).toEqual(["caro", "misto"]);
+  });
+
   it("ordena pelo mais parado na situação; quem já saiu do fluxo fica no fim", () => {
     const l = [
       os("vazio", "rascunho", { criadoEm: "2026-10-12T09:00:00-03:00" }),

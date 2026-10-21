@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { OS } from "@compartilhado/tipos";
 import type { OSVisao } from "../../dados/repositorio";
-import { JA_ESTA_AQUI, avaliarDestino, chavesEmOrdem, clienteCurto, podeMover, saidasDoDia, selecionarIntervalo, separarQueCabem, tamanhoServico, type DiaAgenda, type Movel } from "./modelo";
+import { JA_ESTA_AQUI, avaliarDestino, chavesEmOrdem, clienteCurto, origemCurta, podeMover, saidasDoDia, selecionarIntervalo, separarQueCabem, tamanhoServico, type DiaAgenda, type Movel } from "./modelo";
 
 function dia(extra: Partial<DiaAgenda> = {}): DiaAgenda {
   return {
@@ -135,3 +135,18 @@ describe("cartão e cabeçalho", () => {
   });
 });
 
+
+describe("origemCurta", () => {
+  const v = (origem: OS["origem"], seguradoras: string[]) =>
+    ({
+      os: { origem },
+      atendimentos: seguradoras.map((seguradora, i) => ({ id: `a${i}`, fonte: "manual", seguradora, statusNormalizado: "autorizado", estadoConciliacao: "ok" })),
+    }) as unknown as OSVisao;
+  it("nunca mostra a Maxpar como seguradora (mesma regra de seguradoraDaOS)", () => {
+    expect(origemCurta(v("maxpar", ["Maxpar", "HDI"]), true)).toBe("HDI");
+    expect(origemCurta(v("maxpar", ["Maxpar"]), true)).toBe("Seguradora");
+    expect(origemCurta(v("misto", ["Liberty"]), true)).toBe("Liberty + particular");
+    expect(origemCurta(v("maxpar", ["HDI"]), false)).toBe("Seguradora");
+    expect(origemCurta(v("particular", []), true)).toBe("Particular");
+  });
+});

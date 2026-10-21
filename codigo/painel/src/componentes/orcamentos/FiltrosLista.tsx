@@ -13,8 +13,10 @@ import {
   FAIXAS_TEMPO,
   FAIXAS_VALOR,
   FILTROS_VAZIOS,
+  NOME_COM_SEGURADORA,
   nomeDoEstado,
   ORDEM_PADRAO,
+  ORIGEM_COM_SEGURADORA,
   ORDENS,
   TEXTO_ORDEM,
   type ColunaOrdenavel,
@@ -40,6 +42,7 @@ function OpcoesOrigem() {
           {ORIGEM_OS[o]}
         </option>
       ))}
+      <option value={ORIGEM_COM_SEGURADORA}>{NOME_COM_SEGURADORA}</option>
     </>
   );
 }
@@ -134,7 +137,7 @@ export function PilulasFiltro({ filtros, onMudar, mostraValor }: { filtros: Filt
   if (f.estado !== "todos") itens.push({ chave: "estado", rotulo: "Situação", valor: nomeDoEstado(f.estado), tirar: { estado: "todos" } });
   if (f.valor && mostraValor) itens.push({ chave: "valor", rotulo: "Valor", valor: FAIXAS_VALOR.find((x) => x.valor === f.valor)?.texto, tirar: { valor: undefined } });
   if (f.tempo) itens.push({ chave: "tempo", rotulo: "Há quanto tempo", valor: FAIXAS_TEMPO.find((x) => x.valor === f.tempo)?.texto, tirar: { tempo: undefined } });
-  if (f.origem) itens.push({ chave: "origem", rotulo: "Origem", valor: ORIGEM_OS[f.origem], tirar: { origem: undefined } });
+  if (f.origem) itens.push({ chave: "origem", rotulo: "Origem", valor: f.origem === ORIGEM_COM_SEGURADORA ? NOME_COM_SEGURADORA : ORIGEM_OS[f.origem], tirar: { origem: undefined } });
   if (f.seguradora) itens.push({ chave: "seguradora", rotulo: "Seguradora", valor: f.seguradora, tirar: { seguradora: undefined } });
   if (f.ordem !== ORDEM_PADRAO && (mostraValor || !f.ordem.startsWith("valor")))
     itens.push({ chave: "ordem", rotulo: "Ordem", valor: TEXTO_ORDEM[f.ordem], tirar: { ordem: ORDEM_PADRAO } });

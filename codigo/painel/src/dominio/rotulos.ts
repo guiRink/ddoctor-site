@@ -29,8 +29,9 @@ import type { Modulo } from "./permissoes";
 // Nomes da oficina (sprint SG), os mesmos das situações da tela Atendimentos (orcamentos/lista.ts).
 export const ESTADO_OS: Record<EstadoOS, { texto: string; tom: Tom }> = {
   rascunho: { texto: "Em orçamento", tom: "neutro" },
-  aguardando_aprovacao: { texto: "Esperando aprovação", tom: "neutro" },
-  aguardando_agendamento: { texto: "Falta agendar", tom: "amarelo" },
+  // espera de terceiro / falta da oficina: atenção suave (pílula clara com ponto); amarelo fica só para ação
+  aguardando_aprovacao: { texto: "Esperando aprovação", tom: "atencao" },
+  aguardando_agendamento: { texto: "Falta agendar", tom: "atencao" },
   agendada: { texto: "Agendado", tom: "escuro" },
   na_oficina: { texto: "Na oficina", tom: "escuro" },
   pronta: { texto: "Pronto", tom: "ok" },

@@ -7,6 +7,7 @@ import { mensagemErro, useAcoes, useAgendamentos, useAgora, useCapacidade, useCo
 import type { OSVisao, Resultado } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
 import { podeEditar, podeVer, veDadosSensiveis } from "../dominio/permissoes";
+import { naOficina as contarNaOficina } from "../dominio/contagens";
 import { JANELA } from "../dominio/rotulos";
 import { Botao, CabecalhoPagina, Cartao, Erro, Esqueleto } from "../componentes/ui/Basicos";
 import { SeletorPeriodo } from "../componentes/ui/Periodo";
@@ -120,6 +121,11 @@ export function Agenda() {
   useEffect(() => {
     agsAtuais.current = ags.data ?? [];
   }, [ags.data]);
+  // idem para as marcas "Avisar cliente" (o Desfazer só tira as que o próprio movimento pôs)
+  const avisarAtual = useRef<string[]>(avisar);
+  useEffect(() => {
+    avisarAtual.current = avisar;
+  }, [avisar]);
 
   useEffect(() => {
     try {
@@ -337,6 +343,8 @@ export function Agenda() {
       for (const m of movem) delete n[m.chave];
       return n;
     });
+    // só as marcas que este movimento acrescenta; quem já estava marcado continua marcado no Desfazer
+    const marcouAgora = avisarNovos.filter((id) => !avisarAtual.current.includes(id));
     marcarAvisar(avisarNovos, true);
     if (data < semana || data > fimSemana) setSemana(inicioDaSemana(data));
 
@@ -350,11 +358,11 @@ export function Agenda() {
     novaBarra({
       tom: erros.length > 0 ? (feitos.length === 0 ? "alerta" : "atencao") : ficaram > 0 ? "atencao" : "ok",
       texto: partes.join(" "),
-      desfazer: feitos.length > 0 ? () => void desfazer(feitos) : undefined,
+      desfazer: feitos.length > 0 ? () => void desfazer(feitos, marcouAgora) : undefined,
     });
   }
 
-  async function desfazer(feitos: Feito[]) {
+  async function desfazer(feitos: Feito[], marcouAgora: Id[]) {
     setBarra(null);
     const erros: string[] = [];
     let ok = 0;
@@ -376,10 +384,7 @@ export function Agenda() {
       }
     }
     await Promise.all([ags.refetch(), oss.refetch()]);
-    marcarAvisar(
-      feitos.map((f) => f.osId),
-      false,
-    );
+    marcarAvisar(marcouAgora, false);
     novaBarra(
       erros.length === 0
         ? { tom: "ok", texto: ok === 1 ? `Desfeito: ${feitos[0].placa} voltou para onde estava.` : `Desfeito: ${ok} carros voltaram para onde estavam.` }
@@ -451,7 +456,8 @@ export function Agenda() {
   );
 
   const capacidadePadrao = config.data?.capacidadePadrao;
-  const naOficina = (oss.data ?? []).filter((v) => v.os.estado === "na_oficina").length;
+  // mesmo número do Geral/Produção/TV (em serviço + prontos), comparado ao limite de carros simultâneos
+  const naOficina = config.data ? contarNaOficina(oss.data ?? [], agora, config.data).total : 0;
   const marcadas = dias.reduce((s, d) => s + d.itens.manha.length + d.itens.tarde.length, 0);
   const livres = dias.filter((d) => !d.passado).reduce((s, d) => s + d.restantes, 0);
   const porDia = capacidadePadrao ? `${plural(capacidadePadrao.vagasEntrada, "entrada", "entradas")} por dia` : "";

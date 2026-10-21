@@ -1,10 +1,9 @@
 // Leituras da ficha da OS (sem componentes): o que o cliente deve, a entrega prometida, a contagem das
 // etapas e o que falta antes de entregar o carro. As regras de dinheiro vêm do domínio (pagamentos/custos).
 import type { Centavos, DataISO, EstadoOS, EtapaOS, MarcoISO, Pagador } from "@compartilhado/tipos";
-import { receitaOS } from "@compartilhado/dominio/custos";
-import { formatarReais, somaCentavos } from "@compartilhado/dominio/dinheiro";
+import { formatarReais } from "@compartilhado/dominio/dinheiro";
 import { dataNoFuso, diferencaDias } from "@compartilhado/dominio/fuso";
-import { titulosDoCliente, valorEsperadoCliente } from "@compartilhado/dominio/pagamentos";
+import { clienteDeveOS } from "@compartilhado/dominio/pagamentos";
 import { etapaAtual } from "@compartilhado/dominio/semaforo";
 import type { OSVisao } from "../../dados/repositorio";
 
@@ -23,18 +22,15 @@ export interface ClienteDeve {
 /**
  * Quanto o cliente paga na oficina, desde a aprovação: particular = valor aprovado; com seguradora =
  * franquia + complemento particular (valorEsperadoCliente). Pago = baixas dos títulos do cliente.
- * Se já há título do cliente maior que o esperado, vale o título. Sem orçamento aprovado nem título: null.
+ * Se já há título do cliente maior que o esperado, vale o título (regra única: clienteDeveOS). Sem orçamento
+ * aprovado nem título: null.
  */
 export function clienteDeve(v: OSVisao, pagadores: readonly Pagador[]): ClienteDeve | null {
-  const receita = receitaOS({ versoes: v.versoes, titulos: v.titulos });
-  const vigente = v.versoes.find((x) => x.id === receita.versaoId);
-  const doCliente = titulosDoCliente(v.titulos, pagadores).filter((t) => t.estado !== "cancelado");
-  if (!vigente && doCliente.length === 0) return null;
-
-  const esperado = valorEsperadoCliente(v.os.origem, vigente);
-  const cobrado = somaCentavos(doCliente.map((t) => t.valor));
-  const total = Math.max(esperado, cobrado);
-  const pago = somaCentavos(doCliente.flatMap((t) => t.baixas.map((b) => b.valor)));
+  const conta = clienteDeveOS({ origem: v.os.origem, versoes: v.versoes, titulos: v.titulos, pagadores });
+  const vigente = conta.versao;
+  if (!vigente && conta.cobrado === 0) return null;
+  const total = conta.esperado;
+  const pago = conta.pago;
 
   const partes: ClienteDeve["partes"] = [];
   if (v.os.origem === "particular") {
@@ -122,11 +118,14 @@ export interface FaltaEntrega {
   texto: string;
 }
 
-/** O que falta para entregar o carro (avisa, não trava): pagamento do cliente e foto de saída (fase final). */
+/** Foto de saída = fase "final" do carro, sem etapa (a foto "final" de uma etapa é a do serviço pronto). */
+export const temFotoDeSaida = (v: Pick<OSVisao, "fotos">): boolean => v.fotos.some((f) => f.fase === "final" && !f.etapaId);
+
+/** O que falta para entregar o carro (avisa, não trava): pagamento do cliente e foto de saída. */
 export function faltasParaEntregar(v: OSVisao, deve: ClienteDeve | null): FaltaEntrega[] {
   const faltas: FaltaEntrega[] = [];
   if (deve && deve.falta > 0) faltas.push({ tipo: "pagamento", texto: textoFaltaCliente(deve) });
-  if (!v.fotos.some((f) => f.fase === "final")) faltas.push({ tipo: "foto", texto: "Nenhuma foto de saída" });
+  if (!temFotoDeSaida(v)) faltas.push({ tipo: "foto", texto: "Nenhuma foto de saída" });
   return faltas;
 }
 

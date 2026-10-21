@@ -12,7 +12,8 @@ import { BarrasHorizontais } from "./Graficos";
 import { baixarCsv, gerarCsv, reaisCsv } from "./csv";
 import { nomeMesAno, percentual } from "./formato";
 import { paraRelatorio } from "./montar";
-import { diasDePatio, entreguesNoMes, faturadoPorSeguradora, negadosPorSeguradora, seguradoraDaOS, tempoMedioDePatio } from "./gestao";
+import { seguradoraDaOS } from "../../dominio/seguradora";
+import { diasDePatio, entreguesNoMes, faturadoPorSeguradora, negadosPorSeguradora, tempoMedioDePatio } from "./gestao";
 
 const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
 const dias = (d: number | null) => (d === null ? "—" : `${d.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ${d === 1 ? "dia" : "dias"}`);

@@ -5,17 +5,10 @@ import type { Centavos, OrcamentoVersao } from "@compartilhado/tipos";
 import { somaCentavos } from "@compartilhado/dominio/dinheiro";
 import { mesDe, paraMs } from "@compartilhado/dominio/fuso";
 import type { OSVisao } from "../../dados/repositorio";
+import { seguradoraDaOS } from "../../dominio/seguradora";
 import { receitaDaOS } from "./montar";
 
 const DIA_MS = 24 * 60 * 60 * 1000;
-const MAXPAR = /maxpar/i;
-
-/** Quem paga o serviço da OS, pelo nome que a oficina usa: a seguradora (HDI, Liberty…), nunca a Maxpar; sem seguro, "Particular". */
-export function seguradoraDaOS(v: Pick<OSVisao, "os" | "atendimentos">): string {
-  const nome = v.atendimentos.map((a) => a.seguradora.trim()).find((s) => s && !MAXPAR.test(s));
-  if (nome) return nome;
-  return v.os.origem === "particular" ? "Particular" : "Seguradora não informada";
-}
 
 /** Dias corridos da entrada no pátio até a entrega (1 casa); sem as duas datas, null. */
 export function diasDePatio(v: Pick<OSVisao, "os">): number | null {

@@ -386,7 +386,8 @@ export function conteudoLista(chave: ChaveLista, d: DadosGeral, a: AcoesLista): 
                   Registrar entrada
                 </Botao>
               )}
-              {a.podeAgendar && (
+              {/* "Não veio" só vale para horário confirmado; proposta da Calia ainda não é compromisso. */}
+              {a.podeAgendar && i.confirmado && (
                 <Botao tamanho="denso" variante="fantasma" onClick={() => a.onNaoVeio(i.ag.id, i.v.veiculo.placa)} disabled={a.ocupado}>
                   Não veio
                 </Botao>
@@ -472,7 +473,7 @@ export function conteudoLista(chave: ChaveLista, d: DadosGeral, a: AcoesLista): 
         titulo: "Esperando seguradora",
         descricao: `${s(c.total, "carro", "carros")} · o mais antigo primeiro`,
         total: s(c.total, "carro", "carros"),
-        destino: { para: "/orcamentos?estado=aguardando_aprovacao", rotulo: "Abrir em Atendimentos" },
+        destino: { para: "/orcamentos?estado=aguardando_aprovacao&origem=com_seguradora", rotulo: "Abrir em Atendimentos" },
         colunas: [
           { rotulo: "Carro", largura: "minmax(0,1.2fr)", celular: "titulo" },
           { rotulo: "Seguradora", largura: "minmax(0,1.2fr)" },

@@ -37,7 +37,13 @@ export const ABAS_ESTADO: AbaEstado[] = [
   },
   { chave: "aguardando_agendamento", nome: "Falta agendar", explicacao: "Aprovado; falta marcar o dia de entrada.", estados: ["aguardando_agendamento"] },
   { chave: "agendada", nome: "Agendados", explicacao: "Com dia marcado para entrar na oficina.", estados: ["agendada"] },
-  { chave: "na_oficina", nome: "Na oficina", explicacao: "Carro dentro da oficina, em serviço.", estados: ["na_oficina"] },
+  // Mesmo recorte de naOficina() (dominio/contagens): em serviço + prontos, o número do Geral, da Produção e da TV.
+  {
+    chave: "na_oficina",
+    nome: "Na oficina",
+    explicacao: "Carro dentro da oficina: em serviço ou pronto esperando o cliente buscar.",
+    estados: ["na_oficina", "pronta"],
+  },
   { chave: "pronta", nome: "Prontos", explicacao: "Serviço concluído; falta entregar ao cliente.", estados: ["pronta"] },
   { chave: "entregue", nome: "Entregues", explicacao: "Carro já entregue ao cliente (ou fechado).", estados: ["entregue", "encerrada"] },
   { chave: "cancelada", nome: "Cancelados", explicacao: "Atendimento cancelado.", estados: ["cancelada"] },
@@ -228,9 +234,21 @@ export interface FiltrosLista {
   estado: string;
   valor?: FaixaValor;
   tempo?: FaixaTempo;
-  origem?: OrigemOS;
+  origem?: FiltroOrigem;
   seguradora?: string;
   ordem: OrdemLista;
+}
+
+/** `?origem=com_seguradora`: tudo que tem seguradora no meio (Maxpar, direta, Maxpar + particular) — sem particular. */
+export const ORIGEM_COM_SEGURADORA = "com_seguradora";
+export const NOME_COM_SEGURADORA = "Com seguradora (todas)";
+export type FiltroOrigem = OrigemOS | typeof ORIGEM_COM_SEGURADORA;
+export const ORIGENS_FILTRO: readonly FiltroOrigem[] = [...ORIGENS_OS, ORIGEM_COM_SEGURADORA];
+
+/** A origem da OS passa no filtro? (sem filtro = passa) */
+export function combinaOrigem(origem: OrigemOS, filtro: FiltroOrigem | undefined): boolean {
+  if (!filtro) return true;
+  return filtro === ORIGEM_COM_SEGURADORA ? origem !== "particular" : origem === filtro;
 }
 
 export const ORDEM_PADRAO: OrdemLista = "tempo_desc";
@@ -246,7 +264,7 @@ export function lerFiltros(params: URLSearchParams): FiltrosLista {
     estado: estadosDaChave(estado).length === 0 ? "todos" : estado,
     valor: de(FAIXAS_VALOR.map((f) => f.valor), params.get("valor")),
     tempo: de(FAIXAS_TEMPO.map((f) => f.valor), params.get("tempo")),
-    origem: de(ORIGENS_OS, params.get("origem")),
+    origem: de(ORIGENS_FILTRO, params.get("origem")),
     seguradora: params.get("seguradora")?.trim() || undefined,
     ordem: de(ORDENS, params.get("ordem")) ?? ORDEM_PADRAO,
   };
@@ -297,7 +315,7 @@ export function filtrarSemEstado(lista: readonly OSVisao[], f: FiltrosLista, hoj
     if (!combinaTermo(v, f.q)) return false;
     if (f.valor && faixaDoValor(valorDaOS(v).valor) !== f.valor) return false;
     if (f.tempo && faixaDoTempo(tempoNaSituacao(v, hoje).dias) !== f.tempo) return false;
-    if (f.origem && v.os.origem !== f.origem) return false;
+    if (!combinaOrigem(v.os.origem, f.origem)) return false;
     if (f.seguradora && !v.atendimentos.some((a) => semAcento(a.seguradora) === semAcento(f.seguradora!))) return false;
     return true;
   });

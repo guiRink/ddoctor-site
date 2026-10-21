@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { AtendimentoExterno, ItemOrcamento, OrcamentoVersao, OS } from "@compartilhado/tipos";
 import type { OSVisao } from "../../dados/repositorio";
-import { diasDePatio, entreguesNoMes, faturadoPorSeguradora, negadosPorSeguradora, seguradoraDaOS, tempoMedioDePatio } from "./gestao";
+import { seguradoraDaOS } from "../../dominio/seguradora";
+import { diasDePatio, entreguesNoMes, faturadoPorSeguradora, negadosPorSeguradora, tempoMedioDePatio } from "./gestao";
 
 const item = (id: string, statusItem: ItemOrcamento["statusItem"], valor = 10000): ItemOrcamento => ({ id, peca: id, tecnica: "martelinho", valor, statusItem });
 const at = (seguradora: string): AtendimentoExterno => ({ id: `a-${seguradora}`, fonte: "manual", seguradora, statusNormalizado: "autorizado", estadoConciliacao: "ok" });

@@ -111,7 +111,8 @@ export function PrazosECores({ podeEditar }: { podeEditar: boolean }) {
               chave: "laranjaPct",
               nome: "Fica laranja com",
               adorno: <Semaforo valor="laranja" texto="Laranja" />,
-              explicacao: "Parte do prazo da etapa já gasta. Também fica laranja com a entrega amanhã.",
+              explicacao:
+                "Parte do prazo da etapa já gasta. Também fica laranja com a entrega hoje, ou com a entrega amanhã quando o trabalho que falta não cabe com folga.",
               unidade: () => "% do prazo",
               limites: { min: Math.round(LIMITES_LARANJA_FRACAO.min * 100), max: Math.round(LIMITES_LARANJA_FRACAO.max * 100) },
               passo: 5,

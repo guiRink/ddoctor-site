@@ -1,7 +1,7 @@
 // Montagem das listas da tela Financeiro sobre @compartilhado/dominio (caixa, financeiro). Sem regra nova de dinheiro.
 import { FORMAS_PAGAMENTO, type Baixa, type DataISO, type Despesa, type FormaPagamento, type Pagador, type TituloReceber } from "@compartilhado/tipos";
 import type { OSVisao } from "../../dados/repositorio";
-import { seguradoraDaOS } from "../relatorios/gestao";
+import { seguradoraDaOS } from "../../dominio/seguradora";
 import { diferencaDias, mesDe } from "@compartilhado/dominio/fuso";
 import type { Tom } from "../ui/Estado";
 
