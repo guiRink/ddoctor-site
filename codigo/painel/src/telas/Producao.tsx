@@ -114,7 +114,7 @@ export function Producao() {
       <span className="whitespace-nowrap">Na oficina {totais.naOficina}</span> · <span className="whitespace-nowrap">{totais.emServico} em serviço</span> ·{" "}
       <span className="whitespace-nowrap">{plural(totais.prontos, "pronto", "prontos")}</span>
       {totais.atrasados > 0 && <span className="text-alerta font-semibold"> · <span className="whitespace-nowrap">{plural(totais.atrasados, "atrasado", "atrasados")}</span></span>}
-      {totais.impedidos > 0 && <span className="text-alerta font-semibold"> · <span className="whitespace-nowrap">{plural(totais.impedidos, "impedido", "impedidos")}</span></span>}
+      {totais.parados > 0 && <span className="text-atencao font-semibold"> · <span className="whitespace-nowrap">{plural(totais.parados, "parado", "parados")}</span></span>}
     </span>
   ) : (
     <span className="inline-block esqueleto h-4 w-64 align-middle" />
@@ -132,7 +132,7 @@ export function Producao() {
           valor: f,
           texto: NOME_FILTRO[f],
           contagem: consulta.data ? n : "–",
-          critico: f === "parados" && n > 0,
+          critico: (f === "atrasados" || f === "vermelhos" || f === "parados") && n > 0,
         };
       })}
     />
@@ -179,7 +179,17 @@ export function Producao() {
         <Vazio
           icone="filtro"
           titulo={filtro === "todos" ? "Nenhum carro com esse responsável" : `Nenhum carro em “${NOME_FILTRO[filtro]}”`}
-          texto={filtro === "parados" ? "Nada parado nem atrasado." : undefined}
+          texto={
+            filtro === "parados"
+              ? "Nenhum carro parado."
+              : filtro === "atrasados"
+                ? "Tudo dentro do prazo."
+                : filtro === "vermelhos"
+                  ? "Nenhum carro perto da entrega sem etapa concluída."
+                  : filtro === "laranjas"
+                    ? "Nenhum carro perto da entrega com etapa por terminar."
+                    : undefined
+          }
           acao={
             <Botao variante="contorno" onClick={limpar}>
               Ver todos os carros

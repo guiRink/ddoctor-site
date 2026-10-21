@@ -126,7 +126,7 @@ export function ProximaAcao({ v, podeAgir, tipos, deve = null }: { v: OSVisao; p
       break;
     case "na_oficina":
       texto = atual
-        ? `${atual.estado === "bloqueada" ? "Impedido em" : atual.estado === "na_fila" ? "Na fila de" : "Em"} ${atual.nome} · ${textoEtapas(v.etapas).replace(/^Etapa/, "etapa")}.`
+        ? `${atual.estado === "bloqueada" ? "Parado em" : atual.estado === "na_fila" ? "Na fila de" : "Em"} ${atual.nome} · ${textoEtapas(v.etapas).replace(/^Etapa/, "etapa")}.`
         : "Em produção.";
       botoes = (
         <BotaoLink para="/producao" variante="contorno" icone="producao">

@@ -1,4 +1,5 @@
 import type {
+  AlertaOS,
   Agendamento,
   AtendimentoExterno,
   Avaria,
@@ -35,6 +36,7 @@ import { aplicarMovimento } from "@compartilhado/dominio/estoque";
 import { calcularFechamento } from "@compartilhado/dominio/caixa";
 import { compararMarcos, dataNoFuso, diaSemana, formatarMarco, msDeLocal, somarDias } from "@compartilhado/dominio/fuso";
 import { janelaDoDia, somarHorasUteis } from "@compartilhado/dominio/expediente";
+import { entregaPorDiasUteis } from "@compartilhado/dominio/corCarro";
 
 /**
  * Oficina de DEMONSTRAÇÃO. Tudo aqui é fictício: nomes, placas, telefones, protocolos e valores.
@@ -320,6 +322,8 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
     previsaoDias?: number;
     box?: string;
     prioridade?: OS["prioridade"];
+    /** Alerta próprio do carro; com prazoDiasUteis, a entrega sai da entrada (entregaPorDiasUteis). */
+    alerta?: AlertaOS;
     limiteVistoriaDias?: number;
     agenda?: { dias: number; janela: "manha" | "tarde"; estado?: Agendamento["estado"]; origem?: Agendamento["origem"] };
     entregueHaDias?: number;
@@ -372,7 +376,7 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
       origem: "maxpar", seguradora: "HDI", protocolo: "18398760", status: "parcialmente_autorizado", estado: "na_oficina", tipo: "tr-martelinho",
       pecas: [["Capô", "martelinho", 42000], ["Teto", "martelinho", 45000, "negado"]],
       abertoHaDias: 3, etapaAtual: 2, estadoAtual: "na_fila", atualPrazoEmHoras: 5,
-      responsaveis: ["p-diego", "p-diego", "p-andre", "p-rafael"], dispensar: [0], previsaoDias: 1, box: "Baia 1",
+      responsaveis: ["p-diego", "p-diego", "p-andre", "p-rafael"], dispensar: [0], previsaoDias: 3, box: "Baia 1",
       observacoes: "Teto negado pela HDI (exige remoção do forro). Oferecer serviço particular.",
     },
     {
@@ -478,6 +482,33 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
       origem: "maxpar", seguradora: "Zurich", protocolo: "18290331", status: "pago", estado: "encerrada", tipo: "tr-martelinho",
       pecas: [["Porta traseira direita", "martelinho", 40000], ["Para-choque traseiro", "sra", 20000]],
       abertoHaDias: 50, entregueHaDias: 40, pagamento: "recebido",
+    },
+    // ---- na oficina (SH, 2º áudio do dono: cor do carro). No fim da lista para não mudar os ids dos casos acima.
+    {
+      // entrega amanhã e nenhuma etapa concluída → vermelho
+      placa: "SFL2D63", modelo: "Audi A4", cor: "Preto", cliente: "Ricardo Moser", telefone: "+5541991000021",
+      origem: "maxpar", seguradora: "Bradesco", protocolo: "18407712", status: "autorizado", estado: "na_oficina", tipo: "tr-sra",
+      pecas: [["Para-choque dianteiro", "sra", 21000], ["Retrovisor direito", "pintura", 24000]],
+      abertoHaDias: 2, etapaAtual: 0, estadoAtual: "em_execucao", atualIniciadaHaHoras: 0.5, atualPrazoEmHoras: 3,
+      responsaveis: ["p-rafael", "p-marcos", "p-andre"], previsaoDias: 1, box: "Baia 3",
+    },
+    {
+      // prazo próprio: 10 dias úteis desde a entrada, laranja/vermelho a partir de 3 dias úteis antes
+      placa: "RMB5H29", modelo: "Volvo S60", cor: "Azul", cliente: "Débora Fontana", telefone: "+5541991000022",
+      origem: "particular", estado: "na_oficina", tipo: "tr-pintura",
+      pecas: [["Tampa traseira", "pintura", 98000], ["Para-lama traseiro direito", "funilaria", 46000]],
+      abertoHaDias: 6, etapaAtual: 2, estadoAtual: "em_execucao", atualIniciadaHaHoras: 1, atualPrazoEmHoras: 6,
+      responsaveis: ["p-rafael", "p-diego", "p-rafael", "p-marcos", "p-andre", "p-rafael"], box: "Baia 4",
+      alerta: { prazoDiasUteis: 10, laranjaDiasAntes: 3, vermelhoSemEtapaDiasAntes: 3 },
+      observacoes: "Reparo grande combinado em 10 dias úteis.",
+    },
+    {
+      // no prazo, com folga
+      placa: "QOT8J44", modelo: "Toyota SW4", cor: "Prata", cliente: "Marcelo Gaio", telefone: "+5541991000023",
+      origem: "maxpar", seguradora: "Liberty", protocolo: "18408105", status: "autorizado", estado: "na_oficina", tipo: "tr-martelinho",
+      pecas: [["Porta traseira esquerda", "martelinho", 36000]],
+      abertoHaDias: 2, etapaAtual: 1, estadoAtual: "na_fila", atualPrazoEmHoras: 6,
+      responsaveis: ["p-diego", "p-diego", "p-andre", "p-rafael"], previsaoDias: 4, box: "Baia 2",
     },
   ];
 
@@ -739,7 +770,15 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
       estado: c.estado,
       prioridade: c.prioridade ?? 0,
       atendimentosExternos: atIds,
-      previsaoEntrega: c.previsaoDias !== undefined ? previsaoDaDemo(c.previsaoDias) : entregueMs ? dataISO(new Date(entregueMs)) : undefined,
+      previsaoEntrega:
+        c.alerta?.prazoDiasUteis !== undefined && naOficina
+          ? entregaPorDiasUteis(iso(new Date(entradaMs)), c.alerta.prazoDiasUteis, config)
+          : c.previsaoDias !== undefined
+            ? previsaoDaDemo(c.previsaoDias)
+            : entregueMs
+              ? dataISO(new Date(entregueMs))
+              : undefined,
+      alerta: c.alerta,
       entradaRealEm: naOficina ? iso(new Date(agoraMs - Math.max(1, c.abertoHaDias - 1) * DIA)) : undefined,
       prontaEm: ["pronta", "entregue", "encerrada"].includes(c.estado) ? iso(new Date((entregueMs ?? agoraMs) - 5 * HORA)) : undefined,
       entregueEm: entregueMs ? iso(new Date(entregueMs)) : undefined,

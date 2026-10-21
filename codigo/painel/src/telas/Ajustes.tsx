@@ -17,10 +17,12 @@ import { Categorias } from "../componentes/ajustes/Categorias";
 import { Checklist } from "../componentes/ajustes/Checklist";
 import { Auditoria } from "../componentes/ajustes/Auditoria";
 import { AConfirmar } from "../componentes/ajustes/AConfirmar";
+import { CoresCarros } from "../componentes/ajustes/CoresCarros";
 
 const SECOES: SecaoAjustes[] = [
   { id: "confirmar", nome: "A confirmar", grupo: "Oficina" },
   { id: "tipos", nome: "Tipos de serviço", grupo: "Oficina" },
+  { id: "cores", nome: "Cores dos carros", grupo: "Oficina" },
   { id: "prazos", nome: "Prazos e cores", grupo: "Oficina" },
   { id: "agenda", nome: "Agenda e capacidade", grupo: "Oficina" },
   { id: "checklist", nome: "Checklist de entrada", grupo: "Oficina" },
@@ -34,7 +36,7 @@ const SECOES: SecaoAjustes[] = [
 
 /**
  * Ajustes (design §5): como o painel está configurado. Seções agrupadas com navegação lateral em 1366+
- * e lista no celular. Editáveis hoje: tipos de serviço, semáforo, capacidade da agenda, checklist, categorias
+ * e lista no celular. Editáveis hoje: tipos de serviço, cores dos carros (pedido do dono, 2º áudio), semáforo, capacidade da agenda, checklist, categorias
  * financeiras, PIN e demonstração; expediente e pagadores são leitura. Todo valor provisório aparece marcado.
  * Módulo só de dono e gestor (arq. §9.1); a barreira real é a RLS.
  */
@@ -51,6 +53,7 @@ export function Ajustes() {
         <div className="flex flex-col gap-6 min-w-0 max-w-[960px]">
           <AConfirmar />
           <TiposServico podeEditar={podeCriarTipoReparo(perfil.papel)} />
+          <CoresCarros podeEditar={editarConfig} />
           <PrazosECores podeEditar={editarConfig} />
           <Capacidade podeEditar={editarConfig} />
           <Checklist podeEditar={editar} />

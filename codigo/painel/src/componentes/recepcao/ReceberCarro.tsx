@@ -1,31 +1,38 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type { Avaria, TipoReparo, TipoAvaria } from "@compartilhado/tipos";
 import { TIPOS_AVARIA } from "@compartilhado/tipos";
-import { itensChecklist } from "@compartilhado/dominio/config";
+import { LIMITES_ALERTA, alertaCarroBase, itensChecklist } from "@compartilhado/dominio/config";
+import { entregaPorDiasUteis, type EntradaAlertaOS } from "@compartilhado/dominio/corCarro";
+import { diasUteisEntre } from "@compartilhado/dominio/expediente";
+import { dataNoFuso } from "@compartilhado/dominio/fuso";
 import { progressoChecklist } from "@compartilhado/dominio/recepcao";
-import { mensagemErro, useAcoes, useConfig } from "../../dados/hooks";
+import { mensagemErro, useAcoes, useAgora, useConfig } from "../../dados/hooks";
 import type { OSVisao } from "../../dados/repositorio";
-import { NIVEL_COMBUSTIVEL, TIPO_AVARIA } from "../../dominio/rotulos";
+import { ERRO_CAMPO_CONFIG, NIVEL_COMBUSTIVEL, TIPO_AVARIA } from "../../dominio/rotulos";
 import { Botao, Erro, Esqueleto } from "../ui/Basicos";
 import { Etiqueta, Provisorio } from "../ui/Estado";
 import { Placa } from "../ui/Placa";
 import { Icone } from "../Icone";
-import { Aviso } from "../ui/Campos";
+import { Aviso, MensagemErro } from "../ui/Campos";
 import { Gaveta } from "../ui/Gaveta";
 import { Checklist, ProgressoChecklist } from "./Checklist";
 import { FormRecepcao, MedidorCombustivel, type DadosRecepcao } from "./FormRecepcao";
 import { kmLegivel, nomeCarro } from "../os/formato";
 import { MapaAvarias, Marcador } from "./MapaAvarias";
 import { useSessao } from "../../dados/sessao";
-import { podeCriarTipoReparo } from "../../dominio/permissoes";
+import { podeCriarTipoReparo, podeEditarAlertaOS } from "../../dominio/permissoes";
 import { FormTipoReparo } from "../tipos-reparo/FormTipoReparo";
+import { Interruptor } from "../ajustes/Estrutura";
+import { Passo } from "../ajustes/Numeros";
+import { diaCurto } from "../orcamentos/formato";
 
 /**
  * "Receber o carro": registra a entrada com a recepção em passos, num painel lateral (diálogo nativo:
  * Esc fecha, foco preso). 1 Dados (tipo de reparo, km, combustível, reclamação) · 2 Checklist ·
  * 3 Avarias · 4 Confirmar. Checklist e avarias podem ser pulados: a recepção fica registrada como incompleta.
  * No passo 1, quem pode (podeCriarTipoReparo) cria uma categoria nova na hora ("+ Criar nova categoria"),
- * que volta marcada.
+ * que volta marcada; e quem pode (podeEditarAlertaOS) combina o prazo em dias úteis e marca "Urgente" (pedido do
+ * dono, 2º áudio) — gravados com salvarAlertaOS logo depois da entrada.
  * Usado na ficha da OS (Próxima ação e aba Recepção) e no painel da Agenda.
  */
 const PASSOS = ["Dados", "Checklist", "Avarias", "Confirmar"] as const;
@@ -48,6 +55,7 @@ export function ReceberCarro({
   const acoes = useAcoes();
   const { perfil } = useSessao();
   const podeCriar = podeCriarTipoReparo(perfil.papel);
+  const podePrazo = podeEditarAlertaOS(perfil.papel);
 
   // categoria criada aqui: aparece já marcada, sem esperar a lista de tipos recarregar
   const [criando, setCriando] = useState(false);
@@ -67,6 +75,10 @@ export function ReceberCarro({
   const [avarias, setAvarias] = useState<Avaria[]>(v.os.recepcao?.avarias ?? []);
   const [pulados, setPulados] = useState<{ checklist?: boolean; avarias?: boolean }>({});
   const [erroTipo, setErroTipo] = useState("");
+  // prazo combinado (dias úteis a partir de hoje, o dia da entrada): undefined = o valor sugerido
+  const [prazoTxt, setPrazoTxt] = useState<string>();
+  const [urgente, setUrgente] = useState(v.os.prioridade === 2);
+  const [erroPrazo, setErroPrazo] = useState("");
   const [erro, setErro] = useState("");
 
   // ao trocar de passo, volta ao topo do conteúdo
@@ -85,13 +97,39 @@ export function ReceberCarro({
   const itens = config.data ? itensChecklist(config.data) : [];
   const tipo = tipos.find((t) => t.id === tipoId);
   const prog = progressoChecklist(checklist, itens);
-  const salvando = acoes.registrarEntrada.isPending;
+  const salvando = acoes.registrarEntrada.isPending || acoes.salvarAlertaOS.isPending;
+
+  // entrega já combinada (agendamento): o prazo sugerido é o que leva até ela; senão, o padrão da oficina
+  const agoraEntrada = useAgora();
+  const hoje = dataNoFuso(agoraEntrada);
+  const combinada = v.os.previsaoEntrega && v.os.previsaoEntrega.slice(0, 10) >= hoje ? v.os.previsaoEntrega.slice(0, 10) : undefined;
+  const base = config.data ? alertaCarroBase(config.data) : undefined;
+  const prazoSugerido = config.data && base ? (combinada ? Math.min(LIMITES_ALERTA.prazoDiasUteis.max, diasUteisEntre(hoje, combinada, config.data)) : base.prazoPadraoDiasUteis) : 0;
+  const prazoTexto = prazoTxt ?? String(prazoSugerido);
+  const prazoN = /^\d+$/.test(prazoTexto) ? Number(prazoTexto) : NaN;
+  const prazoValido = Number.isInteger(prazoN) && prazoN >= LIMITES_ALERTA.prazoDiasUteis.min && prazoN <= LIMITES_ALERTA.prazoDiasUteis.max;
+  const entregaPrevista = config.data && prazoValido ? entregaPorDiasUteis(hoje, prazoN, config.data) : undefined;
+
+  /** O que vai para salvarAlertaOS depois da entrada (null = nada a gravar). */
+  function alertaDaEntrada(): EntradaAlertaOS | null {
+    if (!podePrazo) return null;
+    const e: EntradaAlertaOS = {};
+    // sem entrega combinada o prazo define a entrega; com ela, só se a recepção mudou o número
+    if (!combinada || prazoN !== prazoSugerido) e.prazoDiasUteis = prazoN;
+    if (urgente !== (v.os.prioridade === 2)) e.urgente = urgente;
+    return Object.keys(e).length ? e : null;
+  }
 
   function avancar() {
     setErro("");
     if (passo === 0 && !tipoId) {
       setErroTipo(mensagemErro("sem_tipo_reparo"));
       document.getElementById(`${idTipo}-0`)?.focus();
+      return;
+    }
+    if (passo === 0 && podePrazo && !prazoValido) {
+      setErroPrazo(ERRO_CAMPO_CONFIG.prazoDiasUteis);
+      document.getElementById(`${idTipo}-prazo`)?.focus();
       return;
     }
     setPasso((p) => Math.min(PASSOS.length - 1, p + 1));
@@ -115,8 +153,15 @@ export function ReceberCarro({
         setErro(mensagemErro(r.codigo));
         return;
       }
+      // prazo e urgência: a entrada já está registrada; se isto falhar, avisa e o ajuste fica para a ficha
+      let avisoPrazo = "";
+      const alerta = alertaDaEntrada();
+      if (alerta) {
+        const ra = await acoes.salvarAlertaOS.mutateAsync([v.os.id, alerta]).catch(() => ({ ok: false as const }));
+        if (!ra.ok) avisoPrazo = " O prazo não foi salvo: ajuste em Prazo e urgência, na ficha.";
+      }
       onConcluido(
-        `Carro ${v.veiculo.placa} recebido. As etapas já estão na Produção.${prog.completo ? "" : " O checklist ficou incompleto: complete na aba Recepção."}`,
+        `Carro ${v.veiculo.placa} recebido. As etapas já estão na Produção.${prog.completo ? "" : " O checklist ficou incompleto: complete na aba Recepção."}${avisoPrazo}`,
       );
     } catch {
       setErro(mensagemErro());
@@ -206,6 +251,57 @@ export function ReceberCarro({
           )}
         </fieldset>
         <FormRecepcao valor={dados} onMudar={setDados} />
+        {podePrazo && base && (
+          <fieldset className="flex flex-col gap-3">
+            <legend className="mb-1.5 text-[13px] font-medium text-tinta-suave">Prazo e urgência</legend>
+            <div className="flex flex-col bg-cartao border border-linha rounded-cartao divide-y divide-linha">
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5 px-3.5 py-3">
+                <div className="min-w-0 flex-1 basis-52">
+                  <label htmlFor={`${idTipo}-prazo`} className="text-[14px] font-medium">
+                    Prazo em dias úteis
+                  </label>
+                  <p id={`${idTipo}-prazo-dica`} className="mt-0.5 text-[12px] text-tinta-suave numero">
+                    {entregaPrevista ? <span className="font-medium text-tinta">Entrega em {diaCurto(entregaPrevista)}</span> : "—"}
+                    {combinada
+                      ? prazoN === prazoSugerido
+                        ? " · a já combinada com o cliente"
+                        : ` · combinada era ${diaCurto(combinada)}`
+                      : ` · padrão da oficina ${base.prazoPadraoDiasUteis} ${base.prazoPadraoDiasUteis === 1 ? "dia útil" : "dias úteis"}`}
+                  </p>
+                </div>
+                <span className="flex items-center gap-2.5">
+                  <Passo
+                    id={`${idTipo}-prazo`}
+                    rotulo="Prazo em dias úteis"
+                    texto={prazoTexto}
+                    limites={LIMITES_ALERTA.prazoDiasUteis}
+                    passo={1}
+                    invalido={Boolean(erroPrazo)}
+                    descricao={erroPrazo ? `${idTipo}-prazo-erro` : `${idTipo}-prazo-dica`}
+                    desabilitado={salvando}
+                    onMudar={(t) => {
+                      setErroPrazo("");
+                      setPrazoTxt(t);
+                    }}
+                  />
+                  <span className="text-[13px] text-tinta-suave min-w-16">{prazoN === 1 ? "dia útil" : "dias úteis"}</span>
+                </span>
+                {erroPrazo && (
+                  <div className="basis-full -mt-1">
+                    <MensagemErro id={`${idTipo}-prazo-erro`}>{erroPrazo}</MensagemErro>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center justify-between gap-4 px-3.5 py-2">
+                <div className="min-w-0">
+                  <p className="text-[14px] font-medium">Urgente</p>
+                  <p className="text-[12px] text-tinta-suave">Aparece como Urgente no quadro da produção e na TV.</p>
+                </div>
+                <Interruptor ligado={urgente} onMudar={setUrgente} rotulo="Urgente" desabilitado={salvando} />
+              </div>
+            </div>
+          </fieldset>
+        )}
         {criando && (
           <FormTipoReparo
             existentes={tipos}
@@ -253,6 +349,7 @@ export function ReceberCarro({
   } else {
     conteudo = (
       <Resumo
+        prazo={podePrazo && entregaPrevista ? { dias: prazoN, entrega: entregaPrevista, urgente } : undefined}
         tipo={tipo}
         dados={dados}
         progresso={prog}
@@ -357,6 +454,7 @@ export function ReceberCarro({
 // ------------------------------------------------------------------ resumo (passo 4)
 
 function Resumo({
+  prazo,
   tipo,
   dados,
   progresso,
@@ -364,6 +462,7 @@ function Resumo({
   pulados,
   onIr,
 }: {
+  prazo?: { dias: number; entrega: string; urgente: boolean };
   tipo?: TipoReparo;
   dados: DadosRecepcao;
   progresso: ReturnType<typeof progressoChecklist>;
@@ -387,6 +486,14 @@ function Resumo({
             <span className="text-alerta font-medium">Escolha o tipo de reparo</span>
           )}
         </LinhaResumo>
+        {prazo && (
+          <LinhaResumo nome="Prazo" onEditar={() => onIr(0)}>
+            <span className="flex flex-wrap items-center gap-2 numero">
+              {prazo.dias} {prazo.dias === 1 ? "dia útil" : "dias úteis"} · entrega {diaCurto(prazo.entrega)}
+              {prazo.urgente && <Etiqueta tom="alerta">Urgente</Etiqueta>}
+            </span>
+          </LinhaResumo>
+        )}
         <LinhaResumo nome="Quilometragem" onEditar={() => onIr(0)}>
           <span className="numero">{dados.km !== undefined ? kmLegivel(dados.km) : <span className="text-tinta-fraca">Não informada</span>}</span>
         </LinhaResumo>

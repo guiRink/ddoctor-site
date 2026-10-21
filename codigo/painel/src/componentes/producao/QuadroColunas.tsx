@@ -80,7 +80,7 @@ function Coluna({
   const parados = c.itens.filter((i) => i.impedido).length;
   const partes = pronto
     ? [`${c.itens.filter((i) => i.entregaHoje).length} para hoje`]
-    : [execucao && `${execucao} em execução`, fila && `${fila} na fila`, parados && `${parados} ${parados === 1 ? "impedido" : "impedidos"}`].filter(Boolean);
+    : [execucao && `${execucao} em execução`, fila && `${fila} na fila`, parados && `${parados} ${parados === 1 ? "parado" : "parados"}`].filter(Boolean);
 
   return (
     <section aria-label={`${c.nome}: ${c.itens.length}`} className="min-w-0 flex flex-col rounded-cartao bg-cinza-100 p-1">

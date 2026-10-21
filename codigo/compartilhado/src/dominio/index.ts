@@ -7,6 +7,7 @@ export * from "./dinheiro";
 export * from "./expediente";
 export * from "./tempos";
 export * from "./semaforo";
+export * from "./corCarro";
 export * from "./os";
 export * from "./agenda";
 export * from "./financeiro";

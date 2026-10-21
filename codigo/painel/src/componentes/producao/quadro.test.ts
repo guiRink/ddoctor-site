@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { EtapaOS, OS } from "@compartilhado/tipos";
 import { CONFIG_PADRAO } from "@compartilhado/dominio/config";
 import type { OSVisao } from "../../dados/repositorio";
-import { COLUNA_PRONTOS, contarItens, etapaDaFuncao, lerFiltro, proximoCarro, densidadeTV, etapasSemCarro, filtrarItens, formatarDia, formatarPrazoCurto, lerVisao, montarColunas, montarItens, ordemEtapas, ordenarPorUrgencia, paginasTV } from "./quadro";
+import { COLUNA_PRONTOS, contarItens, etapaDaFuncao, lerFiltro, proximoCarro, densidadeTV, etapasSemCarro, filtrarItens, formatarDia, formatarPrazoCurto, lerVisao, montarColunas, montarItens, ordemEtapas, ordenarPorUrgencia, paginasTV, gradeMosaico, MOSAICO, ordenarMosaico, textoCurtoCor } from "./quadro";
 
 const AGORA = "2026-10-13T10:00:00-03:00"; // terça, dentro do expediente
 
@@ -69,9 +69,10 @@ describe("montarItens e colunas", () => {
     expect(itens.map((i) => i.v.os.id).sort()).toEqual(["1", "2", "3"]);
   });
 
-  it("conta como o Geral: na oficina = em serviço + prontos; parados = atrasados + impedidos; saem hoje", () => {
-    expect(contarItens(itens)).toEqual({ naOficina: 3, emServico: 2, prontos: 1, atrasados: 1, impedidos: 1, parados: 2, hoje: 2 });
-    expect(filtrarItens(itens, "parados").map((i) => i.v.os.id).sort()).toEqual(["1", "2"]);
+  it("conta como o Geral: na oficina = em serviço + prontos; atrasados e parados separados; saem hoje", () => {
+    expect(contarItens(itens)).toEqual({ naOficina: 3, emServico: 2, prontos: 1, atrasados: 1, parados: 1, hoje: 2, piscando: 0, vermelhos: 0, laranjas: 1, verdes: 1 });
+    expect(filtrarItens(itens, "atrasados").map((i) => i.v.os.id)).toEqual(["1"]);
+    expect(filtrarItens(itens, "parados").map((i) => i.v.os.id)).toEqual(["2"]);
     expect(filtrarItens(itens, "hoje").map((i) => i.v.os.id).sort()).toEqual(["1", "3"]);
   });
 
@@ -87,11 +88,27 @@ describe("montarItens e colunas", () => {
     expect(itens.map((i) => i.prazoEtapa ?? "").join(" ")).not.toMatch(/\d{2}:\d{2}/);
   });
 
-  it("links antigos de filtro caem em Parados e atrasados", () => {
-    expect(lerFiltro("atrasados")).toBe("parados");
+  it("filtros Atrasados e Parados; link antigo de impedidos cai em Parados", () => {
+    expect(lerFiltro("atrasados")).toBe("atrasados");
+    expect(lerFiltro("parados")).toBe("parados");
     expect(lerFiltro("impedidos")).toBe("parados");
     expect(lerFiltro("hoje")).toBe("hoje");
     expect(lerFiltro("x")).toBe("todos");
+  });
+
+  it("cor do carro em cada cartão (porCor): entrega hoje com etapa concluída fica laranja; sem data, verde", () => {
+    const porId = Object.fromEntries(itens.map((i) => [i.v.os.id, i]));
+    expect(porId["1"].cor).toBe("laranja");
+    expect(porId["1"].motivoCor).toMatch(/^Entrega hoje/);
+    expect(porId["2"].cor).toBe("verde");
+    expect(porId["2"].motivoCor).toBe("Sem data de entrega");
+    expect(filtrarItens(itens, "laranjas").map((i) => i.v.os.id)).toEqual(["1"]);
+    expect(filtrarItens(itens, "vermelhos")).toEqual([]);
+    expect(lerFiltro("vermelhos")).toBe("vermelhos");
+    expect(textoCurtoCor(porId["1"])).toBe("Entrega hoje");
+    expect(textoCurtoCor(porId["2"])).toBe("Sem data de entrega");
+    // mosaico: a pior cor primeiro, pronto por último
+    expect(ordenarMosaico(itens).map((i) => i.v.os.id)).toEqual(["1", "2", "3"]);
   });
 
   it("monta colunas pela etapa atual, com Prontos no fim", () => {
@@ -136,6 +153,31 @@ describe("apresentação", () => {
     expect(lerVisao("lista")).toBe("lista");
     expect(lerVisao(null)).toBe("quadro");
     expect(lerVisao("outra")).toBe("quadro");
+  });
+});
+
+describe("gradeMosaico", () => {
+  // área do corpo da TV em 1920×1080 (sem faixa de cima, rodapé e respiros)
+  const L = 1856;
+  const A = 888;
+  it("até 30 carros cabem numa tela de 1920×1080 (6 × 5), sem paginar", () => {
+    const g = gradeMosaico(30, L, A, 14);
+    expect(g.colunas * g.linhas).toBeGreaterThanOrEqual(30);
+    expect(g.porPagina).toBe(30);
+    expect(g.largura).toBeGreaterThanOrEqual(MOSAICO.larguraMin);
+    expect(g.altura).toBeGreaterThanOrEqual(MOSAICO.alturaMin);
+  });
+  it("poucos carros ganham quadrados grandes; 20+ ficam médios ou pequenos", () => {
+    expect(gradeMosaico(11, L, A, 14).densidade).toBe("g");
+    expect(["m", "p"]).toContain(gradeMosaico(24, L, A, 14).densidade);
+    const um = gradeMosaico(1, L, A, 14);
+    expect(um.largura).toBeLessThanOrEqual(MOSAICO.larguraMax);
+    expect(um.altura).toBeLessThanOrEqual(MOSAICO.alturaMax);
+  });
+  it("acima da capacidade, a grade cheia vira uma página", () => {
+    const g = gradeMosaico(40, L, A, 14);
+    expect(g.porPagina).toBe(g.colunas * g.linhas);
+    expect(g.porPagina).toBeLessThan(40);
   });
 });
 

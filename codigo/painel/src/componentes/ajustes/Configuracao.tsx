@@ -99,7 +99,7 @@ export function PrazosECores({ podeEditar }: { podeEditar: boolean }) {
     <Secao
       id="prazos"
       titulo="Prazos e cores"
-      descricao="Quando o cartão do carro muda de cor."
+      descricao="Quando a etapa muda de cor na produção: prazo da etapa e impedimento. A cor do carro fica em Cores dos carros."
       nota={algum ? <NotaProvisoria texto="a confirmar no questionário" /> : undefined}
     >
       <Consulta q={q}>

@@ -23,6 +23,7 @@ function pendentes(c: ConfigOficina, pagadores: readonly Pagador[]): Pendente[] 
   if (campoConfigProvisorio(c, "vagasEntrada")) lista.push({ chave: "vagas", texto: "Entradas por dia", secao: "agenda" });
   if (campoConfigProvisorio(c, "carrosSimultaneos")) lista.push({ chave: "simultaneos", texto: "Carros ao mesmo tempo", secao: "agenda" });
   if (campoConfigProvisorio(c, "pecasDia")) lista.push({ chave: "pecas", texto: "Peças por dia", secao: "agenda" });
+  if (campoConfigProvisorio(c, "alertaCarro")) lista.push({ chave: "alerta", texto: "Cores dos carros: quando fica laranja, vermelho e o prazo padrão", secao: "cores" });
   if (campoConfigProvisorio(c, "semaforo")) lista.push({ chave: "semaforo", texto: "Quando o cartão fica laranja e vermelho", secao: "prazos" });
   if (campoConfigProvisorio(c, "expediente")) lista.push({ chave: "expediente", texto: "Expediente da oficina", secao: "prazos" });
   if (!c.checklist) lista.push({ chave: "checklist", texto: "Checklist de entrada", secao: "checklist" });

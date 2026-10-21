@@ -8,12 +8,13 @@ import { Placa } from "../ui/Placa";
 import { Tabela, Td, Th } from "../ui/Tabela";
 import { Icone } from "../Icone";
 import { ValorEntrega } from "./CartaoQuadro";
-import { PilulaSituacao } from "./Situacao";
-import type { ItemQuadro } from "./quadro";
+import { MotivoCor } from "./Situacao";
+import { BARRA_COR, type ItemQuadro } from "./quadro";
 
 /**
- * Visão Lista da Produção (docs/painel-design.md §5.1): todos os carros numa tabela, do mais urgente
- * ao menos. A linha inteira abre o painel do carro; o botão da placa dá o acesso por teclado.
+ * Visão Lista da Produção (docs/painel-design.md §5.1): todos os carros numa tabela, da pior cor do carro à melhor.
+ * Barra da cor na borda esquerda da linha e, na última coluna, a faixa com o motivo da cor ("Atrasado 2 dias").
+ * A linha inteira abre o painel do carro; o botão da placa dá o acesso por teclado.
  */
 export function ListaProducao({
   itens,
@@ -38,8 +39,7 @@ export function ListaProducao({
           <Th>Responsável</Th>
           <Th direita>Na etapa</Th>
           <Th direita>Prazo da etapa</Th>
-          <Th direita>Entrega</Th>
-          <Th className="w-[120px]">Situação</Th>
+          <Th className="w-[216px]">Entrega e cor do carro</Th>
         </tr>
       </thead>
       <tbody>
@@ -65,7 +65,8 @@ function LinhaProducao({
   const { v, resumo: r } = item;
   const etapa = r.atual;
   const { total, atualIndex } = progressoEtapas(v.etapas);
-  const critico = item.parado;
+  // linha com fundo de alerta: vermelho (cheio ou piscando) ou parado
+  const critico = !item.pronto && (item.cor === "vermelho" || item.cor === "vermelho_piscando" || item.emParados);
   const bloqueio = item.impedido ? etapa?.bloqueios.find((b) => !b.fimEm) : undefined;
   const tempo = item.pronto
     ? "—"
@@ -76,7 +77,7 @@ function LinhaProducao({
         : etapa?.iniciadaEm
           ? formatarDuracao(r.execucao)
           : "—";
-  const estadoEtapa = etapa?.estado === "na_fila" ? "na fila" : etapa?.estado === "bloqueada" ? "impedida" : etapa?.iniciadaEm ? "em execução" : "aguardando";
+  const estadoEtapa = etapa?.estado === "na_fila" ? "na fila" : etapa?.estado === "bloqueada" ? "parada" : etapa?.iniciadaEm ? "em execução" : "aguardando";
 
   return (
     <tr
@@ -88,7 +89,8 @@ function LinhaProducao({
         selecionado ? "bg-amarelo-claro" : critico ? "bg-alerta-claro/50 hover:bg-alerta-claro" : "hover:bg-cinza-50"
       }`}
     >
-      <Td>
+      <Td className="relative">
+        <span aria-hidden="true" className={`absolute left-0 inset-y-0 w-1 ${item.pronto ? "bg-ok" : BARRA_COR[item.cor]}`} />
         <button
           type="button"
           aria-label={`Abrir o carro ${v.veiculo.placa.split("").join(" ")}, ${v.veiculo.modelo ?? "modelo não informado"}`}
@@ -130,7 +132,7 @@ function LinhaProducao({
           <p className="mt-0.5 flex items-start gap-1 text-[12px] font-medium text-alerta leading-snug max-w-[200px]">
             <Icone nome="bloqueio" tamanho={12} className="shrink-0 mt-[2px]" />
             <span className="line-clamp-1" title={bloqueio.motivo}>
-              {bloqueio.motivo}
+              <span className="font-semibold">Parado</span> · {bloqueio.motivo}
             </span>
           </p>
         )}
@@ -142,11 +144,22 @@ function LinhaProducao({
       <Td numero className={item.etapaVencida ? "text-alerta font-semibold" : ""}>
         {item.pronto ? <span className="text-tinta-suave">pronto {item.prontoHa}</span> : (item.prazoEtapa ?? "—")}
       </Td>
-      <Td numero>
-        <ValorEntrega item={item} />
-      </Td>
-      <Td>
-        <PilulaSituacao situacao={item.situacao} />
+      {/* a faixa da cor já diz a entrega ("Entrega amanhã e nenhuma etapa concluída"); o dia só entra quando está longe */}
+      <Td className="w-[216px]">
+        {item.pronto || !item.motivoCor ? (
+          <p className="flex items-center gap-2 text-[13px] numero">
+            {item.pronto && <Etiqueta tom="ok">Pronto</Etiqueta>}
+            <span className="text-tinta-suave">Entrega</span>
+            <ValorEntrega item={item} />
+          </p>
+        ) : (
+          <>
+            <MotivoCor cor={item.cor} motivo={item.motivoCor} prazoProprio={item.personalizado} />
+            {item.diasUteisParaEntrega !== null && item.diasUteisParaEntrega >= 2 && item.entrega && (
+              <p className="mt-1 text-[12px] text-tinta-suave numero">prometida {item.entrega}</p>
+            )}
+          </>
+        )}
       </Td>
     </tr>
   );

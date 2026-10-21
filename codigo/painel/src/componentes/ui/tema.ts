@@ -8,7 +8,8 @@ import { useCallback, useEffect, useState } from "react";
 export type Tema = "claro" | "escuro" | "automatico";
 
 export const CHAVE_TEMA = "ddoctor.tema";
-const COR_TOPO = { claro: "#FFFFFF", escuro: "#17181A" } as const;
+// o topo da casca é preto nos dois temas (revisão SH): a barra do navegador acompanha
+const COR_TOPO = { claro: "#111111", escuro: "#111111" } as const;
 const CONSULTA_ESCURO = "(prefers-color-scheme: dark)";
 /** Avisa os outros seletores da mesma página (barra lateral e menu "Mais"). */
 const EVENTO_TEMA = "ddoctor:tema";

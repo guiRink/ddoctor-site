@@ -1,18 +1,21 @@
-// O que cada quadrado do Geral mostra e o que a gaveta dele lista (revisão SG, item 1; docs/revisao-sg/sistemas-r2.md,
-// "Regras de cada quadrado"). Todos os números vêm de src/dominio/contagens.ts (os mesmos da Produção, da TV e de
-// Atendimentos) ou de ./dinheiro.ts (financeiro); o total do quadrado é o número de linhas da gaveta.
+// O que cada quadrado do Geral mostra e o que a gaveta dele lista (revisão SG, item 1; revisão SH: quadrados só com
+// número e rótulo, docs/revisao-sh/pedido-dono.md). Todos os números vêm de src/dominio/contagens.ts (os mesmos da
+// Produção, da TV e de Orçamentos) ou de ./dinheiro.ts (financeiro); o total do quadrado é o número de linhas da gaveta.
 import type { ReactNode } from "react";
 import type { ConfigOficina, MarcoISO, Perfil } from "@compartilhado/tipos";
 import { formatarReais } from "@compartilhado/dominio/dinheiro";
 import type { OSVisao } from "../../dados/repositorio";
 import type {
+  aguardandoAgendamento,
+  aguardandoAprovacao,
+  aguardandoSeguradora,
+  atrasados,
   dinheiroVencido,
   entramHoje,
-  esperandoSeguradora,
   ItemAfazer,
+  ItemAguardandoAprovacao,
   naOficina,
-  paradosEAtrasados,
-  paraAgendar,
+  parados,
   paraFazerHoje,
   prontosCobrarFranquia,
   saemHoje,
@@ -28,16 +31,18 @@ import { dataCurta, telefoneLegivel } from "../orcamentos/formato";
 import type { aPagarEm7Dias, recebidoNoMes, venceEm7Dias } from "./dinheiro";
 import { textoDespesa, textoVence } from "./dinheiro";
 import { Carro, type ColunaLista, type LinhaLista } from "./ListaGaveta";
-import type { ItemQuadrado } from "./Quadrado";
+import type { TomProblema } from "./Quadrado";
 
 export type ChaveLista =
   | "na_oficina"
   | "entram_hoje"
   | "saem_hoje"
+  | "atrasados"
   | "parados"
-  | "esperando_seguradora"
+  | "aguardando_aprovacao"
+  | "aguardando_seguradora"
+  | "aguardando_agendamento"
   | "dinheiro_vencido"
-  | "para_agendar"
   | "cobrar_franquia"
   | "vence_7"
   | "a_pagar_7"
@@ -48,10 +53,12 @@ export const CHAVES_LISTA: readonly ChaveLista[] = [
   "na_oficina",
   "entram_hoje",
   "saem_hoje",
+  "atrasados",
   "parados",
-  "esperando_seguradora",
+  "aguardando_aprovacao",
+  "aguardando_seguradora",
+  "aguardando_agendamento",
   "dinheiro_vencido",
-  "para_agendar",
   "cobrar_franquia",
   "vence_7",
   "a_pagar_7",
@@ -66,10 +73,12 @@ export interface DadosGeral {
   naOficina: ReturnType<typeof naOficina>;
   entram: ReturnType<typeof entramHoje>;
   saem: ReturnType<typeof saemHoje>;
-  parados: ReturnType<typeof paradosEAtrasados>;
-  esperando: ReturnType<typeof esperandoSeguradora>;
+  atrasados: ReturnType<typeof atrasados>;
+  parados: ReturnType<typeof parados>;
+  aprovacao: ReturnType<typeof aguardandoAprovacao>;
+  seguradora: ReturnType<typeof aguardandoSeguradora>;
+  agendar: ReturnType<typeof aguardandoAgendamento>;
   vencido: ReturnType<typeof dinheiroVencido>;
-  agendar: ReturnType<typeof paraAgendar>;
   cobrar: ReturnType<typeof prontosCobrarFranquia>;
   afazer: ReturnType<typeof paraFazerHoje>;
   aVencer: ReturnType<typeof venceEm7Dias>;
@@ -77,19 +86,21 @@ export interface DadosGeral {
   recebido: ReturnType<typeof recebidoNoMes>;
 }
 
+/** Um quadrado do Geral: só número e rótulo, com no máximo uma linha curta de detalhe (revisão SH). */
 export interface Bloco {
   chave: ChaveLista;
   titulo: string;
   total: number;
-  resumo?: ReactNode;
+  detalhe?: string;
+  /** Dinheiro: o valor em reais é o número do quadrado. */
   valor?: string;
-  itens: ItemQuadrado[];
-  problema?: boolean;
+  /** O dono quer zerado: cor do estado quando > 0; "0" verde com `zeroOk` quando zerado. */
+  problema?: TomProblema;
+  zeroOk?: string;
 }
 
 const s = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
 const ficha = (v: OSVisao) => `/orcamentos/${v.os.id}`;
-const MAX = 6;
 /** Células de uma linha da gaveta, na ordem das colunas. */
 const cel = (...celulas: ReactNode[]) => celulas;
 
@@ -99,85 +110,48 @@ export function bloco(chave: ChaveLista, d: DadosGeral): Bloco {
   switch (chave) {
     case "na_oficina": {
       const c = d.naOficina;
-      return {
-        chave,
-        titulo: "Na oficina",
-        total: c.total,
-        resumo: `${c.emServico} em serviço · ${s(c.prontos, "pronto", "prontos")}`,
-        itens: c.itens.slice(0, MAX).map((i) => {
-          if (i.situacao === "pronto") {
-            const dias = i.prontoHaDias ?? 0;
-            return { chave: i.v.os.id, placa: i.v.veiculo.placa, info: dias === 0 ? "pronto hoje" : `pronto há ${dias} d`, tom: i.naoBuscou ? "atencao" : "ok" };
-          }
-          const etapa = i.etapa?.nome ?? "Na fila";
-          if (i.situacao === "impedido") return { chave: i.v.os.id, placa: i.v.veiculo.placa, info: `${etapa} · impedido`, tom: "alerta" };
-          if (i.situacao === "atrasado") return { chave: i.v.os.id, placa: i.v.veiculo.placa, info: `${etapa} · atrasado`, tom: "alerta" };
-          return { chave: i.v.os.id, placa: i.v.veiculo.placa, info: etapa, tom: i.situacao === "atencao" ? "atencao" : "neutro" };
-        }),
-      };
+      return { chave, titulo: "Na oficina", total: c.total, detalhe: `${c.emServico} em serviço · ${s(c.prontos, "pronto", "prontos")}` };
     }
     case "entram_hoje": {
       const c = d.entram;
       const aConfirmar = c.total - c.confirmados;
-      return {
-        chave,
-        titulo: "Entram hoje",
-        total: c.total,
-        resumo: [porTurno(c.manha, c.tarde), aConfirmar ? `${aConfirmar} a confirmar` : ""].filter(Boolean).join(" · "),
-        itens: c.itens.slice(0, MAX).map((i) => ({
-          chave: i.ag.id,
-          placa: i.v.veiculo.placa,
-          info: `${JANELA[i.janela].toLowerCase()}${i.confirmado ? "" : " · a confirmar"}`,
-          tom: i.confirmado ? "neutro" : "atencao",
-        })),
-      };
+      return { chave, titulo: "Entram hoje", total: c.total, detalhe: [porTurno(c.manha, c.tarde), aConfirmar ? `${aConfirmar} a confirmar` : ""].filter(Boolean).join(" · ") };
     }
     case "saem_hoje": {
       const c = d.saem;
+      return { chave, titulo: "Saem hoje", total: c.total, detalhe: `${s(c.prontos, "pronto", "prontos")} · ${c.emServico} em serviço` };
+    }
+    case "atrasados": {
+      const c = d.atrasados;
+      const entrega = c.itens.filter((i) => i.entregaVencida).length;
+      const etapa = c.total - entrega;
       return {
         chave,
-        titulo: "Saem hoje",
+        titulo: "Atrasados",
         total: c.total,
-        resumo: `${s(c.prontos, "pronto", "prontos")} · ${c.emServico} em serviço`,
-        itens: c.itens.slice(0, MAX).map((i) => ({
-          chave: i.v.os.id,
-          placa: i.v.veiculo.placa,
-          info: i.pronto ? "pronto" : `falta ${i.falta || "terminar"}`,
-          tom: i.pronto ? "ok" : "atencao",
-        })),
+        problema: "alerta",
+        zeroOk: "Tudo em dia",
+        detalhe: [entrega && s(entrega, "entrega vencida", "entregas vencidas"), etapa && s(etapa, "etapa atrasada", "etapas atrasadas")].filter(Boolean).join(" · "),
       };
     }
     case "parados": {
       const c = d.parados;
-      const impedidos = c.itens.filter((i) => i.tipo === "impedido").length;
-      const atrasados = c.total - impedidos;
-      return {
-        chave,
-        titulo: "Parados e atrasados",
-        total: c.total,
-        problema: true,
-        resumo: [impedidos && s(impedidos, "impedido", "impedidos"), atrasados && s(atrasados, "atrasado", "atrasados")].filter(Boolean).join(" · "),
-        itens: c.itens.slice(0, MAX).map((i) => ({
-          chave: i.v.os.id,
-          placa: i.v.veiculo.placa,
-          info: i.tipo === "impedido" ? `impedido ${i.haQuanto}` : i.haQuanto,
-          tom: "alerta",
-        })),
-      };
+      // um só: há quanto e o motivo ("há 5 h · Aguardando peça"); vários: há quanto o mais antigo está parado
+      const detalhe = c.total === 1 ? `${c.itens[0].haQuanto} · ${c.itens[0].motivo}` : c.total ? `mais antigo ${c.itens[0].haQuanto}` : undefined;
+      return { chave, titulo: "Parados", total: c.total, problema: "atencao", zeroOk: "Nenhum carro parado", detalhe };
     }
-    case "esperando_seguradora": {
-      const c = d.esperando;
-      return {
-        chave,
-        titulo: "Esperando seguradora",
-        total: c.total,
-        resumo: c.total ? `mais antigo ${c.maisAntigoDias === 0 ? "de hoje" : `há ${s(c.maisAntigoDias, "dia", "dias")}`}` : undefined,
-        itens: c.itens.slice(0, MAX).map((i) => ({
-          chave: i.v.os.id,
-          placa: i.v.veiculo.placa,
-          info: `${i.seguradora} · ${i.dias === 0 ? "hoje" : `há ${i.dias} d`}`,
-        })),
-      };
+    case "aguardando_aprovacao": {
+      const c = d.aprovacao;
+      return { chave, titulo: "Aguardando aprovação", total: c.total, detalhe: maisAntigo(c.total, c.maisAntigoDias) };
+    }
+    case "aguardando_seguradora": {
+      const c = d.seguradora;
+      return { chave, titulo: "Aguardando seguradora", total: c.total, detalhe: maisAntigo(c.total, c.maisAntigoDias) };
+    }
+    case "aguardando_agendamento": {
+      const c = d.agendar;
+      // "sem telefone" fica em Para fazer hoje e na gaveta; o quadrado só diz há quanto tempo
+      return { chave, titulo: "Aguardando agendamento", total: c.total, detalhe: maisAntigo(c.total, c.maisAntigoDias) };
     }
     case "dinheiro_vencido": {
       const c = d.vencido;
@@ -185,43 +159,15 @@ export function bloco(chave: ChaveLista, d: DadosGeral): Bloco {
         chave,
         titulo: "Dinheiro vencido",
         total: c.total,
-        problema: true,
+        problema: "alerta",
+        zeroOk: "Nada vencido",
         valor: formatarReais(c.valor),
-        resumo: nomesDevedores(c.porDevedor.map((g) => (g.tipo === "cliente" ? "cliente" : g.nome))),
-        itens: c.itens.slice(0, MAX).map((i) => ({
-          chave: i.t.id,
-          placa: i.v?.veiculo.placa,
-          texto: i.t.descricao,
-          info: `há ${s(i.diasAtraso, "dia", "dias")}`,
-          tom: "alerta",
-        })),
-      };
-    }
-    case "para_agendar": {
-      const c = d.agendar;
-      const semTelefone = c.itens.filter((i) => i.semTelefone).length;
-      return {
-        chave,
-        titulo: "Para agendar",
-        total: c.total,
-        resumo: [c.total && `mais antigo há ${s(c.itens[0]?.dias ?? 0, "dia", "dias")}`, semTelefone && `${semTelefone} sem telefone`].filter(Boolean).join(" · "),
-        itens: c.itens.slice(0, MAX).map((i) => ({
-          chave: i.v.os.id,
-          placa: i.v.veiculo.placa,
-          info: i.semTelefone ? "sem telefone" : i.proposta ? "horário proposto" : i.dias === 0 ? "aprovado hoje" : `aprovado há ${i.dias} d`,
-          tom: i.semTelefone ? "alerta" : "neutro",
-        })),
+        detalhe: c.total ? [s(c.total, "título", "títulos"), nomesDevedores(c.porDevedor.map((g) => (g.tipo === "cliente" ? "cliente" : g.nome)))].filter(Boolean).join(" · ") : undefined,
       };
     }
     case "cobrar_franquia": {
       const c = d.cobrar;
-      return {
-        chave,
-        titulo: "Prontos — cobrar franquia",
-        total: c.total,
-        valor: formatarReais(c.valor),
-        itens: c.itens.slice(0, MAX).map((i) => ({ chave: i.v.os.id, placa: i.v.veiculo.placa, info: formatarReais(i.valor) })),
-      };
+      return { chave, titulo: "Prontos — cobrar franquia", total: c.total, valor: formatarReais(c.valor), detalhe: c.total ? s(c.total, "carro pronto", "carros prontos") : undefined };
     }
     case "vence_7": {
       const c = d.aVencer;
@@ -230,8 +176,7 @@ export function bloco(chave: ChaveLista, d: DadosGeral): Bloco {
         titulo: "Vence em 7 dias",
         total: c.total,
         valor: formatarReais(c.valor),
-        resumo: nomesDevedores(c.itens.map((i) => (i.devedor.tipo === "cliente" ? "cliente" : i.devedor.nome))),
-        itens: c.itens.slice(0, MAX).map((i) => ({ chave: i.t.id, placa: i.v?.veiculo.placa, texto: i.t.descricao, info: textoVence(i.dias), tom: i.dias === 0 ? "atencao" : "neutro" })),
+        detalhe: c.total ? [s(c.total, "título", "títulos"), nomesDevedores(c.itens.map((i) => (i.devedor.tipo === "cliente" ? "cliente" : i.devedor.nome)))].filter(Boolean).join(" · ") : undefined,
       };
     }
     case "a_pagar_7": {
@@ -241,26 +186,26 @@ export function bloco(chave: ChaveLista, d: DadosGeral): Bloco {
         titulo: "A pagar em 7 dias",
         total: c.total,
         valor: formatarReais(c.valor),
-        resumo: c.vencidas ? `${s(c.vencidas, "vencida", "vencidas")}` : undefined,
-        itens: c.itens.slice(0, MAX).map((i) => ({ chave: i.d.id, texto: i.d.descricao, info: textoDespesa(i), tom: i.vencida ? "alerta" : i.dias === 0 ? "atencao" : "neutro" })),
+        detalhe: c.total ? [s(c.total, "despesa", "despesas"), c.vencidas ? s(c.vencidas, "vencida", "vencidas") : ""].filter(Boolean).join(" · ") : undefined,
       };
     }
     case "recebido_mes": {
       const c = d.recebido;
-      return {
-        chave,
-        titulo: "Recebido no mês",
-        total: c.total,
-        valor: formatarReais(c.valor),
-        resumo: c.total ? s(c.total, "recebimento", "recebimentos") : undefined,
-        itens: c.itens.slice(0, MAX).map((i) => ({ chave: i.b.id, placa: i.v?.veiculo.placa, texto: i.t.descricao, info: `${formatarReais(i.b.valor)} · ${dataCurta(i.b.recebidoEm)}` })),
-      };
+      return { chave, titulo: "Recebido no mês", total: c.total, valor: formatarReais(c.valor), detalhe: c.total ? s(c.total, "recebimento", "recebimentos") : undefined };
     }
     case "afazer": {
       const c = d.afazer;
-      return { chave, titulo: "Para fazer hoje", total: c.total, itens: [] };
+      return { chave, titulo: "Para fazer hoje", total: c.total };
     }
   }
+}
+
+/** Um só: "há 3 dias" / "de hoje"; vários: "mais antigo há 3 dias" / "todos de hoje"; nenhum: nada. */
+function maisAntigo(total: number, dias: number): string | undefined {
+  if (total === 0) return undefined;
+  if (dias === 0) return total === 1 ? "de hoje" : "todos de hoje";
+  const ha = `há ${s(dias, "dia", "dias")}`;
+  return total === 1 ? ha : `mais antigo ${ha}`;
 }
 
 /** "HDI · cliente" / "HDI, Liberty e mais 2". */
@@ -437,29 +382,33 @@ export function conteudoLista(chave: ChaveLista, d: DadosGeral, a: AcoesLista): 
         })),
       };
     }
-    case "parados": {
-      const c = d.parados;
+    case "atrasados": {
+      const c = d.atrasados;
       return {
-        titulo: "Parados e atrasados",
-        descricao: `${s(c.total, "carro", "carros")} · o mais antigo primeiro`,
+        titulo: "Atrasados",
+        descricao: `${s(c.total, "carro passou", "carros passaram")} do prazo · o mais antigo primeiro`,
         total: s(c.total, "carro", "carros"),
         destino: { para: "/producao?filtro=atrasados", rotulo: "Abrir na Produção" },
         colunas: [
           { rotulo: "Carro", largura: "minmax(0,1.1fr)", celular: "titulo" },
-          { rotulo: "Motivo", largura: "minmax(0,1.5fr)", celular: "titulo" },
+          { rotulo: "Motivo", largura: "minmax(0,1.4fr)", celular: "titulo" },
           { rotulo: "Há quanto", largura: "minmax(0,0.8fr)" },
-          { rotulo: "Quem resolve", largura: "minmax(0,1fr)" },
+          { rotulo: "Responsável", largura: "minmax(0,1fr)" },
         ],
         linhas: c.itens.map((i) => {
-          const nome = i.tipo === "impedido" ? undefined : nomePerfil(d.perfis, i.responsavelId);
+          const nome = nomePerfil(d.perfis, i.responsavelId);
           return {
             id: i.v.os.id,
             ident: placa(i.v),
             para: ficha(i.v),
             rotulo: `Abrir a ficha do ${i.v.veiculo.placa}`,
+            alerta: true,
             celulas: cel(
               <Carro titulo={modelo(i.v)} detalhe={i.etapa?.nome} />,
-              <span className="block text-alerta font-medium leading-snug line-clamp-2">{i.motivo}</span>,
+              <span className="block leading-snug">
+                <span className="block text-alerta font-medium line-clamp-2">{i.motivo}</span>
+                {i.parado && <span className="block text-[12px] text-atencao font-medium">também parado</span>}
+              </span>,
               <span className="numero whitespace-nowrap">{i.haQuanto}</span>,
               nome ? <Responsavel nome={nome} /> : <span>{PAPEL[i.quemResolve]}</span>,
             ),
@@ -467,18 +416,18 @@ export function conteudoLista(chave: ChaveLista, d: DadosGeral, a: AcoesLista): 
         }),
       };
     }
-    case "esperando_seguradora": {
-      const c = d.esperando;
+    case "parados": {
+      const c = d.parados;
       return {
-        titulo: "Esperando seguradora",
-        descricao: `${s(c.total, "carro", "carros")} · o mais antigo primeiro`,
+        titulo: "Parados",
+        descricao: `${s(c.total, "carro", "carros")} com etapa impedida · o parado há mais tempo primeiro`,
         total: s(c.total, "carro", "carros"),
-        destino: { para: "/orcamentos?estado=aguardando_aprovacao&origem=com_seguradora", rotulo: "Abrir em Atendimentos" },
+        destino: { para: "/producao?filtro=parados", rotulo: "Abrir na Produção" },
         colunas: [
-          { rotulo: "Carro", largura: "minmax(0,1.2fr)", celular: "titulo" },
-          { rotulo: "Seguradora", largura: "minmax(0,1.2fr)" },
-          { rotulo: "Há quanto", largura: "minmax(0,0.8fr)" },
-          { rotulo: "Valor orçado", largura: "minmax(0,0.9fr)", direita: true, celular: "lado" },
+          { rotulo: "Carro", largura: "minmax(0,1.1fr)", celular: "titulo" },
+          { rotulo: "Motivo", largura: "minmax(0,1.4fr)", celular: "titulo" },
+          { rotulo: "Parado há", largura: "minmax(0,0.8fr)", prefixo: "parado" },
+          { rotulo: "Quem resolve", largura: "minmax(0,1fr)" },
         ],
         linhas: c.itens.map((i) => ({
           id: i.v.os.id,
@@ -486,12 +435,37 @@ export function conteudoLista(chave: ChaveLista, d: DadosGeral, a: AcoesLista): 
           para: ficha(i.v),
           rotulo: `Abrir a ficha do ${i.v.veiculo.placa}`,
           celulas: cel(
-            <Carro titulo={modelo(i.v)} detalhe={i.v.cliente.nome} />,
-            <Carro titulo={i.seguradora} detalhe={i.protocolo && <span className="numero">{i.protocolo}</span>} />,
-            <span className="numero whitespace-nowrap">{i.dias === 0 ? "hoje" : `há ${s(i.dias, "dia", "dias")}`}</span>,
-            i.valorOrcado > 0 ? <span className="font-medium">{formatarReais(i.valorOrcado)}</span> : nada,
+            <Carro titulo={modelo(i.v)} detalhe={i.etapa?.nome} />,
+            <span className="block leading-snug">
+              <span className="block text-atencao font-medium line-clamp-2">{i.motivo}</span>
+              {i.atrasado && <span className="block text-[12px] text-alerta font-medium">também atrasado</span>}
+            </span>,
+            <span className="numero whitespace-nowrap">{i.haQuanto}</span>,
+            <span>{PAPEL[i.quemResolve]}</span>,
           ),
         })),
+      };
+    }
+    case "aguardando_aprovacao": {
+      const c = d.aprovacao;
+      return {
+        titulo: "Aguardando aprovação",
+        descricao: [s(c.total, "orçamento", "orçamentos"), c.deSeguradora && `${c.deSeguradora} de seguradora`, c.particulares && s(c.particulares, "particular", "particulares")].filter(Boolean).join(" · "),
+        total: s(c.total, "orçamento", "orçamentos"),
+        destino: { para: "/orcamentos?estado=aguardando_aprovacao", rotulo: "Abrir em Orçamentos" },
+        colunas: COLUNAS_APROVACAO,
+        linhas: c.itens.map((i) => linhaAprovacao(i)),
+      };
+    }
+    case "aguardando_seguradora": {
+      const c = d.seguradora;
+      return {
+        titulo: "Aguardando seguradora",
+        descricao: `${s(c.total, "carro", "carros")} · o mais antigo primeiro`,
+        total: s(c.total, "carro", "carros"),
+        destino: { para: "/orcamentos?estado=aguardando_aprovacao&origem=com_seguradora", rotulo: "Abrir em Orçamentos" },
+        colunas: COLUNAS_APROVACAO,
+        linhas: c.itens.map((i) => linhaAprovacao(i)),
       };
     }
     case "dinheiro_vencido": {
@@ -521,11 +495,11 @@ export function conteudoLista(chave: ChaveLista, d: DadosGeral, a: AcoesLista): 
         })),
       };
     }
-    case "para_agendar": {
+    case "aguardando_agendamento": {
       const c = d.agendar;
       return {
-        titulo: "Para agendar",
-        descricao: `${s(c.total, "carro", "carros")} aprovados · o mais antigo primeiro`,
+        titulo: "Aguardando agendamento",
+        descricao: `${s(c.total, "carro aprovado", "carros aprovados")} sem dia marcado · o mais antigo primeiro`,
         total: s(c.total, "carro", "carros"),
         destino: { para: "/agenda", rotulo: "Abrir a Agenda" },
         larguraAcoes: a.podeAgendar ? "228px" : undefined,
@@ -696,6 +670,29 @@ export function conteudoLista(chave: ChaveLista, d: DadosGeral, a: AcoesLista): 
   }
 }
 
+const COLUNAS_APROVACAO: ColunaLista[] = [
+  { rotulo: "Carro", largura: "minmax(0,1.2fr)", celular: "titulo" },
+  { rotulo: "Origem", largura: "minmax(0,1.2fr)" },
+  { rotulo: "Há quanto", largura: "minmax(0,0.8fr)" },
+  { rotulo: "Valor orçado", largura: "minmax(0,0.9fr)", direita: true, celular: "lado" },
+];
+
+/** Linha de orçamento aguardando: carro, seguradora (ou Particular) com protocolo, há quantos dias, valor orçado. */
+function linhaAprovacao(i: ItemAguardandoAprovacao): LinhaLista {
+  return {
+    id: i.v.os.id,
+    ident: placa(i.v),
+    para: ficha(i.v),
+    rotulo: `Abrir a ficha do ${i.v.veiculo.placa}`,
+    celulas: cel(
+      <Carro titulo={modelo(i.v)} detalhe={i.v.cliente.nome} />,
+      <Carro titulo={i.pagador} detalhe={i.protocolo && <span className="numero">{i.protocolo}</span>} />,
+      <span className="numero whitespace-nowrap">{i.dias === 0 ? "hoje" : `há ${s(i.dias, "dia", "dias")}`}</span>,
+      i.valorOrcado > 0 ? <span className="font-medium">{formatarReais(i.valorOrcado)}</span> : nada,
+    ),
+  };
+}
+
 /** "Reenviar documentação no portal · há 4 dias" → ["Reenviar documentação no portal", "há 4 dias"]. */
 export function partirAfazer(i: ItemAfazer): [string, string | undefined] {
   const k = i.texto.lastIndexOf(" · ");
@@ -708,6 +705,7 @@ export function partirAfazer(i: ItemAfazer): [string, string | undefined] {
 export function rotuloDestino(para: string): string {
   if (para.startsWith("/agenda")) return "Agenda";
   if (para.startsWith("/clientes")) return "Cadastro";
+  if (para.includes("aba=pagamentos")) return "Cobrar";
   return "Abrir";
 }
 

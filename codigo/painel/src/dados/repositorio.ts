@@ -37,8 +37,9 @@ import type {
 import type { ModoMaoDeObra } from "@compartilhado/dominio/custos";
 import type { ConfigParcial } from "@compartilhado/dominio/config";
 import type { TipoReparoEntrada } from "@compartilhado/dominio/tiposReparo";
+import type { EntradaAlertaOS } from "@compartilhado/dominio/corCarro";
 
-export type { ConfigParcial, TipoReparoEntrada };
+export type { ConfigParcial, EntradaAlertaOS, TipoReparoEntrada };
 
 /**
  * Visão de leitura de uma OS com tudo o que as telas precisam (montada pelo repositório).
@@ -245,7 +246,7 @@ export interface Repositorio {
   salvarCategoria(categoria: CategoriaEntrada): Promise<Resultado & { id?: Id }>;
   fecharCaixa(dados: FechamentoEntrada): Promise<Resultado & { id?: Id }>;
   salvarChecklistConfig(itens: ChecklistItem[]): Promise<Resultado>;
-  /** Capacidade, expediente e semáforo; cada campo salvo deixa de ser provisório. Só dono e gestor (podeEditarConfig). */
+  /** Capacidade, expediente, semáforo e alerta do carro (alertaCarro); cada campo salvo deixa de ser provisório. Só dono e gestor (podeEditarConfig). */
   salvarConfig(parcial: ConfigParcial): Promise<Resultado>;
   /** Cria (sem id) ou edita um tipo de reparo / categoria de serviço. Não muda etapas de OS já geradas. */
   salvarTipoReparo(tipo: TipoReparoEntrada): Promise<Resultado & { id?: Id }>;
@@ -267,6 +268,12 @@ export interface Repositorio {
   registrarAprovacao(osId: Id, evidencia: string): Promise<Resultado>;
   registrarEntrada(osId: Id, tipoReparoId: Id, recepcao?: RecepcaoVeiculo): Promise<Resultado>;
   registrarEntrega(osId: Id): Promise<Resultado>;
+  /**
+   * Alerta próprio do carro (pedido do dono, 2º áudio): prazo em dias úteis (recalcula a entrega prometida a partir
+   * da entrada, ou de hoje), "laranja/vermelho a partir de N dias úteis antes" e urgente (prioridade 2). `null` volta
+   * o campo para a base. Inteiros 0–60 (valor_invalido + campo). Dono, gestor e recepção (podeEditarAlertaOS).
+   */
+  salvarAlertaOS(osId: Id, alerta: EntradaAlertaOS): Promise<Resultado>;
 
   // agenda
   /**

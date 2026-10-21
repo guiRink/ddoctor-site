@@ -12,6 +12,8 @@ import { sairDaSessao } from "./PinGate";
 
 /**
  * Casca do painel: barra lateral (desktop), barra inferior (celular) e topo com a busca.
+ * Revisão SH (pedido do dono): navegação amarela (`navegacao`) com texto preto; topo preto (`casca`) — o bloco
+ * da marca no canto superior esquerdo e a barra da busca formam uma faixa preta contínua. Igual nos dois temas.
  * O menu muda por papel (modulosDoMenu); "Ver como" (demonstração) mora no menu do usuário — rodapé da barra
  * lateral no computador, "Mais" no celular.
  */
@@ -56,13 +58,13 @@ export function Layout() {
 
   return (
     <div className="min-h-svh md:grid md:grid-cols-[232px_minmax(0,1fr)]">
-      {/* ---------------- barra lateral (desktop): clara, borda à direita */}
-      <aside className="hidden md:flex md:flex-col bg-cartao border-r border-linha md:sticky md:top-0 md:h-svh min-w-0">
-        <Link to={inicio} className="flex items-center gap-2.5 px-4 h-14 shrink-0 no-underline text-tinta">
+      {/* ---------------- barra lateral (desktop): amarela; o bloco da marca, preto, continua o topo */}
+      <aside data-navegacao className="hidden md:flex md:flex-col bg-navegacao text-preto md:sticky md:top-0 md:h-svh min-w-0">
+        <Link to={inicio} data-casca className="flex items-center gap-2.5 px-4 h-14 shrink-0 no-underline bg-casca text-casca-tinta shadow-[0_1px_0_var(--color-casca-borda)]">
           <MarcaD tamanho={28} />
           <span className="leading-none min-w-0">
             <span className="block font-semibold text-[15px] tracking-[-0.01em]">D doctor</span>
-            <span className="block mt-1 text-[12px] text-tinta-fraca">Painel da oficina</span>
+            <span className="block mt-1 text-[12px] text-casca-fraca">Painel da oficina</span>
           </span>
         </Link>
         <nav aria-label="Seções do painel" className="flex-1 overflow-y-auto px-3 pt-2 pb-3">
@@ -71,7 +73,7 @@ export function Layout() {
             if (doGrupo.length === 0) return null;
             return (
               <div key={g.id} className="mt-3 first:mt-1">
-                <p className="px-2.5 h-7 flex items-center text-[12px] font-medium text-tinta-fraca">{g.nome}</p>
+                <p className="px-2.5 h-7 flex items-center text-[12px] font-semibold text-preto/70">{g.nome}</p>
                 <div className="flex flex-col gap-px">
                   {doGrupo.map((item) => (
                     <NavLink
@@ -80,13 +82,13 @@ export function Layout() {
                       end={item.rota === "/producao"}
                       className={({ isActive }) =>
                         `flex items-center gap-2.5 h-9 px-2.5 rounded-controle text-[14px] no-underline transition-colors duration-150 ${
-                          isActive ? "bg-cinza-100 text-tinta font-semibold" : "text-tinta-suave font-medium hover:text-tinta hover:bg-cinza-50"
+                          isActive ? "bg-preto text-amarelo font-semibold" : "text-preto font-medium hover:bg-preto/8"
                         }`
                       }
                     >
                       {({ isActive }) => (
                         <>
-                          <Icone nome={item.icone} className={`shrink-0 ${isActive ? "text-amarelo-escuro" : "text-tinta-fraca"}`} traco={isActive ? 2 : 1.75} />
+                          <Icone nome={item.icone} className={`shrink-0 ${isActive ? "text-amarelo" : "text-preto/75"}`} traco={isActive ? 2 : 1.75} />
                           <span className="truncate">{item.nome}</span>
                         </>
                       )}
@@ -97,17 +99,17 @@ export function Layout() {
             );
           })}
         </nav>
-        <div className="shrink-0 border-t border-linha p-3">
+        <div className="shrink-0 border-t border-preto/15 p-3">
           <div className="flex items-center gap-1">
             <MenuUsuario perfil={perfil} perfis={perfis} onVerComo={verComo} />
             <div className="flex items-center gap-0.5 shrink-0">
-              <SeletorTema />
+              <SeletorTema sobreNavegacao />
               <button
                 type="button"
                 onClick={sair}
                 title="Sair"
                 aria-label="Sair"
-                className="inline-grid place-items-center w-7 h-7 rounded-controle text-tinta-fraca hover:text-tinta hover:bg-cinza-100 transition-colors duration-150"
+                className="inline-grid place-items-center w-7 h-7 rounded-controle text-preto/75 hover:text-preto hover:bg-preto/8 transition-colors duration-150"
               >
                 <Icone nome="sair" tamanho={16} />
               </button>
@@ -118,10 +120,13 @@ export function Layout() {
 
       {/* ---------------- conteúdo */}
       <div className="min-w-0 flex flex-col min-h-svh">
-        <header className="sticky top-0 z-20 bg-cartao border-b border-linha">
+        {/* fio inferior: invisível no claro (o preto já separa do fundo claro); `linha-forte` no escuro, onde o topo #111 se perde no fundo #0F0F10 */}
+        <header className="sticky top-0 z-20 bg-casca text-casca-tinta shadow-[0_1px_0_var(--color-casca-borda)]">
           <div className="flex items-center gap-3 h-14 px-4 md:px-8 max-w-[1440px] mx-auto w-full">
-            <Link to={inicio} className="md:hidden shrink-0" aria-label="D doctor — início">
+            <Link to={inicio} className="md:hidden shrink-0 flex items-center gap-2.5 no-underline text-casca-tinta" aria-label="D doctor — início">
               <MarcaD tamanho={28} />
+              {/* sem busca (produção) o topo tem espaço: entra o nome, como no bloco da marca do computador */}
+              {!podeBuscar && <span className="font-semibold text-[15px] tracking-[-0.01em]">D doctor</span>}
             </Link>
             {!podeBuscar && <span className="flex-1" />}
             {podeBuscar && (
@@ -129,8 +134,8 @@ export function Layout() {
                 <label htmlFor="busca" className="sr-only">
                   Buscar por placa, protocolo ou cliente
                 </label>
-                <div className="flex items-center h-10 md:h-9 rounded-controle bg-papel border border-linha focus-within:bg-cartao focus-within:border-tinta-fraca focus-within:ring-3 focus-within:ring-amarelo/30 transition-colors duration-150">
-                  <span className="pl-3 text-tinta-fraca">
+                <div className="flex items-center h-10 md:h-9 rounded-controle bg-casca-campo border border-casca-linha hover:border-casca-fraca focus-within:border-amarelo focus-within:ring-3 focus-within:ring-amarelo/30 transition-colors duration-150">
+                  <span className="pl-3 text-casca-fraca">
                     <Icone nome="busca" tamanho={16} />
                   </span>
                   <input
@@ -138,7 +143,7 @@ export function Layout() {
                     value={busca}
                     onChange={(e) => setBusca(e.target.value)}
                     placeholder="Buscar placa, protocolo ou cliente"
-                    className="flex-1 min-w-0 h-full px-2.5 bg-transparent outline-none text-[14px]"
+                    className="flex-1 min-w-0 h-full px-2.5 bg-transparent outline-none text-[14px] text-casca-tinta placeholder:text-casca-fraca"
                     autoComplete="off"
                   />
                 </div>
@@ -162,10 +167,11 @@ export function Layout() {
           <Outlet />
         </main>
 
-        {/* ---------------- barra inferior (celular): branca, ícone + rótulo, ativo com traço amarelo */}
+        {/* ---------------- barra inferior (celular): amarela, ícone + rótulo pretos; ativo = ícone numa pílula preta */}
         <nav
           aria-label="Seções do painel"
-          className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-cartao grid border-t border-linha pb-[env(safe-area-inset-bottom)]"
+          data-navegacao
+          className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-navegacao text-preto grid pb-[env(safe-area-inset-bottom)]"
           style={{ gridTemplateColumns: `repeat(${atalhos.length + 1}, minmax(0, 1fr))` }}
         >
           {atalhos.map((item) => (
@@ -174,15 +180,19 @@ export function Layout() {
               to={item.rota}
               end={item.rota === "/producao"}
               className={({ isActive }) =>
-                `relative flex flex-col items-center justify-center gap-1 h-16 px-0.5 text-[11px] leading-[1.1] no-underline ${
-                  isActive ? "text-tinta font-semibold" : "text-tinta-suave font-medium"
+                `flex flex-col items-center justify-center gap-1 h-16 px-0.5 text-[11px] leading-[1.1] text-preto no-underline ${
+                  isActive ? "font-bold" : "font-medium"
                 }`
               }
             >
               {({ isActive }) => (
                 <>
-                  {isActive && <span aria-hidden="true" className="absolute top-0 inset-x-1/4 h-0.5 rounded-full bg-amarelo" />}
-                  <Icone nome={item.icone} tamanho={22} className={`shrink-0 ${isActive ? "text-tinta" : "text-tinta-fraca"}`} traco={isActive ? 2 : 1.75} />
+                  <span
+                    aria-hidden="true"
+                    className={`inline-grid place-items-center h-7 w-12 rounded-full transition-colors duration-150 ${isActive ? "bg-preto text-amarelo" : "text-preto/80"}`}
+                  >
+                    <Icone nome={item.icone} tamanho={20} className="shrink-0" traco={isActive ? 2 : 1.75} />
+                  </span>
                   <span className="max-w-full text-center line-clamp-2 break-words">{item.nome}</span>
                 </>
               )}
@@ -193,10 +203,14 @@ export function Layout() {
             onClick={() => setMaisAberto((v) => !v)}
             aria-expanded={maisAberto}
             aria-controls="menu-mais"
-            className={`relative flex flex-col items-center justify-center gap-1 h-16 px-0.5 text-[11px] leading-[1.1] ${maisAberto ? "text-tinta font-semibold" : "text-tinta-suave font-medium"}`}
+            className={`flex flex-col items-center justify-center gap-1 h-16 px-0.5 text-[11px] leading-[1.1] text-preto ${maisAberto ? "font-bold" : "font-medium"}`}
           >
-            {maisAberto && <span aria-hidden="true" className="absolute top-0 inset-x-1/4 h-0.5 rounded-full bg-amarelo" />}
-            <Icone nome={maisAberto ? "fechar" : "ajustes"} tamanho={22} className={`shrink-0 ${maisAberto ? "text-tinta" : "text-tinta-fraca"}`} />
+            <span
+              aria-hidden="true"
+              className={`inline-grid place-items-center h-7 w-12 rounded-full transition-colors duration-150 ${maisAberto ? "bg-preto text-amarelo" : "text-preto/80"}`}
+            >
+              <Icone nome={maisAberto ? "fechar" : "ajustes"} tamanho={20} className="shrink-0" traco={maisAberto ? 2 : 1.75} />
+            </span>
             <span>Mais</span>
           </button>
         </nav>
@@ -219,13 +233,13 @@ export function Layout() {
                     end={item.rota === "/producao"}
                     className={({ isActive }) =>
                       `flex items-center gap-3 h-12 px-3 rounded-controle text-[15px] no-underline ${
-                        isActive ? "bg-cinza-100 text-tinta font-semibold" : "text-tinta font-medium"
+                        isActive ? "bg-amarelo text-preto font-semibold" : "text-tinta font-medium hover:bg-cinza-100"
                       }`
                     }
                   >
                     {({ isActive }) => (
                       <>
-                        <Icone nome={item.icone} className={isActive ? "text-amarelo-escuro" : "text-tinta-fraca"} traco={isActive ? 2 : 1.75} />
+                        <Icone nome={item.icone} className={isActive ? "text-preto" : "text-tinta-suave"} traco={isActive ? 2 : 1.75} />
                         {item.nome}
                       </>
                     )}
@@ -309,12 +323,12 @@ function MenuUsuario({ perfil, perfis, onVerComo }: { perfil: Perfil; perfis: Pe
 
   const identidade = (
     <>
-      <span className="inline-grid place-items-center w-8 h-8 rounded-full bg-cinza-200 text-tinta text-[12px] font-semibold shrink-0">{iniciais(perfil.nome)}</span>
+      <span className="inline-grid place-items-center w-8 h-8 rounded-full bg-preto text-amarelo text-[12px] font-semibold shrink-0">{iniciais(perfil.nome)}</span>
       <span className="min-w-0 flex-1 leading-tight text-left">
-        <span className="block text-[13px] font-semibold text-tinta truncate" title={perfil.nome}>
+        <span className="block text-[13px] font-semibold text-preto truncate" title={perfil.nome}>
           {perfil.nome}
         </span>
-        <span className="block text-[12px] text-tinta-fraca">{PAPEL[perfil.papel]}</span>
+        <span className="block text-[12px] font-medium text-preto/70">{PAPEL[perfil.papel]}</span>
       </span>
     </>
   );
@@ -337,10 +351,10 @@ function MenuUsuario({ perfil, perfis, onVerComo }: { perfil: Perfil; perfis: Pe
             setAberto(true);
           }
         }}
-        className={`w-full flex items-center gap-2 h-11 px-1 rounded-controle transition-colors duration-150 ${aberto ? "bg-cinza-100" : "hover:bg-cinza-50"}`}
+        className={`w-full flex items-center gap-2 h-11 px-1 rounded-controle transition-colors duration-150 ${aberto ? "bg-preto/12" : "hover:bg-preto/8"}`}
       >
         {identidade}
-        <Icone nome="baixo" tamanho={14} className={`shrink-0 text-tinta-fraca transition-transform duration-150 ${aberto ? "rotate-180" : ""}`} />
+        <Icone nome="baixo" tamanho={14} className={`shrink-0 text-preto/70 transition-transform duration-150 ${aberto ? "rotate-180" : ""}`} />
       </button>
       {aberto && (
         <div

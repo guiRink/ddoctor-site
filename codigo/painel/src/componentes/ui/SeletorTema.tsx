@@ -12,10 +12,11 @@ const OPCOES: { valor: Tema; texto: string; icone: NomeIcone }[] = [
 /**
  * Escolha do tema (Claro / Escuro / Automático), salva no aparelho.
  * - `menu` (barra lateral): botão só ícone 28 px ao lado do Sair; abre um menu para cima com as três opções.
+ *   `sobreNavegacao`: ícone preto sobre a barra lateral amarela (revisão SH).
  *   Teclado: Enter/Espaço/seta abre; setas e Home/End movem; Esc fecha e devolve o foco.
  * - `segmentos` (menu "Mais" do celular): controle segmentado de largura total com rótulo "Tema".
  */
-export function SeletorTema({ variante = "menu" }: { variante?: "menu" | "segmentos" }) {
+export function SeletorTema({ variante = "menu", sobreNavegacao = false }: { variante?: "menu" | "segmentos"; sobreNavegacao?: boolean }) {
   const { tema, escolher } = useTema();
   if (variante === "segmentos") {
     return (
@@ -37,10 +38,10 @@ export function SeletorTema({ variante = "menu" }: { variante?: "menu" | "segmen
       />
     );
   }
-  return <MenuTema tema={tema} escolher={escolher} />;
+  return <MenuTema tema={tema} escolher={escolher} sobreNavegacao={sobreNavegacao} />;
 }
 
-function MenuTema({ tema, escolher }: { tema: Tema; escolher: (t: Tema) => void }) {
+function MenuTema({ tema, escolher, sobreNavegacao }: { tema: Tema; escolher: (t: Tema) => void; sobreNavegacao: boolean }) {
   const [aberto, setAberto] = useState(false);
   const raiz = useRef<HTMLDivElement>(null);
   const botao = useRef<HTMLButtonElement>(null);
@@ -109,7 +110,13 @@ function MenuTema({ tema, escolher }: { tema: Tema; escolher: (t: Tema) => void 
           }
         }}
         className={`inline-grid place-items-center w-7 h-7 rounded-controle transition-colors duration-150 ${
-          aberto ? "bg-cinza-100 text-tinta" : "text-tinta-fraca hover:text-tinta hover:bg-cinza-100"
+          sobreNavegacao
+            ? aberto
+              ? "bg-preto/12 text-preto"
+              : "text-preto/75 hover:text-preto hover:bg-preto/8"
+            : aberto
+              ? "bg-cinza-100 text-tinta"
+              : "text-tinta-fraca hover:text-tinta hover:bg-cinza-100"
         }`}
       >
         <Icone nome={atual.icone} tamanho={16} />

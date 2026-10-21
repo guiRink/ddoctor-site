@@ -3,6 +3,7 @@ import { repositorioMemoria as repo } from "./repositorioMemoria";
 import { validarDocumento } from "@compartilhado/dominio/documento";
 import { calcularFechamento } from "@compartilhado/dominio/caixa";
 import { normalizarFormaPagamento } from "@compartilhado/dominio/pagamentos";
+import { entregaPorDiasUteis } from "@compartilhado/dominio/corCarro";
 import { LIMITE_AUDITORIA } from "./repositorio";
 
 // Sequências que a revisão QA do sprint SD apontou (docs/qa-sprintSD.md).
@@ -517,5 +518,29 @@ describe("repositório em memória", () => {
     expect((await repo.listarCapacidade(dia, dia))[0].vagasEntrada).toBe(6);
     expect((await repo.listarAuditoria())[0]).toMatchObject({ acao: "editar", entidade: "config_oficina" });
   });
-});
 
+  it("salvarAlertaOS: prazo em dias úteis recalcula a entrega, urgente liga prioridade 2, valida e audita", async () => {
+    const v = await osPorPlaca("RAV3K61");
+    const cfg = await repo.obterConfig();
+    expect(await repo.salvarAlertaOS(v.os.id, { laranjaDiasAntes: 61 })).toEqual({ ok: false, codigo: "valor_invalido", campo: "laranjaDiasAntes" });
+    expect(await repo.salvarAlertaOS("nao-existe", { urgente: true })).toEqual({ ok: false, codigo: "os_nao_encontrada" });
+    expect((await repo.salvarAlertaOS(v.os.id, { prazoDiasUteis: 10, laranjaDiasAntes: 3, vermelhoSemEtapaDiasAntes: 3, urgente: true })).ok).toBe(true);
+    const depois = (await repo.obterOS(v.os.id))!.os;
+    expect(depois.previsaoEntrega).toBe(entregaPorDiasUteis(v.os.entradaRealEm!, 10, cfg));
+    expect(depois.alerta).toEqual({ prazoDiasUteis: 10, laranjaDiasAntes: 3, vermelhoSemEtapaDiasAntes: 3 });
+    expect(depois.prioridade).toBe(2);
+    expect((await repo.listarAuditoria())[0]).toMatchObject({ acao: "alerta", entidade: "os", entidadeId: v.os.id });
+    // volta para a base
+    expect((await repo.salvarAlertaOS(v.os.id, { laranjaDiasAntes: null, vermelhoSemEtapaDiasAntes: null, prazoDiasUteis: null, urgente: false })).ok).toBe(true);
+    const base = (await repo.obterOS(v.os.id))!.os;
+    expect([base.alerta, base.prioridade]).toEqual([undefined, 0]);
+  });
+
+  it("salvarConfig aceita a base do alerta do carro e a marca como confirmada", async () => {
+    expect(await repo.salvarConfig({ alertaCarro: { laranjaDiasAntes: 99 } })).toEqual({ ok: false, codigo: "valor_invalido", campo: "laranjaDiasAntes" });
+    expect((await repo.salvarConfig({ alertaCarro: { laranjaDiasAntes: 2, piscarAtrasado: false } })).ok).toBe(true);
+    const cfg = await repo.obterConfig();
+    expect(cfg.alertaCarro).toMatchObject({ laranjaDiasAntes: 2, vermelhoSemEtapaDiasAntes: 1, piscarAtrasado: false });
+    expect(cfg.confirmado?.alertaCarro).toBe(true);
+  });
+});

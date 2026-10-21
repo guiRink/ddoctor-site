@@ -6,13 +6,15 @@ import { ProgressoEtapas, nomePerfil } from "../ui/Carro";
 import { Etiqueta } from "../ui/Estado";
 import { Placa } from "../ui/Placa";
 import { Icone, type NomeIcone } from "../Icone";
-import { PilulaSituacao } from "./Situacao";
-import { SITUACAO, type ItemQuadro } from "./quadro";
+import { MotivoCor } from "./Situacao";
+import { BARRA_COR, SEMAFORO_DA_COR, type ItemQuadro } from "./quadro";
 
 /**
- * Cartão do carro na Produção (docs/painel-design.md §5.1; revisão SG itens 3 e 4).
- * `compacto` (quadro do computador, colunas a partir de 204 px): Placa p + a pílula única, modelo · cor,
- * progresso fino, iniciais + tempo + prazo da etapa, e embaixo a entrega prometida (maior que o prazo da etapa).
+ * Cartão do carro na Produção (docs/painel-design.md §5.1; revisão SG itens 3 e 4; cor do carro, 2º áudio do dono).
+ * Barra grossa à esquerda na cor do carro e, logo abaixo da placa, a faixa com o motivo da cor ("Entrega amanhã e
+ * nenhuma etapa concluída"; vermelho cheio; vermelho piscando pulsa). `compacto` (quadro do computador, colunas a
+ * partir de 204 px): Placa p + Urgente, faixa da cor, modelo · cor, progresso fino, "Parado · motivo", iniciais +
+ * tempo + prazo da etapa. A entrega já está na faixa; o pronto mostra a entrega embaixo.
  * `grande` (celular): Placa m, etapa atual, responsável com nome; o cartão inteiro é o alvo de toque.
  * O botão transparente por cima abre o painel do carro (nome acessível com a placa).
  */
@@ -51,24 +53,45 @@ export function CartaoQuadro({
           ? { icone: "play", texto: formatarDuracao(r.execucao), extenso: `em execução há ${formatarDuracao(r.execucao)}` }
           : undefined;
   const urgente = v.os.prioridade === 2;
-  const estadoEtapa = etapa?.estado === "na_fila" ? "na fila" : etapa?.estado === "bloqueada" ? "impedida" : etapa?.iniciadaEm ? "em execução" : undefined;
+  const estadoEtapa = etapa?.estado === "na_fila" ? "na fila" : etapa?.estado === "bloqueada" ? "parada" : etapa?.iniciadaEm ? "em execução" : undefined;
   const texto = grande ? "text-[13px]" : "text-[12px]";
 
   return (
     <li className="relative list-none">
       <article
-        className={`bg-cartao text-tinta border border-linha rounded-cartao shadow-cartao ${grande ? "p-4" : "p-2.5"} ${
+        className={`relative overflow-hidden bg-cartao text-tinta border border-linha rounded-cartao shadow-cartao ${grande ? "p-4 pl-5" : "p-2.5 pl-3.5"} ${
           selecionado ? "border-transparent ring-2 ring-amarelo" : ""
         }`}
       >
-        {/* L1: placa + a pílula única */}
+        {/* barra grossa da cor do carro: o quadro inteiro se lê pela borda esquerda */}
+        <span aria-hidden="true" className={`absolute left-0 inset-y-0 ${grande ? "w-1.5" : "w-1"} ${BARRA_COR[item.cor]}`} />
+
+        {/* L1: placa + Urgente (ou Pronto) */}
         <div className="flex items-center justify-between gap-1.5">
           <Placa placa={v.veiculo.placa} tamanho={grande ? "m" : "p"} />
-          {/* no compacto a pílula perde o ponto (o texto e o tom bastam) para caber ao lado da placa em 204 px */}
-          <PilulaSituacao situacao={item.situacao} compacta={!grande} />
+          {urgente ? (
+            <Etiqueta tom="alerta" ponto={false} className={`shrink-0 ${grande ? "" : "px-2"}`}>
+              Urgente
+            </Etiqueta>
+          ) : item.pronto ? (
+            <Etiqueta tom="ok" ponto={grande} className={`shrink-0 ${grande ? "" : "px-2"}`}>
+              Pronto
+            </Etiqueta>
+          ) : null}
         </div>
 
-        {/* L2: carro */}
+        {/* L2: a cor do carro escrita (o pronto já diz "Pronto" em cima) */}
+        {!item.pronto && item.motivoCor && (
+          <MotivoCor
+            cor={item.cor}
+            motivo={item.motivoCor}
+            prazoProprio={item.personalizado}
+            tamanho={grande ? "m" : "p"}
+            className={grande ? "mt-3" : "mt-2"}
+          />
+        )}
+
+        {/* L3: carro */}
         <p className={`${grande ? "mt-3 text-[15px]" : "mt-2 text-[13px]"} font-semibold leading-snug truncate`}>
           {v.veiculo.modelo ?? "Modelo não informado"}
           {v.veiculo.cor && <span className="font-normal text-tinta-suave"> · {v.veiculo.cor}</span>}
@@ -85,19 +108,12 @@ export function CartaoQuadro({
             )}
           </p>
         )}
-        {urgente && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            <Etiqueta tom="alerta" ponto={false}>
-              Urgente
-            </Etiqueta>
-          </div>
-        )}
 
         {/* L3: progresso */}
         {!item.pronto && v.etapas.length > 0 && (
           <div className={`${grande ? "mt-3" : "mt-2.5"} flex items-center gap-2`}>
             <div className="flex-1 min-w-0">
-              <ProgressoEtapas etapas={v.etapas} semaforo={SITUACAO[item.situacao].cor} mostrarTexto={false} />
+              <ProgressoEtapas etapas={v.etapas} semaforo={SEMAFORO_DA_COR[item.cor]} mostrarTexto={false} />
             </div>
             {atualIndex !== null && (
               <span className="text-[12px] text-tinta-fraca numero leading-none" aria-label={`Etapa ${atualIndex + 1} de ${total}`}>
@@ -107,10 +123,13 @@ export function CartaoQuadro({
           </div>
         )}
 
-        {bloqueio && (
-          <p className="mt-2 flex items-start gap-1.5 text-[12px] font-medium leading-snug text-alerta">
+        {item.impedido && (
+          <p className={`mt-2 flex items-start gap-1.5 ${texto} font-medium leading-snug text-alerta`}>
             <Icone nome="bloqueio" tamanho={13} className="shrink-0 mt-[2px]" />
-            <span className="line-clamp-2">{bloqueio.motivo}</span>
+            <span className="line-clamp-2">
+              <span className="font-semibold">Parado</span>
+              {bloqueio?.motivo && <> · {bloqueio.motivo}</>}
+            </span>
           </p>
         )}
 
@@ -157,11 +176,13 @@ export function CartaoQuadro({
           </div>
         )}
 
-        {/* L5: entrega prometida ao cliente (mais forte que o prazo da etapa) */}
-        <div className={`${grande ? "mt-2" : "mt-2 pt-2 border-t border-linha"} flex items-center gap-2 min-w-0 ${texto} numero`}>
-          <span className="text-tinta-suave">Entrega</span>
-          <ValorEntrega item={item} className="ml-auto shrink-0" />
-        </div>
+        {/* L5: entrega prometida — no carro em serviço ela já está na faixa da cor; aqui só no pronto e sem faixa */}
+        {(item.pronto || !item.motivoCor) && (
+          <div className={`${grande ? "mt-2" : "mt-2 pt-2 border-t border-linha"} flex items-center gap-2 min-w-0 ${texto} numero`}>
+            <span className="text-tinta-suave">Entrega</span>
+            <ValorEntrega item={item} className="ml-auto shrink-0" />
+          </div>
+        )}
       </article>
       <button
         type="button"

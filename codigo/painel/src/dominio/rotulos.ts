@@ -1,4 +1,5 @@
 import type {
+  CorCarro,
   FormaPagamento,
   NivelCombustivel,
   TamanhoAvaria,
@@ -23,15 +24,16 @@ import type {
 import type { Tom } from "../componentes/ui/Estado";
 import type { NomeIcone } from "../componentes/Icone";
 import type { Modulo } from "./permissoes";
+import type { SituacaoCartao } from "@compartilhado/dominio/semaforo";
 
 // Rótulos pt-BR centralizados (CLAUDE.md). Cada estado tem texto e tom de cor (docs/painel-design.md §2).
 
-// Nomes da oficina (sprint SG), os mesmos das situações da tela Atendimentos (orcamentos/lista.ts).
+// Nomes da oficina (sprint SG; voz do dono no SH), os mesmos das situações da tela Orçamentos (orcamentos/lista.ts).
 export const ESTADO_OS: Record<EstadoOS, { texto: string; tom: Tom }> = {
   rascunho: { texto: "Em orçamento", tom: "neutro" },
   // espera de terceiro / falta da oficina: atenção suave (pílula clara com ponto); amarelo fica só para ação
-  aguardando_aprovacao: { texto: "Esperando aprovação", tom: "atencao" },
-  aguardando_agendamento: { texto: "Falta agendar", tom: "atencao" },
+  aguardando_aprovacao: { texto: "Aguardando aprovação", tom: "atencao" },
+  aguardando_agendamento: { texto: "Aguardando agendamento", tom: "atencao" },
   agendada: { texto: "Agendado", tom: "escuro" },
   na_oficina: { texto: "Na oficina", tom: "escuro" },
   pronta: { texto: "Pronto", tom: "ok" },
@@ -60,6 +62,26 @@ export const STATUS_EXTERNO: Record<StatusExterno, { texto: string; tom: Tom }> 
   desconhecido: { texto: "Status não reconhecido", tom: "atencao" },
 };
 
+/**
+ * Pílula única do carro (situacaoCartao). "impedido" aparece como "Parado" — é como o dono chama (revisão SH).
+ * O código continua "impedido"; só o rótulo de exibição mudou.
+ */
+export const SITUACAO_CARTAO: Record<SituacaoCartao, { texto: string; tom: Tom }> = {
+  impedido: { texto: "Parado", tom: "alerta" },
+  atrasado: { texto: "Atrasado", tom: "alerta" },
+  atencao: { texto: "Atenção", tom: "atencao" },
+  no_prazo: { texto: "No prazo", tom: "ok" },
+  pronto: { texto: "Pronto", tom: "ok" },
+};
+
+/** Cor do carro (corDoCarro, pedido do dono, 2º áudio): nome para legenda, contagem e leitor de tela. */
+export const COR_CARRO: Record<CorCarro, { texto: string; tom: Tom }> = {
+  verde: { texto: "No prazo", tom: "ok" },
+  laranja: { texto: "Atenção", tom: "atencao" },
+  vermelho: { texto: "Sem etapa concluída", tom: "alerta" },
+  vermelho_piscando: { texto: "Atrasado", tom: "alerta" },
+};
+
 export const STATUS_ITEM: Record<StatusItem, { texto: string; tom: Tom }> = {
   solicitado: { texto: "Solicitada", tom: "neutro" },
   autorizado: { texto: "Autorizada", tom: "ok" },
@@ -72,7 +94,7 @@ export const ESTADO_ETAPA: Record<EstadoEtapa, { texto: string; tom: Tom }> = {
   aguardando: { texto: "Aguardando", tom: "neutro" },
   na_fila: { texto: "Na fila", tom: "neutro" },
   em_execucao: { texto: "Em execução", tom: "amarelo" },
-  bloqueada: { texto: "Impedida", tom: "alerta" },
+  bloqueada: { texto: "Parada", tom: "alerta" },
   concluida: { texto: "Concluída", tom: "ok" },
   dispensada: { texto: "Dispensada", tom: "neutro" },
 };
@@ -318,8 +340,14 @@ export const ERRO_CAMPO_CONFIG: Record<string, string> = {
   laranjaAntesHoras: "Laranja: um número inteiro de horas úteis, de 1 a 80.",
   laranjaPct: "Laranja: de 50 % a 95 % do prazo da etapa.",
   laranjaFracao: "Laranja: de 50 % a 95 % do prazo da etapa.",
-  vermelhoBloqueioHoras: "Vermelho por impedimento: um número inteiro de horas úteis, de 1 a 80.",
+  vermelhoBloqueioHoras: "Vermelho quando parado: um número inteiro de horas úteis, de 1 a 80.",
   sabadoFim: "Fim do sábado: use HH:MM, depois do início do expediente.",
+  // alerta do carro (Ajustes e ajuste por carro, salvarAlertaOS)
+  laranjaDiasAntes: "Laranja: um número inteiro de dias úteis antes da entrega, de 0 a 60.",
+  vermelhoSemEtapaDiasAntes: "Vermelho sem etapa concluída: um número inteiro de dias úteis antes da entrega, de 0 a 60.",
+  prazoDiasUteis: "Prazo: um número inteiro de dias úteis, de 0 a 60.",
+  prazoPadraoDiasUteis: "Prazo padrão: um número inteiro de dias úteis, de 1 a 60.",
+  piscarAtrasado: "Piscar atrasado: ligado ou desligado.",
 };
 
 export type GrupoMenu = "operacao" | "dinheiro" | "gestao";
@@ -339,7 +367,7 @@ export const GRUPOS_MENU: { id: GrupoMenu; nome: string }[] = [
 export const MENU: { modulo: Modulo; rota: string; nome: string; nomePara?: Partial<Record<Papel, string>>; icone: NomeIcone; grupo: GrupoMenu }[] = [
   { modulo: "minhas_tarefas", rota: "/producao/eu", nome: "Minhas tarefas", icone: "celular", grupo: "operacao" },
   { modulo: "geral", rota: "/geral", nome: "Geral", icone: "geral", grupo: "operacao" },
-  { modulo: "orcamentos", rota: "/orcamentos", nome: "Atendimentos", icone: "orcamentos", grupo: "operacao" },
+  { modulo: "orcamentos", rota: "/orcamentos", nome: "Orçamentos", icone: "orcamentos", grupo: "operacao" },
   { modulo: "agenda", rota: "/agenda", nome: "Agenda", icone: "agenda", grupo: "operacao" },
   { modulo: "producao", rota: "/producao", nome: "Produção", nomePara: { producao: "Quadro" }, icone: "producao", grupo: "operacao" },
   { modulo: "vistorias", rota: "/vistorias", nome: "Vistorias", nomePara: { producao: "Fotos" }, icone: "vistorias", grupo: "operacao" },

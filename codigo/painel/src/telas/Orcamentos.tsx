@@ -41,7 +41,7 @@ import {
 import { BotaoFiltros, GavetaFiltros, PilulasFiltro, SelectsFiltro, ThOrdenavel } from "../componentes/orcamentos/FiltrosLista";
 
 /**
- * Atendimentos (antiga Orçamentos; nome em TITULO_ATENDIMENTOS) — todos os carros, do orçamento à entrega (docs/painel-design.md §5; informações §3.2; sprint SG).
+ * Orçamentos (nome em TITULO_ATENDIMENTOS; foi "Atendimentos" no SG e voltou a pedido do dono no SH) — todos os carros, do orçamento à entrega (docs/painel-design.md §5; informações §3.2; sprint SG).
  * Abas por estado com contagem; busca na página (placa com ou sem hífen, cliente, protocolo, sinistro, modelo);
  * filtros de seguradora, origem, valor e "há quanto tempo" (na situação atual, o mais parado em cima);
  * ordenação pelo cabeçalho; soma dos valores no rodapé. Tudo na URL
