@@ -657,7 +657,7 @@ export const repositorioMemoria: Repositorio = {
   },
 
   // ------------------------------------------------------------ agenda
-  async agendar(osId, data, janela) {
+  async agendar(osId, data, janela, encaixe = false) {
     await pausa();
     const os = estado.oss.find((o) => o.id === osId);
     if (!os || os.estado !== "aguardando_agendamento") return { ok: false, codigo: "transicao_invalida" };
@@ -667,26 +667,26 @@ export const repositorioMemoria: Repositorio = {
     // a proposta da própria OS (Calia) não conta como vaga ocupada ao confirmar
     const propria = estado.agendamentos.find((a) => a.osId === osId && a.estado === "proposto" && a.data === data);
     const r = podeConfirmar(capacidade, estado.agendamentos, agora(), propria?.id);
-    if (!r.ok) return r;
+    if (!r.ok && !(encaixe && r.codigo === "sem_vaga")) return r;
     estado.agendamentos = estado.agendamentos
       .map((a) => (a.osId === osId && a.estado === "proposto" ? ({ ...a, estado: "cancelado", motivoCancelamento: "Substituído por agendamento da recepção" } as Agendamento) : a))
       .concat({ id: novoId("ag"), osId, data, janela, estado: "confirmado", origem: "recepcao" });
     mudarEstadoOS(os, "agendada", { agendamentoConfirmado: true });
-    auditar("agendar", "agendamento", osId, `OS #${os.numero} agendada para ${data} (${janela === "manha" ? "manhã" : "tarde"})`);
+    auditar("agendar", "agendamento", osId, `OS #${os.numero} agendada para ${data} (${janela === "manha" ? "manhã" : "tarde"})${!r.ok ? " — encaixe" : ""}`);
     salvar();
     return { ok: true };
   },
-  async reagendar(agendamentoId, data, janela) {
+  async reagendar(agendamentoId, data, janela, encaixe = false) {
     await pausa();
     const valida = dataAgendavel(data, janela);
     if (!valida.ok) return valida;
     const capacidade = estado.capacidades.find((c) => c.data === data) ?? { data, vagasEntrada: estado.config.capacidadePadrao.vagasEntrada };
     const r = podeConfirmar(capacidade, estado.agendamentos.filter((a) => a.id !== agendamentoId), agora());
-    if (!r.ok) return r;
+    if (!r.ok && !(encaixe && r.codigo === "sem_vaga")) return r;
     const nova = reagendarDominio(estado.agendamentos, agendamentoId, data, janela, agora());
     if (!nova.ok) return nova;
     estado.agendamentos = nova.agendamentos;
-    auditar("reagendar", "agendamento", agendamentoId, `Agendamento movido para ${data} (${janela === "manha" ? "manhã" : "tarde"})`);
+    auditar("reagendar", "agendamento", agendamentoId, `Agendamento movido para ${data} (${janela === "manha" ? "manhã" : "tarde"})${!r.ok ? " — encaixe" : ""}`);
     salvar();
     return { ok: true };
   },

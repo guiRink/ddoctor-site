@@ -22,7 +22,7 @@ const MOTIVOS_SUGERIDOS = [
   "Carro levado a outra oficina",
 ];
 
-function Moldura({ titulo, onFechar, children }: { titulo: string; onFechar: () => void; children: ReactNode }) {
+export function Moldura({ titulo, onFechar, children }: { titulo: string; onFechar: () => void; children: ReactNode }) {
   const ref = useRef<HTMLHeadingElement>(null);
   // Leva o foco ao painel ao abrir (no celular o painel fica acima da lista).
   useEffect(() => {
@@ -48,7 +48,7 @@ function Moldura({ titulo, onFechar, children }: { titulo: string; onFechar: () 
   );
 }
 
-function CabecalhoCarro({ v, veSensiveis }: { v: OSVisao; veSensiveis: boolean }) {
+export function CabecalhoCarro({ v, veSensiveis }: { v: OSVisao; veSensiveis: boolean }) {
   return (
     <div className="flex items-start gap-3">
       <Placa placa={v.veiculo.placa} tamanho="m" />

@@ -50,6 +50,21 @@ describe("repositório em memória", () => {
     expect((await repo.agendar(v.os.id, domingo, "tarde")).codigo).toBe("dia_fechado");
   });
 
+  it("encaixe passa da vaga do dia, mas não de dia fechado (sprint SG)", async () => {
+    expect((await repo.salvarConfig({ capacidadePadrao: { vagasEntrada: 1 } })).ok).toBe(true);
+    // terça daqui a duas semanas (sem agendamentos da demonstração)
+    const d = new Date(`${hoje()}T12:00:00`);
+    d.setDate(d.getDate() + ((9 - d.getDay()) % 7 || 7) + 7);
+    const terca = d.toISOString().slice(0, 10);
+    const a = await osPorPlaca("SAE5P73");
+    const b = await osPorPlaca("RNA4S66");
+    expect((await repo.agendar(a.os.id, terca, "manha")).ok).toBe(true);
+    expect((await repo.agendar(b.os.id, terca, "tarde")).codigo).toBe("sem_vaga");
+    expect((await repo.agendar(b.os.id, terca, "tarde", true)).ok).toBe(true);
+    const agB = (await repo.obterOS(b.os.id))!.agendamento!;
+    expect((await repo.reagendar(agB.id, "2020-01-07", "manha", true)).codigo).toBe("data_passada");
+  });
+
   it("recusa protocolo repetido na mesma seguradora", async () => {
     const r = await repo.criarAtendimentoRapido({
       placa: "ABC1D23",
