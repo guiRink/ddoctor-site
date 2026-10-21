@@ -1,8 +1,8 @@
 # GusPainel (D doctor) — mapa
 
 ## Estado atual (sempre atualizado, sempre curto)
-- Onde está: Sprint SG (revisão de produto: o Guilherme "odiou" o Geral e achou partes confusas; um especialista em sistemas e um mecânico especialista conversaram e fecharam o plano em `docs/revisao-sg/`) fechado em 21/10/2026 na branch `sprint/sg-revisao-produto`; 12 de 12 itens do plano feitos; merge, tag `sprint-SG` e publicação em 21/10/2026 (feitos pelo Guilherme logo após este registro). 436 testes no painel e 225 no compartilhado, lint sem erros, build ok; nova dependência `@dnd-kit`. Banco real ainda não existe (tudo em memória). Antes: SF (20/10), SE (13/10), SD (12/10).
-- Próximo passo: Guilherme manda o link ao irmão amanhã (22/10), como checkpoint; aguardar o domínio (hospedagem Cloudflare Pages) e a conta Supabase do dono; instalar OrbStack; depois S1 (Supabase local: migrations do núcleo mais as tabelas novas do SE e os itens do SG que precisam de banco, RLS, RepositorioSupabase, login por papel, `listarProducao`, permissões de fotos/config/tipos de serviço e fotos no R2).
+- Onde está: Sprint SH (dois áudios do dono, transcritos pelo Guilherme em `docs/revisao-sh/`: Geral só com números, menu amarelo, "Orçamentos" de volta, "Parado" no lugar de "Impedido" e cor do carro pela entrega e andamento) fechado em 22/10/2026 na branch `sprint/sh-pedidos-audio`; merge, tag `sprint-SH` e publicação em 22/10/2026 (feitos pelo Guilherme logo após este registro). 488 testes, lint sem erros, build ok. Banco real ainda não existe (tudo em memória). Antes: SG (21/10), SF (20/10), SE (13/10), SD (12/10).
+- Próximo passo: Guilherme manda o link ao irmão (checkpoint); o dono salva a base das cores em Ajustes → Cores dos carros; aguardar o domínio (hospedagem Cloudflare Pages) e a conta Supabase do dono; instalar OrbStack; depois S1 (Supabase local: migrations do núcleo mais as tabelas novas do SE e os itens do SG que precisam de banco, RLS, RepositorioSupabase, login por papel, `listarProducao`, permissões de fotos/config/tipos de serviço e fotos no R2).
 - Bloqueios: dono responder o questionário (1.1 tipos de reparo e etapas, trava o S3; 5.1 planilha financeira, trava o S4; as decisões L30–L36, L39–L44 e L45–L55 ainda não estão nele); L34 (guardar CPF/CNPJ do cliente, LGPD) antes de o S1 criar a coluna; dono decidir se a produção pode "pegar" etapas livres na fila (`docs/qa-sprintSD.md` item 6); domínio do dono e conta Supabase dele; OrbStack (ou Docker Desktop) no Mac (pré-requisito do S1); endereço completo e horário da oficina para a landing; confirmar se Porto/Azul chegam via Carglass e não via Maxpar.
 - Fontes atuais: `docs/painel-execucao.md`, `docs/painel-arquitetura.md`, `docs/painel-informacoes.md`, `docs/painel-design.md`. O plano antigo (`docs/painel-plano.md`) é só histórico do Sprint 0.
 
@@ -58,18 +58,28 @@ Todas as linhas abaixo estão como provisórias, com o valor sugerido do questio
 | L42 | Tema padrão do painel | Automático (segue o aparelho); escolha Claro/Escuro/Automático salva por aparelho; placa e impressão sempre claras, TV escura | provisória | 20/10/2026 · Sprint SF | SF Modo escuro |
 | L43 | Peças no cartão da TV | Não aparecem mais (cartões se ajustam ao espaço) | provisória | 20/10/2026 · Sprint SF | SF Quadro da TV |
 | L44 | O que o PDF mostra no orçamento de seguradora | O total autorizado | provisória | 20/10/2026 · Sprint SF | SF Enviar orçamento (PDF) |
-| L45 | Nome da tela de orçamentos | "Atendimentos" (antes "Orçamentos") | provisória | 21/10/2026 · Sprint SG | SG Atendimentos |
+| L45 | Nome da tela de orçamentos | Voltou a "Orçamentos" a pedido do dono (no SG tinha virado "Atendimentos") | revista (22/10/2026) | 21/10/2026 · Sprint SG; revista em 22/10/2026 · 1º áudio do dono (`docs/revisao-sh/pedido-dono.md`) | SG Atendimentos; SH Orçamentos |
 | L46 | Quando o carro fica laranja (semáforo) | A partir de 80 % do prazo da etapa ou entrega amanhã; configurável em Ajustes (revisa o limiar de 8 h da L11) | provisória | 21/10/2026 · Sprint SG | SG semáforo; Ajustes (laranja em %) |
 | L47 | "Cliente não buscou" | A partir de 2 dias depois de pronto | provisória | 21/10/2026 · Sprint SG | SG Geral (Parados e atrasados) |
 | L48 | Vistoria vencendo | Aviso a 2 dias do vencimento | provisória | 21/10/2026 · Sprint SG | SG Vistorias e Geral |
 | L49 | Encaixe acima da capacidade na Agenda | Permitido, com aviso | provisória | 21/10/2026 · Sprint SG | SG Agenda (a função do Supabase precisa aprender `encaixe` no S1) |
-| L50 | Quadrados de dinheiro no Geral | Mostram a quantidade de títulos/carros como número grande (o valor em R$ fica na segunda linha do quadrado; o dono pode preferir o R$ como número grande) | provisória | 21/10/2026 · Sprint SG | SG Geral |
+| L50 | Quadrados de dinheiro no Geral | Mostram a quantidade de títulos/carros como número grande (o valor em R$ fica na segunda linha do quadrado; o dono pode preferir o R$ como número grande). No SH o Geral passou a ter só números, sem placas; clique abre a lista | revista (22/10/2026) | 21/10/2026 · Sprint SG; revista em 22/10/2026 · 1º áudio do dono | SG Geral; SH Geral |
 | L51 | "Avisar cliente" ao mover carro confirmado | Guardado só no aparelho até existir o banco | provisória | 21/10/2026 · Sprint SG | SG Agenda; banco no S1 |
 | L52 | Travar a entrega quando falta foto de saída | Hoje só avisa e deixa seguir (`docs/revisao-sg/plano.md`) | aberta | 21/10/2026 · Sprint SG, plano | SG aviso na entrega |
 | L53 | Capacidade pesada pelo tamanho do serviço | Sem resposta; hoje conta peças (`docs/revisao-sg/plano.md`) | aberta | 21/10/2026 · Sprint SG, plano | — |
 | L54 | Checklist "tudo ok" em um toque | Sem resposta (`docs/revisao-sg/plano.md`) | aberta | 21/10/2026 · Sprint SG, plano | — |
 | L55 | Passar em lote as etapas de quem faltou | Sem resposta (`docs/revisao-sg/plano.md`) | aberta | 21/10/2026 · Sprint SG, plano | — |
+| L56 | Cor do carro: quando fica laranja e vermelho | Pedido do dono: vermelho piscando = passou da entrega; vermelho = entrega em até 1 dia útil e nenhuma etapa concluída; laranja = entrega em até 1 dia útil com etapa concluída; verde = resto. Base de 1 dia útil é provisória (o dono pediu "hoje ou amanhã" e ajustável) | provisória | 22/10/2026 · 2º áudio do dono (`docs/revisao-sh/pedido-dono-2.md`) | SH `corDoCarro`; Ajustes → Cores dos carros |
+| L57 | Vermelho piscando | Ligado por padrão; liga/desliga em Ajustes → Cores dos carros | provisória | 22/10/2026 · 2º áudio do dono (pediu como opção) | SH Ajustes e TV |
+| L58 | Prazo padrão de entrega | 10 dias úteis a partir da entrada; ajustável por carro | provisória | 22/10/2026 · 2º áudio do dono (exemplo de 10 dias úteis) | SH Ajustes e Receber o carro |
+| L59 | Carro sem data de entrega | Fica verde | provisória | 22/10/2026 · Sprint SH | SH `corDoCarro` |
+| L60 | Carro parado e a cor | Parado não muda a cor; aparece como selo à parte | provisória | 22/10/2026 · Sprint SH | SH Produção e TV |
+| L61 | O que conta em "Aguardando aprovação" | Orçamentos feitos e não aprovados, cada um conta como um; rascunho não entra | provisória | 22/10/2026 · 1º áudio do dono; rascunho fora por decisão do SH | SH Geral e Orçamentos |
+| L62 | Carro atrasado e parado ao mesmo tempo | Aparece nas duas listas (Atrasados e Parados) | provisória | 22/10/2026 · Sprint SH | SH Geral |
+| L63 | Feriados nos dias úteis da cor | Ainda não contam (a L10 prevê que feriados não contam; falta aplicar) | provisória | 22/10/2026 · Sprint SH | — |
 | — | Produção pode "pegar" etapas livres na fila? | Sem resposta (`docs/qa-sprintSD.md` item 6) | aberta | 12/10/2026 · QA do SD | — |
+
+Nota L56–L63: IDs atribuídos pelo escrivão em 22/10/2026 (o resumo não trouxe IDs). Todas são provisórias até o dono salvar a base em Ajustes → Cores dos carros. A L46 (laranja a 80 % do prazo da etapa, semáforo da etapa) segue valendo; a cor do carro é uma regra separada, pela entrega.
 
 Nota L45–L55: IDs atribuídos pelo escrivão em 21/10/2026 (o resumo não trouxe IDs). L45–L51 vêm do resumo; L52–L55 são as perguntas "precisa do dono" do plano do SG, registradas como abertas. L46 revisa a L11.
 
@@ -82,6 +92,31 @@ Nota L20: a ficha original sugeria "não desconta", mas o estudo da Maxpar (§2.
 ---
 
 ## Histórico (mais recente primeiro)
+
+### 22/10/2026 Sprint SH — Pedidos do dono em dois áudios (fechado; merge, tag e publicação em 22/10/2026)
+**Decisões tomadas** (provisórias até o dono salvar a base em Ajustes → Cores dos carros — L56 a L63; L45 e L50 revistas):
+- Os dois áudios do dono, transcritos pelo Guilherme, mandam no sprint (`docs/revisao-sh/pedido-dono.md` e `pedido-dono-2.md`) — porquê: é a voz do dono sobre o que ele quer ver ao abrir o painel.
+- Geral só com números e clique abre as placas — porquê: o dono pediu "inicialmente só números, para não ficar muita informação" (revisa a L50).
+- "Atendimentos" volta a "Orçamentos"; situações "Aguardando aprovação" e "Aguardando agendamento"; "Impedido" vira "Parado"/"Parada" em todo lugar — porquê: palavras do dono (revisa a L45).
+- Cor do carro pela entrega e andamento (`corDoCarro`) com laranja e vermelho a 1 dia útil — porquê: o dono quer ver os carros que precisam de trabalho antes de o prazo estourar, sem "verde, verde, verde, laranja e vermelho".
+- Piscar ligado por padrão, prazo padrão de 10 dias úteis, sem data de entrega = verde, parado não muda a cor — porquê: pontos de partida do áudio, editáveis; sem prazo não há como cobrar; parado é outra situação, mostrada em selo.
+- "Aguardando aprovação" não inclui rascunho; carro atrasado e parado aparece nas duas listas — porquê: rascunho ainda não é orçamento feito; as duas situações são diferentes.
+- Feriados ainda não contam nos dias úteis da cor — porquê: não foi aplicado neste sprint.
+
+**O que foi implementado:**
+- Geral: Na oficina · Entram hoje · Saem hoje; Atrasados e Parados separados, grandes e verdes em zero; Aguardando aprovação · Aguardando seguradora · Aguardando agendamento · Dinheiro vencido; clique abre as placas; quadrados brancos.
+- Menu lateral amarelo com logo e barra de busca pretos (também no celular).
+- Cor do carro: vermelho piscando = passou da entrega; vermelho = entrega em até 1 dia útil e nenhuma etapa concluída; laranja = entrega em até 1 dia útil com etapa concluída; verde = resto. Base em Ajustes → Cores dos carros (piscar liga/desliga, prazo padrão); ajuste por carro na ficha ("Ajustar prazo": urgente, prazo em dias úteis, dias antes para laranja/vermelho) e no Receber o carro.
+- TV em mosaico (quadradinhos com placa e etapa pintados pela cor, piores primeiro, 30 por tela, contagem por cor e legenda; visão por etapas em `?visao=etapas`); Produção com a cor no cartão e filtros por cor.
+- Lembrete "cobrar franquia" para a recepção em Para fazer hoje. Demo com 11 carros na oficina (3 novos para mostrar as cores).
+- QA do 1º áudio: nada bloqueava; acertos aplicados. 488 testes, lint 0 erros, build ok.
+
+**O que ficou de fora (de propósito):**
+- Feriados nos dias úteis da cor — porquê: não aplicado ainda (L63).
+- Itens do S1/banco e do dono (L52–L55) herdados do SG — porquê: seguem iguais.
+
+**Arquivos relevantes:**
+- `docs/revisao-sh/pedido-dono.md`, `docs/revisao-sh/pedido-dono-2.md`, `notas/sprints/sprint-SH.md`, `codigo/painel/src/`, `codigo/compartilhado/src/`
 
 ### 21/10/2026 Sprint SG — Revisão de produto: mecânico e especialista em sistemas (fechado; merge, tag e publicação em 21/10/2026)
 **Decisões tomadas** (provisórias, a confirmar com o dono — L45 a L51; L52 a L55 abertas):
