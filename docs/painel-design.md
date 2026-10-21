@@ -1,6 +1,6 @@
 # Painel D doctor — sistema visual
 
-Data: 12/10/2026, revisado em 13/10/2026 (sprint SE; revisão final de consistência no fim do SE) em 20/10/2026 (tema escuro, sprint SF — §7) e em 21/10/2026 (sprint SG: Geral em quadrados, Atendimentos, Agenda de arrastar; revisão final de consistência — §5 e §6). Fonte da verdade da aparência do painel; complementa o `DESIGN.md` (identidade da landing). Quem mantém: `designer-painel`. Toda tela nova segue este documento; padrão novo entra aqui antes de entrar no código.
+Data: 12/10/2026, revisado em 13/10/2026 (sprint SE; revisão final de consistência no fim do SE) em 20/10/2026 (tema escuro, sprint SF — §7) e em 21/10/2026 (sprint SG: Geral em quadrados, Atendimentos, Agenda de arrastar; revisão final de consistência — §5 e §6) e em 22/10/2026 (sprint SH: casca amarela e preta, a pedido do dono — ver "Revisão SH"). Fonte da verdade da aparência do painel; complementa o `DESIGN.md` (identidade da landing). Quem mantém: `designer-painel`. Toda tela nova segue este documento; padrão novo entra aqui antes de entrar no código.
 
 ## Revisão SE (13/10/2026) — direção clean
 
@@ -20,7 +20,28 @@ O Guilherme pediu um painel **mais limpo, profissional e bonito** (ver `docs/con
 | Sem sombra | Sombra quase nula em cartões (`shadow-cartao`) e controles; `elevacao` só no que flutua. |
 | Ícones traço 2 px, pontas retas | Traço 1,75 px, pontas e cantos arredondados (2 px no item ativo e na TV). |
 
-**Amarelo `#F2C200` só em:** botão primário (texto preto), item ativo do menu (ícone), indicador do item ativo no celular, foco, "hoje" e etapa atual. Nunca em hover, fundo de seção ou enfeite.
+**Amarelo `#F2C200` só em:** botão primário (texto preto), item ativo do menu (ícone), indicador do item ativo no celular, foco, "hoje" e etapa atual. Nunca em hover, fundo de seção ou enfeite. *(Substituída na revisão SH, abaixo: a navegação passou a ser amarela.)*
+
+## Revisão SH (22/10/2026) — casca amarela e preta (pedido do dono)
+
+O dono pediu (áudio, `docs/revisao-sh/pedido-dono.md`): "o painel de controle (menu) com fundo amarelo — a cor do Novo atendimento —, para ficar mais visual; hoje as informações se misturam. Somente o canto esquerdo superior com fundo preto, e a barra de buscar placa/protocolo/cliente com fundo preto." Esta revisão **substitui** a barra lateral branca, o topo branco e a regra "amarelo só para ação primária":
+
+| Antes (SE) | Agora (SH) |
+| --- | --- |
+| Barra lateral branca com borda direita | Barra lateral **amarela** (`navegacao` = `#F2C200`) de cima a baixo, sem borda; texto e ícones pretos. |
+| Bloco da marca branco | Bloco da marca **preto** (`casca` `#111`), 56 px, com `MarcaD` (amarela) + "D doctor" `casca-tinta` / "Painel da oficina" `casca-fraca`. Alinha com o topo: os dois formam uma faixa preta contínua. |
+| Topo branco com borda inferior | Topo **preto** (`casca`) 56 px, sem borda (fio `linha-clara` de 1 px em sombra, para separar do fundo no tema escuro). Busca em campo escuro; "Novo atendimento" continua amarelo — sobre o preto ele destaca mais. |
+| Item ativo `cinza-100` + ícone amarelo | Item ativo **preto com texto e ícone amarelos** (600, raio 6). Hover `preto/8`. |
+| Barra inferior branca, ativo com traço amarelo | Barra inferior **amarela**, ícones e rótulos pretos; ativo = ícone dentro de uma pílula preta 48×28 com o ícone amarelo, rótulo 700. |
+| `theme-color` branco / `#17181A` | `#111111` nos dois temas (a barra do navegador continua o topo preto). |
+
+**Amarelo agora é:** ação primária (texto preto), **a navegação** (barra lateral e barra inferior), foco, "hoje" e etapa atual. Continua proibido em hover de conteúdo, fundo de seção do conteúdo ou enfeite. **Nada de amarelo sobre amarelo:** nenhum botão amarelo vive na navegação — o "Novo atendimento" fica no topo preto (no celular, o "+" também) e o item ativo da navegação é preto. Dentro do conteúdo o amarelo continua raro (no máximo uma ação primária por tela).
+
+**Contraste (AA) sobre o amarelo `#F2C200`:** texto `preto` 11:1; rótulo de grupo e papel do usuário `preto/70` 5,6:1 (nunca abaixo de 70 % para texto); ícones inativos `preto/75`. Sobre o preto: amarelo 11:1; `casca-tinta` 17:1; `casca-fraca` (ícone e placeholder) 6,4:1 sobre `casca-campo`.
+
+**Foco:** sobre a navegação amarela o anel é **preto** (`[data-navegacao] :focus-visible` em `estilos.css`; quem desenha superfície amarela nova põe `data-navegacao` na raiz); no topo preto o anel amarelo continua (busca: borda amarela + anel `amarelo/30`).
+
+**Tema escuro:** a casca é a mesma (lateral `#F2C200`, topo `#111`). Testamos o amarelo mais fechado (`#D9A800`) no escuro: ficou mostarda e deixou de ser "a cor do Novo atendimento" que o dono pediu. O conteúdo continua escuro, então a leitura longa segue confortável. `--tema-navegacao` existe por tema, se um dia precisar ajustar.
 
 ## 1. Princípio
 
@@ -28,7 +49,7 @@ O painel é uma ferramenta de trabalho (modo *Operate*): **o carro certo, o esta
 
 Três regras que valem para todas as telas:
 1. **Um elemento dominante por tela.** Na Produção é o quadro; no Geral são os 6 quadrados (sprint SG); na Ficha é a placa e o estado.
-2. **Cor = significado.** Amarelo = ação primária, item ativo da navegação, "hoje", etapa atual, foco. Filtro selecionado é branco elevado sobre trilho cinza (ver `Segmentos`), para não competir com a ação primária. Verde/laranja/vermelho = semáforo de prazo. Nada colorido por enfeite.
+2. **Cor = significado.** Amarelo = ação primária, a navegação (fundo da barra lateral e da barra inferior, revisão SH), "hoje", etapa atual, foco. Filtro selecionado é branco elevado sobre trilho cinza (ver `Segmentos`), para não competir com a ação primária. Verde/laranja/vermelho = semáforo de prazo. Nada colorido por enfeite.
 3. **O carro é identificado pela placa.** Sempre o componente `Placa` (formato Mercosul), nunca texto solto.
 
 ## 2. Tokens
@@ -37,13 +58,16 @@ Os nomes do Tailwind ficaram os mesmos da versão 12/10 (as telas já usam); os 
 
 | Token (Tailwind) | Valor | Uso |
 | --- | --- | --- |
-| `papel` | `#F7F7F5` | Fundo da aplicação; trilho do campo de busca |
-| `cartao` | `#FFFFFF` | Superfícies: cartões, tabelas, barra lateral, topo, formulários |
+| `papel` | `#F7F7F5` | Fundo da aplicação (o conteúdo) |
+| `cartao` | `#FFFFFF` | Superfícies do conteúdo: cartões, tabelas, formulários, menus e folhas |
+| `navegacao` (SH) | `#F2C200` (os dois temas) | Barra lateral e barra inferior do celular; texto/ícone `preto` em cima, rótulos secundários `preto/70`, hover `preto/8`, aberto `preto/12`, divisória `preto/15` |
+| `casca` / `casca-campo` / `casca-linha` (SH) | `#111111` / `#232323` / branco 16 % | Topo e bloco da marca / campo de busca no topo / borda desse campo (hover `casca-fraca`, foco `amarelo`) |
+| `casca-tinta` / `casca-fraca` (SH) | `#F7F7F5` / papel 62 % | Texto sobre o topo / ícones, subtítulo da marca e placeholder sobre o topo |
 | `cinza-50` / `cinza-100` / `cinza-200` | `#FAFAF9` / `#F2F2EF` / `#E8E7E3` | Hover de linha / hover de menu, trilho de segmentos, pílula neutra, item ativo / avatar, pílula "escuro", etapa futura |
 | `tinta` / `tinta-suave` / `tinta-fraca` | `#111111` / `#6B6B6B` / `#8C8C87` | Texto principal / secundário e rótulos / dicas, contagens, desabilitado (não usar em texto que precisa ser lido) |
 | `linha` / `linha-forte` | `#E7E5E0` / `#D5D3CD` | Divisórias e bordas de superfície / bordas de controles e campos |
-| `amarelo` / `amarelo-escuro` / `amarelo-claro` / `amarelo-tinta` | `#F2C200` / `#D9A800` / `#FEF7D6` / `#7A5C00` | Ação primária, foco / hover do primário, ícone do item ativo, anel de foco / fundo de "hoje" e da pílula amarela / texto sobre `amarelo-claro` |
-| `preto` | `#111111` | Placa (borda e caracteres), fundo da TV, variante `escuro` de botão |
+| `amarelo` / `amarelo-escuro` / `amarelo-claro` / `amarelo-tinta` | `#F2C200` / `#D9A800` / `#FEF7D6` / `#7A5C00` | Ação primária, foco, texto/ícone do item ativo da navegação, item ativo da folha "Mais" / hover do primário, anel de foco / fundo de "hoje" e da pílula amarela / texto sobre `amarelo-claro` |
+| `preto` | `#111111` | Placa (borda e caracteres), fundo da TV, variante `escuro` de botão, item ativo e avatar na navegação amarela, texto sobre amarelo |
 | `grafite` / `grafite-2` / `grafite-3` | `#1A1A1A` / `#1F1F1F` / `#2E2E2E` | Superfícies da TV e da galeria; trilhos escuros |
 | `linha-clara`, `papel-suave`, `papel-fraco` | branco 10 % / papel 72 % / papel 50 % | Bordas e texto secundário sobre fundo escuro (TV, galeria) |
 | `ok` / `ok-claro` | `#1F7A4A` / `#EAF5EE` | Semáforo verde, concluído, recebido |
@@ -62,7 +86,7 @@ Movimento: só para mudança de estado, 150–200 ms, `cubic-bezier(.22,1,.36,1)
 | Componente | Para quê | Regras |
 | --- | --- | --- |
 | `Placa` | Identificar o carro | Formato Mercosul: corpo branco, faixa azul `maxpar` no topo com "BRASIL" (6/7/9/12 px), caracteres pretos `wdth 106` e `tabular-nums`, borda preta 1,5 px, raio de placa real (3/4/5/7 px). Tamanhos `p` 96 px (listas), `m` 122 (cartões), `g` 180 (ficha), `tv` 264. A pior sequência (WWW8W88) cabe dentro da borda em todos. `encolher` deixa a placa ocupar a coluna até o tamanho cheio (mínimo `p` 92 px) — usado na grade da Agenda. Placa antiga também usa o formato. |
-| `MarcaD` (`ui/Marca.tsx`) | Marca da oficina na casca e no PIN | D preto em quadrado amarelo, raio 6. `tamanho` em px (28 na casca, 36 no PIN). |
+| `MarcaD` (`ui/Marca.tsx`) | Marca da oficina na casca e no PIN | D preto em quadrado amarelo, raio 6. `tamanho` em px (28 na casca, 36 no PIN). Na casca fica sobre o preto (bloco da marca e topo do celular). |
 | `Semaforo` | Estado de prazo | Pílula `rounded-full` 24 px: tint claro + texto escuro da cor + ponto 6 px. "No prazo" (ok), "Atenção" (atencao), "Atrasado" ou "Impedido" (alerta). Nunca só a cor: sempre texto junto. |
 | `Etiqueta` | Estado da OS, do orçamento, do agendamento, do título | Mesma pílula, 12/500, rótulos de `rotulos.ts`. Tons: `ok`, `atencao`, `alerta`, `amarelo` (em andamento: `amarelo-claro` + `amarelo-tinta`), `escuro` (estado firme: `cinza-200` + tinta, ponto preto), `maxpar`, `neutro` (`cinza-100` + `tinta-suave`, sem ponto). `ponto={false}` tira o ponto. |
 | `ProgressoEtapas` | Onde o carro está na produção | Barra segmentada `rounded-full`, um segmento por etapa: concluída `tinta`, atual cor do semáforo, dispensada hachurada, futura `cinza-200`. Abaixo, "Etapa 3 de 5 · Pintura". |
@@ -95,14 +119,14 @@ Movimento: só para mudança de estado, 150–200 ms, `cubic-bezier(.22,1,.36,1)
 | Impressão (`ImprimirOS`) | OS/orçamento em A4 | Fora do `Layout`: barra branca com Voltar e "Imprimir" (primário), escondida na impressão. Folha A4 retrato (`@page` 12 mm), branca, corpo 12 px, marca `MarcaD` + "D doctor" à esquerda, "Ordem de serviço" e número à direita, régua preta de 2 px sob o cabeçalho; seções separadas por `linha`; tabelas sem fundo; total em 600; assinaturas com linha preta. Só a Placa e a marca têm cor. |
 | `Vazio` / `Erro` / `Carregando` | Estados | Vazio ensina a próxima ação (ícone em quadrado `cinza-100` raio 8); Erro em `alerta-claro` raio 8 com "Tentar de novo"; Carregando é esqueleto `cinza-100` na forma do conteúdo, nunca spinner no meio. |
 | `Provisorio` | Valor ainda não confirmado pelo dono | Sublinhado pontilhado `atencao` + dica "provisório — a confirmar". |
-| `SeletorTema` (`ui/SeletorTema.tsx`, lógica em `ui/tema.ts`) | Escolha do tema pelo usuário (sprint SF) | Claro / Escuro / Automático, salvo no aparelho (`localStorage` `ddoctor.tema`; "Automático" = sem chave). Barra lateral: botão só ícone 28 px (sol, lua ou meio-círculo) entre o perfil e o Sair; abre menu para cima (`role="menu"`, opções `menuitemradio` 36 px com ícone 16 e visto na marcada; setas, Home/End, Esc devolve o foco). Celular: `Segmentado` de largura total "Tema" no menu "Mais", acima do "Ver como". Ícones novos no `Icone`: `sol`, `lua`, `automatico`. |
+| `SeletorTema` (`ui/SeletorTema.tsx`, lógica em `ui/tema.ts`) | Escolha do tema pelo usuário (sprint SF) | Claro / Escuro / Automático, salvo no aparelho (`localStorage` `ddoctor.tema`; "Automático" = sem chave). Barra lateral: botão só ícone 28 px (sol, lua ou meio-círculo) entre o perfil e o Sair — com `sobreNavegacao` (SH) o ícone é `preto/75` e o hover `preto/8`, para ler sobre o amarelo; abre menu para cima (`role="menu"`, opções `menuitemradio` 36 px com ícone 16 e visto na marcada; setas, Home/End, Esc devolve o foco). Celular: `Segmentado` de largura total "Tema" no menu "Mais", acima do "Ver como". Ícones novos no `Icone`: `sol`, `lua`, `automatico`. |
 
 ## 4. Superfícies
 
 | Superfície | Tela | Padrão |
 | --- | --- | --- |
-| Recepção / escritório (1366–1920 px) | Todas as abas | Barra lateral **branca** 232 px com borda direita: `MarcaD` + "D doctor / Painel da oficina"; grupos com cabeçalho 12/500 `tinta-fraca` (sentence case); itens 36 px, ícone 18 + texto 14/500 `tinta-suave`; ativo `cinza-100`, texto 600 `tinta`, ícone `amarelo-escuro`; rodapé com avatar, nome, papel, `SeletorTema` e botão Sair, os dois só ícone 28 px. Topo branco 56 px: busca (campo `papel` raio 6 com ícone, até 448 px), "Ver como" discreto, botão primário **Novo atendimento** 36 px. Conteúdo em `papel`, largura máxima 1440 px, margens 32 px. |
-| Celular (390 px) | Produção "Minhas tarefas", consultas rápidas do dono | Topo branco com `MarcaD`, busca e "+" amarelo 40 px. Menu vira barra inferior **branca** com borda superior, 5 itens (ícone 22 + rótulo 11 em até 2 linhas, nunca cortado); ativo em tinta 600 com traço amarelo de 2 px no topo. "Mais" abre folha branca com raio 12 no topo (lista completa, "Tema", "Ver como" e Sair). Botões de ação 56 px, um cartão por tarefa, Iniciar/Concluir/Impedimento grandes e separados. |
+| Recepção / escritório (1366–1920 px) | Todas as abas | **Revisão SH.** Barra lateral **amarela** (`navegacao`) 232 px, de cima a baixo, sem borda. No alto, o bloco da marca **preto** (`casca`) 56 px: `MarcaD` + "D doctor" 15/600 `casca-tinta` / "Painel da oficina" 12 `casca-fraca`. Grupos com cabeçalho 12/600 `preto/70` (sentence case); itens 36 px, ícone 18 `preto/75` + texto 14/500 `preto`; hover `preto/8`; **ativo `preto` com texto 600 e ícone `amarelo`** (traço 2), raio 6; foco = anel preto. Rodapé (divisória `preto/15`): avatar `preto` com iniciais amarelas, nome 13/600 `preto`, papel 12/500 `preto/70`, chevron do "Ver como"; `SeletorTema sobreNavegacao` e Sair, só ícone 28 px `preto/75`. Os menus que abrem (Ver como, Tema) continuam brancos (`cartao`). Topo **preto** (`casca`) 56 px: busca em campo `casca-campo` com borda `casca-linha`, ícone e placeholder `casca-fraca`, texto `casca-tinta` (foco: borda amarela + anel `amarelo/30`), até 448 px; botão primário **Novo atendimento** 36 px, amarelo. Conteúdo em `papel`, cartões brancos, largura máxima 1440 px, margens 32 px. |
+| Celular (390 px) | Produção "Minhas tarefas", consultas rápidas do dono | **Revisão SH.** Topo **preto** com `MarcaD`, busca escura e "+" amarelo 40 px; quem não busca (produção) vê `MarcaD` + "D doctor". Menu vira barra inferior **amarela** sem borda, 5 itens (ícone 20 numa pílula 48×28 + rótulo 11 `preto` em até 2 linhas, nunca cortado); **ativo = pílula preta com o ícone amarelo**, rótulo 700. "Mais" abre folha branca (`cartao`) com raio 12 no topo (lista completa, "Tema", "Ver como" e Sair); nela o item ativo é **amarelo com texto preto** (é navegação), hover `cinza-100`. Nenhum botão amarelo encosta na barra amarela. Botões de ação 56 px, um cartão por tarefa, Iniciar/Concluir/Impedimento grandes e separados. |
 | TV (1920×1080) | Produção TV | Continua escura: fundo `preto` `#111`, cartões `grafite`/`grafite-2` raio 8, colunas fluidas por etapa com carro, cabeçalho do cartão na cor do semáforo, `Placa` tamanho `tv` (`g` em coluna estreita), tempo e responsável em 24 px+, faixa superior com contadores e relógio, rodapé com "Atualizado às" e legenda. Rótulos em sentence case (sem caixa-alta espaçada). Sem cursor, sem foco, sem rolagem: o cartão encolhe (cheio → médio → compacto) antes de a coluna paginar a cada 20 s (§5.1). Motivo do impedimento em até 2 linhas; legenda separa cor (No prazo · Atenção · Atrasado · Pronto) do ícone de impedido. |
 | PIN | Entrada | Fundo `papel`, cartão branco raio 12 centralizado com `MarcaD`, campo 48 px e botão primário de largura total. |
 
@@ -154,7 +178,7 @@ Português do Brasil, frases curtas, verbo no botão ("Registrar entrada", "Conc
 
 Pedido do dono: modo escuro com opção para o usuário escolher. **Claro continua o padrão do desenho**; o escuro é o mesmo painel com outros valores — mesmos nomes de token, mesma hierarquia, mesma regra de cor.
 
-**Como funciona.** Os tokens que mudam com o tema estão em `@theme inline` apontando para variáveis `--tema-*` (`estilos.css`). Os valores claros ficam em `:root, [data-tema="claro"]`; os escuros em `:root[data-tema="escuro"], [data-tema="escuro"]` e, para "Automático", em `@media (prefers-color-scheme: dark) { :root:not([data-tema="claro"]) }` (os dois blocos escuros têm os mesmos valores: mude juntos). Como a classe usa `var(--tema-…)` direto, `bg-cartao`, `text-tinta`, `border-linha`, `ok/atencao/alerta(-claro)` etc. trocam sozinhas, **sem `dark:` nas telas**. O `<html data-tema>` é aplicado por um script inline no `index.html` antes do primeiro render (sem piscar), que também acerta `<meta name="theme-color">` (`#FFFFFF` / `#17181A`). Em desenvolvimento, `?tema=claro|escuro|automatico` fixa o tema (capturas), como o `?dev=1`.
+**Como funciona.** Os tokens que mudam com o tema estão em `@theme inline` apontando para variáveis `--tema-*` (`estilos.css`). Os valores claros ficam em `:root, [data-tema="claro"]`; os escuros em `:root[data-tema="escuro"], [data-tema="escuro"]` e, para "Automático", em `@media (prefers-color-scheme: dark) { :root:not([data-tema="claro"]) }` (os dois blocos escuros têm os mesmos valores: mude juntos). Como a classe usa `var(--tema-…)` direto, `bg-cartao`, `text-tinta`, `border-linha`, `ok/atencao/alerta(-claro)` etc. trocam sozinhas, **sem `dark:` nas telas**. O `<html data-tema>` é aplicado por um script inline no `index.html` antes do primeiro render (sem piscar), que também acerta `<meta name="theme-color">` (`#111111` nos dois temas desde a revisão SH: o topo é preto). Em desenvolvimento, `?tema=claro|escuro|automatico` fixa o tema (capturas), como o `?dev=1`.
 
 | Token | Claro | Escuro |
 | --- | --- | --- |
@@ -172,7 +196,7 @@ Pedido do dono: modo escuro com opção para o usuário escolher. **Claro contin
 | `shadow-cartao` / `-controle` / `-segmento` / `-flutuante` | 4 % / 4 % / 8 % / 20 % de `#111` | preto 30 % / 30 % / 40 % / 70 % + contorno branco 6 % no flutuante |
 | Seta do select | `#6B6B6B` | `#A1A1A6` |
 
-**Fixos (iguais nos dois temas):** `amarelo` `#F2C200` e `amarelo-escuro` (o botão primário é amarelo com texto **preto** em qualquer tema), `preto`, `grafite`, `grafite-2`, `grafite-3`, `linha-clara`, `papel-suave`, `papel-fraco`, raios, fonte.
+**Fixos (iguais nos dois temas):** `amarelo` `#F2C200` e `amarelo-escuro` (o botão primário é amarelo com texto **preto** em qualquer tema), a casca (`casca`, `casca-campo`, `casca-linha`, `casca-tinta`, `casca-fraca`; a `navegacao` é variável por tema mas hoje vale `#F2C200` nos dois — revisão SH), `preto`, `grafite`, `grafite-2`, `grafite-3`, `linha-clara`, `papel-suave`, `papel-fraco`, raios, fonte.
 
 **Regras.**
 1. **Nada de cor fixa nas telas.** Sem `bg-white`, `text-black`, `#fff`, `bg-[#…]` ou `rgba(` em classe; em valor arbitrário use a variável (`shadow-[0_0_0_2px_var(--tema-cartao)]`). Texto claro sobre cor de estado usa `text-cartao` (no escuro vira texto escuro sobre a cor clara — contraste AA nos dois).

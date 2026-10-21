@@ -28,6 +28,7 @@
 @theme inline {
   --color-amarelo-claro: var(--tema-amarelo-claro);
   --color-amarelo-tinta: var(--tema-amarelo-tinta); /* texto sobre amarelo-claro */
+  --color-navegacao: var(--tema-navegacao); /* barra lateral e barra inferior (revisão SH), texto preto em cima */
 
   --color-papel: var(--tema-papel); /* fundo da aplicação */
   --color-cartao: var(--tema-cartao); /* superfícies: cartões, tabelas, barra lateral, topo */
@@ -60,9 +61,18 @@
 
 /* Tokens fixos: iguais nos dois temas. */
 @theme {
-  /* marca: amarelo só para ação primária, item ativo, foco e "hoje" (texto preto em cima, sempre) */
+  /* marca: amarelo = ação primária, navegação (barra lateral e barra inferior, revisão SH), foco e "hoje".
+     Texto em cima do amarelo é sempre preto. */
   --color-amarelo: #f2c200;
   --color-amarelo-escuro: #d9a800;
+
+  /* casca (revisão SH, pedido do dono): topo preto (bloco da marca + barra da busca) e navegação amarela.
+     Iguais nos dois temas — a casca é a identidade da oficina, não muda com o tema. */
+  --color-casca: #111111; /* topo: bloco da marca e barra da busca */
+  --color-casca-campo: #232323; /* campo de busca sobre o topo */
+  --color-casca-linha: rgba(255, 255, 255, 0.16); /* borda do campo sobre o topo */
+  --color-casca-tinta: #f7f7f5; /* texto sobre o topo */
+  --color-casca-fraca: rgba(247, 247, 245, 0.62); /* ícone e placeholder sobre o topo (AA sobre casca-campo) */
 
   /* escuros por desenho (placa, TV, galeria): não mudam com o tema */
   --color-preto: #111111;
@@ -90,6 +100,7 @@
   color-scheme: light;
   --tema-amarelo-claro: #fef7d6;
   --tema-amarelo-tinta: #7a5c00;
+  --tema-navegacao: #f2c200;
   --tema-papel: #f7f7f5;
   --tema-cartao: #ffffff;
   --tema-elevado: #ffffff;
@@ -123,6 +134,7 @@
   color-scheme: dark;
   --tema-amarelo-claro: rgba(242, 194, 0, 0.12);
   --tema-amarelo-tinta: #f2cf4a;
+  --tema-navegacao: #f2c200; /* igual ao claro: é a cor do "Novo atendimento" que o dono pediu (revisão SH) */
   --tema-papel: #0f0f10;
   --tema-cartao: #17181a;
   --tema-elevado: #2a2b2f;
@@ -153,6 +165,7 @@
     color-scheme: dark;
     --tema-amarelo-claro: rgba(242, 194, 0, 0.12);
     --tema-amarelo-tinta: #f2cf4a;
+  --tema-navegacao: #f2c200; /* igual ao claro: é a cor do "Novo atendimento" que o dono pediu (revisão SH) */
     --tema-papel: #0f0f10;
     --tema-cartao: #17181a;
     --tema-elevado: #2a2b2f;
@@ -193,6 +206,8 @@
   body { margin: 0; min-width: 320px; font-size: 14px; line-height: 1.5; }
   ::selection { background: var(--color-amarelo); color: var(--color-preto); }
   :focus-visible { outline: 2px solid var(--color-amarelo-escuro); outline-offset: 2px; }
+  /* sobre a navegação amarela o anel amarelo some: ali o foco é preto (revisão SH) */
+  [data-navegacao] :focus-visible:not([role="menu"] *) { outline-color: var(--color-preto); }
   input, select, textarea, button { font: inherit; color: inherit; }
   /* campos ganham o raio de controle sem precisar de classe (as telas não usam rounded-*) */
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { border-radius: var(--radius-controle); }

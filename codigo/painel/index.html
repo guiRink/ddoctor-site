@@ -5,7 +5,7 @@
     <link rel="icon" type="image/svg+xml" href="./logo-mark.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="robots" content="noindex" />
-    <meta name="theme-color" content="#FFFFFF" />
+    <meta name="theme-color" content="#111111" />
     <title>Painel — D doctor</title>
     <script>
       // Tema antes do primeiro render (sem piscar). Mesma regra de src/componentes/ui/tema.ts.
@@ -16,9 +16,8 @@
           if (s === "claro" || s === "escuro") t = s;
         } catch (e) {}
         document.documentElement.setAttribute("data-tema", t);
-        var escuro = t === "escuro" || (t === "automatico" && !!window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
         var m = document.querySelector('meta[name="theme-color"]');
-        if (m) m.setAttribute("content", escuro ? "#17181A" : "#FFFFFF");
+        if (m) m.setAttribute("content", "#111111"); // topo preto nos dois temas (revisão SH)
       })();
     </script>
   </head>
