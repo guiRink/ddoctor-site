@@ -16,7 +16,7 @@ Branch `sprint/sg-revisao-produto`. O Guilherme odiou o Geral e achou partes con
 - [x] 11. Estoque enxuto (abre em Acabando, aba Lista de compra, 2 números como filtro, ações no "⋯")
 - [x] 12. Ruído fora ("Guardada até", sem "Aparelho", sem parágrafos explicativos, "Fechado" no lugar de "Encerrado")
 - [x] Crítica do designer, revisão QA (nada bloqueava; 5 importantes e menores corrigidos), notas
-- [x] Merge, tag `sprint-SG` e publicação em 21/10/2026 (Guilherme faz em seguida)
+- [x] Merge, tag `sprint-SG` e publicação em 21/10/2026
 
 ## Fica para o S1 / banco
 Complemento por dano oculto, peça encomendada, glosa, mudança de prazo com motivo, decisão sobre item negado, retrabalho e garantia, carro reserva, vagas por turno, "Avisar cliente" no banco, `encaixe` na função do Supabase.
