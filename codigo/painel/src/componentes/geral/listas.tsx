@@ -123,7 +123,7 @@ export function bloco(chave: ChaveLista, d: DadosGeral): Bloco {
         chave,
         titulo: "Entram hoje",
         total: c.total,
-        resumo: `manhã ${c.manha} · tarde ${c.tarde}${aConfirmar ? ` · ${aConfirmar} a confirmar` : ""}`,
+        resumo: [porTurno(c.manha, c.tarde), aConfirmar ? `${aConfirmar} a confirmar` : ""].filter(Boolean).join(" · "),
         itens: c.itens.slice(0, MAX).map((i) => ({
           chave: i.ag.id,
           placa: i.v.veiculo.placa,
@@ -357,7 +357,7 @@ export function conteudoLista(chave: ChaveLista, d: DadosGeral, a: AcoesLista): 
       const comAcoes = a.podeReceber || a.podeAgendar;
       return {
         titulo: "Entram hoje",
-        descricao: `${s(c.total, "carro", "carros")} · manhã ${c.manha} · tarde ${c.tarde}`,
+        descricao: [s(c.total, "carro", "carros"), porTurno(c.manha, c.tarde)].filter(Boolean).join(" · "),
         total: s(c.total, "carro", "carros"),
         destino: { para: "/agenda", rotulo: "Abrir a Agenda" },
         larguraAcoes: comAcoes ? "216px" : undefined,
@@ -708,4 +708,9 @@ export function rotuloDestino(para: string): string {
   if (para.startsWith("/agenda")) return "Agenda";
   if (para.startsWith("/clientes")) return "Cadastro";
   return "Abrir";
+}
+
+/** "1 de manhã · 2 à tarde" — o turno sem carro não aparece (antes: "manhã 0 · tarde 1"). */
+function porTurno(manha: number, tarde: number): string {
+  return [manha ? `${manha} de manhã` : "", tarde ? `${tarde} à tarde` : ""].filter(Boolean).join(" · ");
 }

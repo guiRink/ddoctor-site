@@ -94,8 +94,12 @@ export function Vistorias() {
   const selecionado: OSVisao | undefined = osParam ? permitido : largo ? comFotos[0]?.v : undefined;
 
   const totalFotos = comFotos.reduce((s, x) => s + x.v.fotos.length, 0);
+  // o mesmo número da lista "Carros" (inclui os que ainda vão receber a primeira foto), e quantos faltam
+  const semFoto = comFotos.length - carrosComFoto;
   const resumo = oss.data
-    ? `${plural(carrosComFoto, "carro com fotos", "carros com fotos")} · ${plural(totalFotos, "foto", "fotos")}`
+    ? [plural(comFotos.length, "carro", "carros"), plural(totalFotos, "foto", "fotos"), semFoto > 0 ? `${semFoto} sem foto ainda` : ""]
+        .filter(Boolean)
+        .join(" · ")
     : undefined;
 
   const capturaAberta = captura && selecionado && captura.osId === selecionado.os.id ? captura : null;

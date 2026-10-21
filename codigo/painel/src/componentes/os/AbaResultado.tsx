@@ -5,7 +5,7 @@ import type { OSVisao } from "../../dados/repositorio";
 import { Botao, Cartao, FaixaIndicadores, Indicador } from "../ui/Basicos";
 import { Icone } from "../Icone";
 
-const pct = (f: number | null) => (f === null ? "—" : `${(f * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`);
+const pct = (f: number | null) => (f === null ? "—" : `${(f * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} %`);
 
 /**
  * Aba Resultado (só dono, gestor e financeiro — veCustosOS): receita, custos por tipo e margem em R$ e %,

@@ -1,6 +1,6 @@
 import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 import type { Agendamento, DataISO, Janela, MarcoISO } from "@compartilhado/tipos";
-import { formatarDuracao } from "@compartilhado/dominio/tempos";
+import { rotuloHorario } from "../../dominio/horarios";
 import type { OSVisao } from "../../dados/repositorio";
 import { ESTADO_AGENDAMENTO, JANELA } from "../../dominio/rotulos";
 import { Etiqueta } from "../ui/Estado";
@@ -48,12 +48,15 @@ export interface PropsGrade {
 
 // ------------------------------------------------------------------ peças pequenas
 
-/** Barra de ocupação: um segmento por vaga (amarelo = ocupada, cinza = livre; vermelho quando lota). */
+/**
+ * Barra de ocupação: um segmento por vaga (tinta-suave = ocupada, cinza = livre; vermelho quando lota).
+ * Neutra como toda barra de proporção (design §3 Gráficos): o amarelo da coluna fica só para "hoje".
+ */
 export function BarraOcupacao({ dia, sobreAmarelo = false }: { dia: DiaAgenda; sobreAmarelo?: boolean }) {
   const total = Math.max(dia.total, dia.ocupadas);
   if (total === 0) return <div aria-hidden="true" className="h-1.5 rounded-full hachurado" />;
   const lotado = dia.restantes === 0;
-  const cheio = lotado ? "bg-alerta" : "bg-amarelo";
+  const cheio = lotado ? "bg-alerta" : "bg-tinta-suave";
   const vazio = sobreAmarelo ? "bg-amarelo-tinta/15" : "bg-cinza-200";
   if (total > 12) {
     return (
@@ -83,7 +86,7 @@ export function EstadoAgendamento({ ag, agora }: { ag: Agendamento; agora: Marco
       </Etiqueta>
       {min !== undefined && (
         <span className="text-[12px] text-atencao font-medium numero leading-tight">
-          {min > 0 ? `expira em ${formatarDuracao(min)}` : "proposta expirada"}
+          {min > 0 && ag.expiraEm ? `expira ${rotuloHorario(ag.expiraEm, agora)}` : "proposta expirada"}
         </span>
       )}
     </span>
@@ -99,7 +102,7 @@ function Proposta({ ag, agora }: { ag: Agendamento; agora: MarcoISO }) {
         <span aria-hidden="true" className="inline-block w-1.5 h-1.5 rounded-full shrink-0 bg-atencao" />
         {ag.origem === "calia" ? "Proposto pela Calia" : "Horário proposto"}
       </span>
-      {min !== undefined && <span className="block numero font-normal mt-0.5">{min > 0 ? `expira em ${formatarDuracao(min)}` : "proposta expirada"}</span>}
+      {min !== undefined && <span className="block numero font-normal mt-0.5">{min > 0 && ag.expiraEm ? `expira ${rotuloHorario(ag.expiraEm, agora)}` : "proposta expirada"}</span>}
     </span>
   );
 }
@@ -253,7 +256,7 @@ export function CartaoAgendamento({
   );
 
   const modelo = (
-    <span aria-hidden="true" className="min-w-0 truncate text-[13px] font-semibold leading-tight" title={v?.veiculo.modelo}>
+    <span aria-hidden="true" className={`min-w-0 text-[13px] font-semibold leading-tight ${linha || compacto ? "truncate" : "line-clamp-2 break-words"}`} title={v?.veiculo.modelo}>
       {v?.veiculo.modelo ?? "Modelo não informado"}
     </span>
   );
@@ -342,8 +345,8 @@ export function CartaoAgendamento({
       ) : (
         <div className="flex flex-col items-start gap-1 p-1.5">
           {placaVisual}
-          <span className="flex items-center gap-1.5 min-w-0 w-full pl-0.5 mt-0.5">
-            {seletor}
+          <span className="flex items-start gap-1.5 min-w-0 w-full pl-0.5 mt-0.5">
+            {seletor && <span className="shrink-0 pt-px">{seletor}</span>}
             {modelo}
           </span>
           <span className="block w-full min-w-0">{detalhes}</span>
@@ -464,15 +467,19 @@ export function GradeSemana(p: PropsGrade) {
                 </span>
                 <span className={`block mt-1 text-[20px] font-semibold tracking-[-0.01em] numero ${dia.passado ? "text-tinta-fraca" : ""}`}>{diaMes(dia.data)}</span>
               </h3>
-              <p className={`mt-1.5 text-[12px] numero font-medium ${lotado ? "text-alerta" : dia.hoje ? "text-amarelo-tinta" : "text-tinta-suave"}`}>
-                {lotado ? `Lotado · ${dia.ocupadas} de ${dia.total}` : textoOcupacao(dia)}
-              </p>
-              <div className="mt-1.5">
-                <BarraOcupacao dia={dia} sobreAmarelo={dia.hoje} />
-              </div>
+              {!dia.passado && (
+                <>
+                  <p className={`mt-1.5 text-[12px] numero font-medium ${lotado ? "text-alerta" : dia.hoje ? "text-amarelo-tinta" : "text-tinta-suave"}`}>
+                    {lotado ? `Lotado · ${dia.ocupadas} de ${dia.total}` : textoOcupacao(dia)}
+                  </p>
+                  <div className="mt-1.5">
+                    <BarraOcupacao dia={dia} sobreAmarelo={dia.hoje} />
+                  </div>
+                </>
+              )}
               <div className="mt-2">
-                <PorTurno dia={dia} />
-                <Saidas lista={p.saidas[dia.data]} />
+                {!dia.passado && <PorTurno dia={dia} />}
+                <Saidas lista={p.saidas[dia.data]} linha={dia.passado} />
               </div>
             </div>
 
@@ -600,26 +607,32 @@ export function ListaDias(p: PropsGrade) {
       {dias.map((dia) => {
         const lotado = !dia.bloqueado && !dia.fechado && dia.total > 0 && dia.restantes === 0;
         const vazio = dia.itens.manha.length + dia.itens.tarde.length === 0;
+        // dia que passou sem carro: só o cabeçalho (não se agenda no passado)
+        const semCorpo = vazio && dia.passado && !dia.bloqueado && !dia.fechado;
         return (
           <li
             key={dia.data}
             className={`border border-linha rounded-cartao shadow-cartao overflow-hidden ${dia.bloqueado || dia.fechado ? "hachurado" : lotado ? "bg-alerta-claro" : "bg-cartao"}`}
           >
-            <div className={`relative px-3.5 py-3 border-b border-linha ${dia.hoje ? "bg-amarelo-claro" : "bg-cartao"}`}>
+            <div className={`relative px-3.5 py-3 ${semCorpo ? "" : "border-b border-linha"} ${dia.hoje ? "bg-amarelo-claro" : "bg-cartao"}`}>
               {dia.hoje && <span aria-hidden="true" className="absolute inset-x-0 top-0 h-0.5 bg-amarelo" />}
               <div className="flex items-center justify-between gap-3">
                 <h3 className={`flex items-center gap-2 text-[16px] font-semibold numero ${dia.passado ? "text-tinta-fraca" : ""}`}>
                   {diaCurto(dia.data)}
                   {dia.hoje && <span className="text-[13px] font-medium text-amarelo-tinta">hoje</span>}
                 </h3>
-                <div className="w-28 shrink-0">
-                  <p className={`text-[12px] font-medium numero text-right ${lotado ? "text-alerta" : dia.hoje ? "text-amarelo-tinta" : "text-tinta-suave"}`}>
-                    {lotado ? `Lotado · ${dia.ocupadas} de ${dia.total}` : textoOcupacao(dia)}
-                  </p>
-                  <div className="mt-1">
-                    <BarraOcupacao dia={dia} sobreAmarelo={dia.hoje} />
+                {dia.passado ? (
+                  vazio && <p className="text-[13px] text-tinta-fraca">Nenhum carro</p>
+                ) : (
+                  <div className="w-28 shrink-0">
+                    <p className={`text-[12px] font-medium numero text-right ${lotado ? "text-alerta" : dia.hoje ? "text-amarelo-tinta" : "text-tinta-suave"}`}>
+                      {lotado ? `Lotado · ${dia.ocupadas} de ${dia.total}` : textoOcupacao(dia)}
+                    </p>
+                    <div className="mt-1">
+                      <BarraOcupacao dia={dia} sobreAmarelo={dia.hoje} />
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
               <Saidas lista={p.saidas[dia.data]} linha />
             </div>
@@ -628,7 +641,7 @@ export function ListaDias(p: PropsGrade) {
                 <span className="block text-[12px] font-medium text-alerta">{dia.bloqueado ? "Dia bloqueado" : "Sem expediente"}</span>
                 {dia.bloqueado && <span className="text-tinta-suave">{dia.bloqueado}</span>}
               </p>
-            ) : vazio && !escolha ? (
+            ) : semCorpo ? null : vazio && !escolha ? (
               <VazioLista dia={dia} />
             ) : (
               <div className="flex flex-col gap-3 p-3.5">

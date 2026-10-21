@@ -31,7 +31,7 @@ export function BarrasLista({ itens, tom = "neutro", legenda }: { itens: ItemBar
               </span>
               <span className="flex items-baseline gap-3 shrink-0">
                 <span className="numero text-[14px] font-semibold whitespace-nowrap">{i.texto}</span>
-                <span className="numero text-[12px] text-tinta-fraca w-9 text-right">{pct}%</span>
+                <span className="numero text-[12px] text-tinta-fraca w-11 text-right whitespace-nowrap">{pct} %</span>
               </span>
             </div>
             <div className="mt-2 h-1.5 w-full rounded-full bg-cinza-100" aria-hidden="true">

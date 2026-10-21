@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { MarcoISO } from "@compartilhado/tipos";
+import type { Agendamento, MarcoISO } from "@compartilhado/tipos";
+import { rotuloHorario } from "../../dominio/horarios";
 import type { OSVisao } from "../../dados/repositorio";
 import { JANELA } from "../../dominio/rotulos";
 import { Botao, Vazio } from "../ui/Basicos";
@@ -8,9 +9,8 @@ import { Placa } from "../ui/Placa";
 import { Icone } from "../Icone";
 import { diaCurto, telefoneBR } from "./formato";
 import { EstadoAgendamento } from "./Grade";
-import { mensagemAgendamento, movelDaFila, type Vaga } from "./modelo";
+import { mensagemAgendamento, minutosParaExpirar, movelDaFila, type Vaga } from "./modelo";
 import { useArrastavel } from "./ganchosArrastar";
-import { Proveniencia } from "./Proveniencia";
 
 export interface ItemFila {
   v: OSVisao;
@@ -64,13 +64,31 @@ function ItemArrastavel({
           {...atributos}
           aria-label={`Arrastar ${v.veiculo.placa} para um dia da agenda (espaço pega, setas escolhem, espaço solta)`}
           title="Arraste até um dia da agenda"
-          className="absolute left-0 inset-y-0 w-7 grid place-items-center text-tinta-fraca hover:text-tinta hover:bg-cinza-100 cursor-grab active:cursor-grabbing"
+          className="absolute left-0 inset-y-0 w-7 flex justify-center pt-[26px] text-tinta-fraca hover:text-tinta hover:bg-cinza-100 cursor-grab active:cursor-grabbing"
         >
           <Pegador />
         </button>
       )}
       {children(caixinha)}
     </li>
+  );
+}
+
+/** Proposta na fila: "Proposto pela Calia · qui 22/10 · tarde" numa linha e "expira hoje 20h" embaixo. */
+function PropostaFila({ ag, agora }: { ag: Agendamento; agora: MarcoISO }) {
+  const min = minutosParaExpirar(ag, agora);
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <Etiqueta tom="atencao">{ag.origem === "calia" ? "Proposto pela Calia" : "Horário proposto"}</Etiqueta>
+        <span className="text-[13px] text-tinta numero">
+          {diaCurto(ag.data)} · {JANELA[ag.janela].toLowerCase()}
+        </span>
+      </span>
+      {min !== undefined && (
+        <span className="text-[12px] font-medium text-atencao numero">{min > 0 && ag.expiraEm ? `expira ${rotuloHorario(ag.expiraEm, agora)}` : "proposta expirada"}</span>
+      )}
+    </div>
   );
 }
 
@@ -160,28 +178,24 @@ export function FilaAgendamento({
                 {veSensiveis && (
                   <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
                     {telefone ? (
-                      <>
-                        <span className="inline-flex items-center gap-1.5 numero">
-                          <Icone nome="telefone" tamanho={14} className="text-tinta-fraca" />
-                          {telefoneBR(telefone)}
-                        </span>
-                        <Proveniencia prov={v.cliente.proveniencia?.telefone} agora={agora} />
-                      </>
+                      <span className="inline-flex items-center gap-1.5 numero">
+                        <Icone nome="telefone" tamanho={14} className="text-tinta-fraca" />
+                        {telefoneBR(telefone)}
+                      </span>
                     ) : (
                       <Etiqueta tom="atencao" className="whitespace-normal h-auto min-h-6 py-0.5">
-                        Sem telefone — pedir à Maxpar
+                        Sem telefone · pedir à seguradora
                       </Etiqueta>
                     )}
                   </div>
                 )}
 
                 {proposta && (
-                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <EstadoAgendamento ag={proposta} agora={agora} />
-                    {proposta.estado === "proposto" && (
-                      <span className="text-[12px] text-tinta-suave numero">
-                        {diaCurto(proposta.data)} · {JANELA[proposta.janela].toLowerCase()}
-                      </span>
+                  <div className="mt-2">
+                    {proposta.estado === "proposto" ? (
+                      <PropostaFila ag={proposta} agora={agora} />
+                    ) : (
+                      <EstadoAgendamento ag={proposta} agora={agora} />
                     )}
                   </div>
                 )}

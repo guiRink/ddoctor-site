@@ -111,9 +111,10 @@ export function Producao() {
   // os mesmos números do Geral (src/dominio/contagens.ts): Na oficina = em serviço + prontos
   const resumo = consulta.data ? (
     <span className="numero">
-      Na oficina {totais.naOficina} · {totais.emServico} em serviço · {plural(totais.prontos, "pronto", "prontos")}
-      {totais.atrasados > 0 && <span className="text-alerta font-semibold"> · {plural(totais.atrasados, "atrasado", "atrasados")}</span>}
-      {totais.impedidos > 0 && <span className="text-alerta font-semibold"> · {plural(totais.impedidos, "impedido", "impedidos")}</span>}
+      <span className="whitespace-nowrap">Na oficina {totais.naOficina}</span> · <span className="whitespace-nowrap">{totais.emServico} em serviço</span> ·{" "}
+      <span className="whitespace-nowrap">{plural(totais.prontos, "pronto", "prontos")}</span>
+      {totais.atrasados > 0 && <span className="text-alerta font-semibold"> · <span className="whitespace-nowrap">{plural(totais.atrasados, "atrasado", "atrasados")}</span></span>}
+      {totais.impedidos > 0 && <span className="text-alerta font-semibold"> · <span className="whitespace-nowrap">{plural(totais.impedidos, "impedido", "impedidos")}</span></span>}
     </span>
   ) : (
     <span className="inline-block esqueleto h-4 w-64 align-middle" />
