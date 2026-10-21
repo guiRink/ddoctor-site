@@ -1,10 +1,11 @@
 // Montagem do quadro de produção (gestor e TV): colunas, classificação e ordem dos cartões.
 // Só organiza para exibir; as regras (semáforo, tempos, etapa atual) vêm de @compartilhado/dominio.
-import type { ConfigOficina, DataISO, EtapaOS, MarcoISO, Perfil, Semaforo } from "@compartilhado/tipos";
+import type { ConfigOficina, CorCarro, DataISO, EtapaOS, MarcoISO, Perfil, Semaforo } from "@compartilhado/tipos";
 import { dataNoFuso, diaSemana, diferencaDias, FUSO, paraMs } from "@compartilhado/dominio/fuso";
 import type { SituacaoCartao } from "@compartilhado/dominio/semaforo";
+import { PESO_COR_CARRO } from "@compartilhado/dominio/corCarro";
 import type { OSVisao } from "../../dados/repositorio";
-import { atrasados, naOficina, parados, saemHoje } from "../../dominio/contagens";
+import { atrasados, naOficina, parados, porCor, saemHoje } from "../../dominio/contagens";
 import { rotuloHaQuanto, rotuloPrazo } from "../../dominio/horarios";
 import type { Tom } from "../ui/Estado";
 import { resumoProducao } from "../ui/Carro";
@@ -14,12 +15,15 @@ export const COLUNA_SEM_ETAPA = "__sem_etapa";
 
 // Filtros da Produção e da TV. "Atrasados", "Parados" e "Saem hoje" são as mesmas contagens do Geral
 // (src/dominio/contagens.ts; revisão SH: atrasado = passou do prazo, parado = impedido). Um carro pode estar nos dois.
+// "Vermelhos" e "Laranjas" são a cor do carro (porCor, pedido do dono no 2º áudio).
 // Link antigo ?filtro=impedidos cai em "parados".
-export type FiltroQuadro = "todos" | "atrasados" | "parados" | "hoje";
-export const FILTROS: readonly FiltroQuadro[] = ["todos", "atrasados", "parados", "hoje"];
+export type FiltroQuadro = "todos" | "atrasados" | "vermelhos" | "laranjas" | "parados" | "hoje";
+export const FILTROS: readonly FiltroQuadro[] = ["todos", "atrasados", "vermelhos", "laranjas", "parados", "hoje"];
 export const NOME_FILTRO: Record<FiltroQuadro, string> = {
   todos: "Todos",
   atrasados: "Atrasados",
+  vermelhos: "Vermelhos",
+  laranjas: "Laranjas",
   parados: "Parados",
   hoje: "Saem hoje",
 };
@@ -36,6 +40,25 @@ export const SITUACAO: Record<SituacaoCartao, { texto: string; tom: Tom; cor: Se
   atencao: { texto: "Atenção", tom: "atencao", cor: "laranja" },
   no_prazo: { texto: "No prazo", tom: "ok", cor: "verde" },
   pronto: { texto: "Pronto", tom: "ok", cor: "neutro" },
+};
+
+/** Cor do segmento atual do progresso pela cor do carro (o progresso e a faixa nunca discordam). */
+export const SEMAFORO_DA_COR: Record<CorCarro, Semaforo> = { verde: "verde", laranja: "laranja", vermelho: "vermelho", vermelho_piscando: "vermelho" };
+
+/** Barra grossa à esquerda do cartão e da linha da lista (Produção), na cor do carro; pulsa no vermelho piscando. */
+export const BARRA_COR: Record<CorCarro, string> = {
+  verde: "bg-ok",
+  laranja: "bg-atencao",
+  vermelho: "bg-alerta",
+  vermelho_piscando: "bg-alerta piscar-barra",
+};
+
+/** Quadrado/cabeçalho da TV pintado inteiro pela cor do carro (tokens `carro-*`, fixos: a TV é escura por desenho). */
+export const FUNDO_CARRO: Record<CorCarro, string> = {
+  verde: "bg-carro-verde text-cartao",
+  laranja: "bg-carro-laranja text-preto",
+  vermelho: "bg-carro-vermelho text-cartao",
+  vermelho_piscando: "bg-carro-vermelho text-cartao piscar-tv",
 };
 
 export interface ItemQuadro {
@@ -64,6 +87,13 @@ export interface ItemQuadro {
   entregaVencida: boolean;
   /** Prontos: "há 5 h". */
   prontoHa?: string;
+  /** Cor do carro (corDoCarro via porCor; pedido do dono, 2º áudio) e o motivo: "Entrega amanhã e nenhuma etapa concluída". */
+  cor: CorCarro;
+  motivoCor: string;
+  /** Dias úteis até a entrega (negativo = atraso); null = sem data ou pronto. */
+  diasUteisParaEntrega: number | null;
+  /** O carro tem prazo/alerta próprio (OS.alerta). */
+  personalizado: boolean;
 }
 
 /**
@@ -76,7 +106,9 @@ export function montarItens(oss: readonly OSVisao[], agora: MarcoISO, config: Co
   const saem = new Set(saemHoje(oss, agora, config, []).itens.map((i) => i.v.os.id));
   const noAtraso = new Set(atrasados(oss, agora, config).itens.map((i) => i.v.os.id));
   const noParado = new Set(parados(oss, agora, config).itens.map((i) => i.v.os.id));
+  const cores = new Map(porCor(oss, agora, config).itens.map((i) => [i.v.os.id, i]));
   return naOficina(oss, agora, config).itens.map(({ v, situacao }) => {
+    const c = cores.get(v.os.id);
     const pronto = situacao === "pronto";
     const resumo = resumoProducao(v, agora, config);
     const etapa = pronto ? undefined : resumo.atual;
@@ -99,6 +131,10 @@ export function montarItens(oss: readonly OSVisao[], agora: MarcoISO, config: Co
       entrega: previsao ? rotuloPrazo(previsao, agora, config) : undefined,
       entregaVencida: Boolean(previsao && hoje > previsao),
       prontoHa: pronto && v.os.prontaEm ? rotuloHaQuanto(v.os.prontaEm, agora) : undefined,
+      cor: c?.cor ?? "verde",
+      motivoCor: c?.motivo ?? (pronto ? "Pronto" : ""),
+      diasUteisParaEntrega: c?.diasUteisParaEntrega ?? null,
+      personalizado: c?.personalizado ?? false,
     };
   });
 }
@@ -116,6 +152,11 @@ export function contarItens(itens: readonly ItemQuadro[]) {
     atrasados: itens.filter((i) => i.emAtrasados).length,
     parados: itens.filter((i) => i.emParados).length,
     hoje: itens.filter((i) => i.entregaHoje).length,
+    // cor do carro (só em serviço: o pronto é verde pela regra, mas conta à parte como "pronto")
+    piscando: itens.filter((i) => !i.pronto && i.cor === "vermelho_piscando").length,
+    vermelhos: itens.filter((i) => !i.pronto && i.cor === "vermelho").length,
+    laranjas: itens.filter((i) => !i.pronto && i.cor === "laranja").length,
+    verdes: itens.filter((i) => !i.pronto && i.cor === "verde").length,
   };
 }
 
@@ -123,6 +164,8 @@ export function filtrarItens(itens: readonly ItemQuadro[], filtro: FiltroQuadro,
   return itens.filter((i) => {
     if (filtro === "atrasados" && !i.emAtrasados) return false;
     if (filtro === "parados" && !i.emParados) return false;
+    if (filtro === "vermelhos" && (i.pronto || i.cor !== "vermelho")) return false;
+    if (filtro === "laranjas" && (i.pronto || i.cor !== "laranja")) return false;
     if (filtro === "hoje" && !i.entregaHoje) return false;
     if (responsavelId && i.responsavelId !== responsavelId) return false;
     return true;
@@ -131,9 +174,13 @@ export function filtrarItens(itens: readonly ItemQuadro[], filtro: FiltroQuadro,
 
 const PESO: Record<SituacaoCartao, number> = { atrasado: 4, impedido: 3, atencao: 2, no_prazo: 1, pronto: 0 };
 
-/** Pior situação primeiro (atrasado, impedido, atenção, no prazo); depois prioridade, prazo da etapa e entrega. */
+/**
+ * Pior cor do carro primeiro (vermelho piscando, vermelho, laranja, verde); dentro da cor, pior situação (atrasado,
+ * parado, atenção, no prazo); depois prioridade, prazo da etapa e entrega.
+ */
 export function compararItens(a: ItemQuadro, b: ItemQuadro): number {
   return (
+    PESO_COR_CARRO[b.cor] - PESO_COR_CARRO[a.cor] ||
     PESO[b.situacao] - PESO[a.situacao] ||
     b.v.os.prioridade - a.v.os.prioridade ||
     tempo(a.resumo.atual?.prazoEm) - tempo(b.resumo.atual?.prazoEm) ||
@@ -321,6 +368,69 @@ export function paginasTV(tique: number, paginasColunas: number): { paginaColuna
     paginaColunas: tique % conjuntos,
     paginaDaColuna: (paginas) => volta % Math.max(1, paginas),
   };
+}
+
+// ------------------------------------------------------------------ mosaico da TV (pedido do dono, 2º áudio)
+
+/**
+ * Ordem do mosaico: a pior cor primeiro (vermelho piscando → vermelho → laranja → verde), prontos por último; dentro da
+ * cor, menos dias úteis para a entrega, urgente, placa (a mesma ordem de porCor).
+ */
+export function ordenarMosaico(itens: readonly ItemQuadro[]): ItemQuadro[] {
+  return [...itens].sort(
+    (a, b) =>
+      Number(a.pronto) - Number(b.pronto) ||
+      PESO_COR_CARRO[b.cor] - PESO_COR_CARRO[a.cor] ||
+      (a.diasUteisParaEntrega ?? Infinity) - (b.diasUteisParaEntrega ?? Infinity) ||
+      b.v.os.prioridade - a.v.os.prioridade ||
+      a.v.veiculo.placa.localeCompare(b.v.veiculo.placa),
+  );
+}
+
+/** Texto pequeno do quadrado: "Atrasado 2 dias", "Entrega amanhã", "Entrega qui", "Sem data de entrega". */
+export function textoCurtoCor(i: ItemQuadro): string {
+  if (i.pronto) return i.entrega ? `Entrega ${i.entrega}` : "Sem data de entrega";
+  if (i.diasUteisParaEntrega !== null && i.diasUteisParaEntrega < 0) return i.motivoCor;
+  return i.entrega ? `Entrega ${i.entrega}` : "Sem data de entrega";
+}
+
+/** Densidade do quadrado: `g` (até 12 carros), `m` (até ~24), `p` (até 30). */
+export type DensidadeMosaico = "g" | "m" | "p";
+
+export interface GradeMosaico {
+  colunas: number;
+  linhas: number;
+  /** Quadrados por página (colunas × linhas cabem na tela). */
+  porPagina: number;
+  largura: number;
+  altura: number;
+  densidade: DensidadeMosaico;
+}
+
+/** Medidas mínimas do quadrado: a Placa `tv` (264 px) + respiro cabe na largura; placa + etapa + linha na altura. */
+export const MOSAICO = { larguraMin: 290, alturaMin: 156, larguraMax: 560, alturaMax: 320 } as const;
+
+/**
+ * Grade do mosaico para `n` carros na área (largura × altura, px): escolhe as colunas que deixam o quadrado maior
+ * (proporção alvo 1,75:1, a de placa + etapa), sem passar dos mínimos. Se nem com o mínimo couberem todos, a grade
+ * cheia vira uma página (a TV pagina sozinha). Até 30 carros numa tela de 1920×1080.
+ */
+export function gradeMosaico(n: number, largura: number, altura: number, vao: number): GradeMosaico {
+  const maxColunas = Math.max(1, Math.floor((largura + vao) / (MOSAICO.larguraMin + vao)));
+  const maxLinhas = Math.max(1, Math.floor((altura + vao) / (MOSAICO.alturaMin + vao)));
+  const porPagina = Math.min(Math.max(1, n), maxColunas * maxLinhas);
+  let melhor: Omit<GradeMosaico, "densidade" | "porPagina"> & { nota: number } = { colunas: maxColunas, linhas: maxLinhas, largura: 0, altura: 0, nota: -1 };
+  // empate (quadrado já no máximo): fica a grade mais larga — na TV, lado a lado lê melhor que empilhado
+  for (let colunas = 1; colunas <= Math.min(maxColunas, porPagina); colunas++) {
+    const linhas = Math.ceil(porPagina / colunas);
+    if (linhas > maxLinhas) continue;
+    const l = Math.min(MOSAICO.larguraMax, Math.floor((largura - (colunas - 1) * vao) / colunas));
+    const a = Math.min(MOSAICO.alturaMax, Math.floor((altura - (linhas - 1) * vao) / linhas));
+    const nota = Math.min(l / 1.75, a);
+    if (nota >= melhor.nota) melhor = { colunas, linhas, largura: l, altura: a, nota };
+  }
+  const densidade: DensidadeMosaico = melhor.altura >= 250 && melhor.largura >= 400 ? "g" : melhor.altura >= 190 ? "m" : "p";
+  return { colunas: melhor.colunas, linhas: melhor.linhas, porPagina, largura: melhor.largura, altura: melhor.altura, densidade };
 }
 
 // ------------------------------------------------------------------ formatação de datas (fuso da oficina)

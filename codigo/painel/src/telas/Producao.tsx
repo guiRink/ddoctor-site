@@ -132,7 +132,7 @@ export function Producao() {
           valor: f,
           texto: NOME_FILTRO[f],
           contagem: consulta.data ? n : "–",
-          critico: (f === "atrasados" || f === "parados") && n > 0,
+          critico: (f === "atrasados" || f === "vermelhos" || f === "parados") && n > 0,
         };
       })}
     />
@@ -179,7 +179,17 @@ export function Producao() {
         <Vazio
           icone="filtro"
           titulo={filtro === "todos" ? "Nenhum carro com esse responsável" : `Nenhum carro em “${NOME_FILTRO[filtro]}”`}
-          texto={filtro === "parados" ? "Nenhum carro parado." : filtro === "atrasados" ? "Tudo dentro do prazo." : undefined}
+          texto={
+            filtro === "parados"
+              ? "Nenhum carro parado."
+              : filtro === "atrasados"
+                ? "Tudo dentro do prazo."
+                : filtro === "vermelhos"
+                  ? "Nenhum carro perto da entrega sem etapa concluída."
+                  : filtro === "laranjas"
+                    ? "Nenhum carro perto da entrega com etapa por terminar."
+                    : undefined
+          }
           acao={
             <Botao variante="contorno" onClick={limpar}>
               Ver todos os carros

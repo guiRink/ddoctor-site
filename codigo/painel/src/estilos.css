@@ -29,6 +29,7 @@
   --color-amarelo-claro: var(--tema-amarelo-claro);
   --color-amarelo-tinta: var(--tema-amarelo-tinta); /* texto sobre amarelo-claro */
   --color-navegacao: var(--tema-navegacao); /* barra lateral e barra inferior (revisão SH), texto preto em cima */
+  --color-casca-borda: var(--tema-casca-borda); /* fio sob o topo preto: invisível no claro, visível no escuro */
 
   --color-papel: var(--tema-papel); /* fundo da aplicação */
   --color-cartao: var(--tema-cartao); /* superfícies: cartões, tabelas, barra lateral, topo */
@@ -74,6 +75,14 @@
   --color-casca-tinta: #f7f7f5; /* texto sobre o topo */
   --color-casca-fraca: rgba(247, 247, 245, 0.62); /* ícone e placeholder sobre o topo (AA sobre casca-campo) */
 
+  /* cor do carro na TV (pedido do dono, 2º áudio; docs/painel-design.md §5.1 "Mosaico"): quadrados pintados inteiros,
+     lidos a 4 m. Mais vivos que ok/atencao/alerta para laranja e vermelho não se confundirem de longe.
+     Texto: branco sobre verde (5,1:1) e vermelho (5,0:1); preto sobre laranja (7,6:1). */
+  --color-carro-verde: #1e7d4b;
+  --color-carro-laranja: #f08a24;
+  --color-carro-vermelho: #d3302f;
+  --color-carro-vermelho-apagado: #4a1210; /* fase apagada do vermelho piscando (texto branco 14:1) */
+
   /* escuros por desenho (placa, TV, galeria): não mudam com o tema */
   --color-preto: #111111;
   --color-grafite: #1a1a1a;
@@ -101,6 +110,7 @@
   --tema-amarelo-claro: #fef7d6;
   --tema-amarelo-tinta: #7a5c00;
   --tema-navegacao: #f2c200;
+  --tema-casca-borda: transparent;
   --tema-papel: #f7f7f5;
   --tema-cartao: #ffffff;
   --tema-elevado: #ffffff;
@@ -135,6 +145,7 @@
   --tema-amarelo-claro: rgba(242, 194, 0, 0.12);
   --tema-amarelo-tinta: #f2cf4a;
   --tema-navegacao: #f2c200; /* igual ao claro: é a cor do "Novo atendimento" que o dono pediu (revisão SH) */
+  --tema-casca-borda: #3a3b40; /* topo #111 sobre fundo #0f0f10: sem fio a barra some */
   --tema-papel: #0f0f10;
   --tema-cartao: #17181a;
   --tema-elevado: #2a2b2f;
@@ -165,7 +176,8 @@
     color-scheme: dark;
     --tema-amarelo-claro: rgba(242, 194, 0, 0.12);
     --tema-amarelo-tinta: #f2cf4a;
-  --tema-navegacao: #f2c200; /* igual ao claro: é a cor do "Novo atendimento" que o dono pediu (revisão SH) */
+    --tema-navegacao: #f2c200; /* igual ao claro: é a cor do "Novo atendimento" que o dono pediu (revisão SH) */
+    --tema-casca-borda: #3a3b40;
     --tema-papel: #0f0f10;
     --tema-cartao: #17181a;
     --tema-elevado: #2a2b2f;
@@ -207,7 +219,8 @@
   ::selection { background: var(--color-amarelo); color: var(--color-preto); }
   :focus-visible { outline: 2px solid var(--color-amarelo-escuro); outline-offset: 2px; }
   /* sobre a navegação amarela o anel amarelo some: ali o foco é preto (revisão SH) */
-  [data-navegacao] :focus-visible:not([role="menu"] *) { outline-color: var(--color-preto); }
+  /* exceto no bloco preto da marca (`data-casca`), que fica dentro da barra lateral: ali o anel volta a ser amarelo */
+  [data-navegacao] :focus-visible:not([role="menu"] *):not([data-casca]):not([data-casca] *) { outline-color: var(--color-preto); }
   input, select, textarea, button { font: inherit; color: inherit; }
   /* campos ganham o raio de controle sem precisar de classe (as telas não usam rounded-*) */
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { border-radius: var(--radius-controle); }
@@ -293,6 +306,34 @@ select:not([multiple]):not([size]):disabled { cursor: not-allowed; }
   animation: pulso 1.4s ease-in-out infinite;
 }
 
+/* Cor do carro: vermelho piscando (pedido do dono, 2º áudio). Movimento de estado, não enfeite: só no carro que passou
+   da entrega e só com "piscar" ligado em Ajustes (corDoCarro já devolve "vermelho" quando está desligado). 1 Hz (abaixo
+   do limite de 3 flashes/s). */
+@keyframes piscar-tv {
+  0%, 40%, 100% { background-color: var(--color-carro-vermelho); }
+  55%, 85% { background-color: var(--color-carro-vermelho-apagado); }
+}
+/* TV: o quadrado inteiro alterna vermelho e vermelho apagado; o fio interno mantém a forma vermelha na fase apagada. */
+@utility piscar-tv {
+  animation: piscar-tv 1s ease-in-out infinite;
+  box-shadow: inset 0 0 0 4px var(--color-carro-vermelho);
+}
+/* Produção: a faixa do motivo alterna vermelho cheio e vermelho claro (texto troca junto, sempre legível). */
+@keyframes piscar-cartao {
+  0%, 40%, 100% { background-color: var(--color-alerta); color: var(--color-cartao); }
+  55%, 85% { background-color: var(--color-alerta-claro); color: var(--color-alerta); }
+}
+@keyframes piscar-barra {
+  0%, 40%, 100% { opacity: 1; }
+  55%, 85% { opacity: 0.25; }
+}
+@utility piscar-cartao { animation: piscar-cartao 1.2s ease-in-out infinite; }
+@utility piscar-barra { animation: piscar-barra 1.2s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  /* fora da TV o piscar respeita a preferência: fica vermelho cheio, parado */
+  .piscar-cartao, .piscar-barra { animation: none !important; }
+  /* a TV da oficina pisca sempre (é o alerta que o dono pediu para ver de longe; ninguém opera a TV) */
+  .piscar-tv { animation-duration: 1s !important; }
 }

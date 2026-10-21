@@ -60,7 +60,7 @@ export function Layout() {
     <div className="min-h-svh md:grid md:grid-cols-[232px_minmax(0,1fr)]">
       {/* ---------------- barra lateral (desktop): amarela; o bloco da marca, preto, continua o topo */}
       <aside data-navegacao className="hidden md:flex md:flex-col bg-navegacao text-preto md:sticky md:top-0 md:h-svh min-w-0">
-        <Link to={inicio} className="flex items-center gap-2.5 px-4 h-14 shrink-0 no-underline bg-casca text-casca-tinta">
+        <Link to={inicio} data-casca className="flex items-center gap-2.5 px-4 h-14 shrink-0 no-underline bg-casca text-casca-tinta shadow-[0_1px_0_var(--color-casca-borda)]">
           <MarcaD tamanho={28} />
           <span className="leading-none min-w-0">
             <span className="block font-semibold text-[15px] tracking-[-0.01em]">D doctor</span>
@@ -120,7 +120,8 @@ export function Layout() {
 
       {/* ---------------- conteúdo */}
       <div className="min-w-0 flex flex-col min-h-svh">
-        <header className="sticky top-0 z-20 bg-casca text-casca-tinta shadow-[0_1px_0_var(--color-linha-clara)]">
+        {/* fio inferior: invisível no claro (o preto já separa do fundo claro); `linha-forte` no escuro, onde o topo #111 se perde no fundo #0F0F10 */}
+        <header className="sticky top-0 z-20 bg-casca text-casca-tinta shadow-[0_1px_0_var(--color-casca-borda)]">
           <div className="flex items-center gap-3 h-14 px-4 md:px-8 max-w-[1440px] mx-auto w-full">
             <Link to={inicio} className="md:hidden shrink-0 flex items-center gap-2.5 no-underline text-casca-tinta" aria-label="D doctor — início">
               <MarcaD tamanho={28} />

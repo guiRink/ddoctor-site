@@ -1,26 +1,18 @@
 import type { MarcoISO, Perfil } from "@compartilhado/tipos";
-import type { SituacaoCartao } from "@compartilhado/dominio/semaforo";
 import { formatarDuracao } from "@compartilhado/dominio/tempos";
 import { progressoEtapas } from "@compartilhado/dominio/semaforo";
 import { ProgressoEtapas, nomePerfil } from "../ui/Carro";
 import { iniciais } from "../ui/Basicos";
 import { Placa } from "../ui/Placa";
 import { Icone } from "../Icone";
-import { SITUACAO, formatarDataCurta, type DensidadeTV, type ItemQuadro } from "./quadro";
-
-const FUNDO: Record<SituacaoCartao, string> = {
-  impedido: "bg-alerta",
-  atrasado: "bg-alerta",
-  atencao: "bg-atencao",
-  no_prazo: "bg-ok",
-  pronto: "bg-grafite-3",
-};
+import { COR_CARRO } from "../../dominio/rotulos";
+import { FUNDO_CARRO, SEMAFORO_DA_COR, formatarDataCurta, type DensidadeTV, type ItemQuadro } from "./quadro";
 
 const maiuscula = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
 /**
- * Cartão da TV (1920×1080, lido a 3–4 m) — docs/painel-design.md §5.1. Cabeçalho pintado na cor do
- * semáforo, placa grande, responsável e tempos em 24 px+. Três densidades: a coluna escolhe a maior
+ * Cartão da TV por etapas (?visao=etapas; 1920×1080, lido a 3–4 m) — docs/painel-design.md §5.1. Cabeçalho pintado
+ * na cor do carro (a mesma do mosaico; vermelho piscando pulsa), placa grande, responsável e tempos em 24 px+. Três densidades: a coluna escolhe a maior
  * que cabe (`cheio` → `medio` → `compacto`) antes de paginar. Nunca mostra cliente, telefone, valores
  * ou seguradora.
  */
@@ -40,9 +32,19 @@ export function CartaoTV({
 }) {
   const { v, resumo: r } = item;
   const etapa = r.atual;
-  // atrasado: o cabeçalho já diz quanto ("Atrasado 1 dia", "Atrasado 3 h"), bem visível de longe
-  const atraso = item.entregaVencida ? item.entrega : item.etapaVencida ? item.prazoEtapa : undefined;
-  const cab = { fundo: FUNDO[item.situacao], texto: item.atrasado && atraso ? maiuscula(atraso) : SITUACAO[item.situacao].texto };
+  // cor do carro: "Atrasado 2 dias" (passou da entrega), "Sem etapa concluída", "Atenção", "No prazo"; parado e pronto à parte
+  const cab = {
+    fundo: item.pronto ? "bg-grafite-3 text-cartao" : FUNDO_CARRO[item.cor],
+    texto: item.pronto
+      ? "Pronto"
+      : item.impedido
+        ? "Parado"
+        : item.cor === "vermelho_piscando"
+          ? item.motivoCor
+          : item.cor === "vermelho"
+            ? "Nada concluído" // a cor já diz "perto da entrega"; o cabeçalho é estreito
+            : COR_CARRO[item.cor].texto,
+  };
   const bloqueio = item.impedido ? etapa?.bloqueios.find((b) => !b.fimEm) : undefined;
   const nome = nomePerfil(perfis, etapa?.responsavelId);
   const { total, atualIndex } = progressoEtapas(v.etapas);
@@ -87,14 +89,14 @@ export function CartaoTV({
           : "Aguardando";
 
   const cabecalho = (
-    <header className={`${cab.fundo} text-cartao flex items-center justify-between gap-2 shrink-0 ${compacto ? "h-9" : "h-11"} ${estreito ? "px-4" : "px-5"}`}>
+    <header className={`${cab.fundo} flex items-center justify-between gap-2 shrink-0 ${compacto ? "h-9" : "h-11"} ${estreito ? "px-4" : "px-5"}`}>
       <span className={`flex items-center gap-2 font-semibold leading-none whitespace-nowrap ${compacto || estreito ? "text-[20px]" : "text-[24px]"}`}>
         {item.pronto && <Icone nome="ok" tamanho={compacto ? 20 : 24} traco={2} />}
         {item.impedido && <Icone nome="bloqueio" tamanho={compacto ? 20 : 24} traco={2} />}
         {cab.texto}
       </span>
       {urgenteNoCabecalho ? (
-        <span className="shrink-0 rounded-full bg-cartao text-alerta px-2.5 text-[18px] font-semibold leading-7">Urgente</span>
+        <span className="shrink-0 rounded-full bg-preto/85 text-papel px-2.5 text-[18px] font-semibold leading-7">Urgente</span>
       ) : (
         <span className={`font-medium leading-none whitespace-nowrap numero truncate ${compacto || estreito ? "text-[18px]" : "text-[20px]"}`}>{estado}</span>
       )}
@@ -192,7 +194,7 @@ export function CartaoTV({
           !item.pronto && (
             <div className="mt-3 flex items-center gap-3">
               <div className="flex-1 min-w-0">
-                <ProgressoEtapas etapas={v.etapas} semaforo={SITUACAO[item.situacao].cor} escuro mostrarTexto={false} />
+                <ProgressoEtapas etapas={v.etapas} semaforo={SEMAFORO_DA_COR[item.cor]} escuro mostrarTexto={false} />
               </div>
               {atualIndex !== null && (
                 <span className="text-[20px] font-medium text-papel-suave numero leading-none">

@@ -131,7 +131,7 @@ export function CartaoOS({
     <>
       <div className="flex items-start justify-between gap-2">
         <Placa placa={v.veiculo.placa} tamanho="m" />
-        <Semaforo valor={r.semaforo} texto={r.bloqueada && r.semaforo === "vermelho" ? "Impedido" : undefined} />
+        <Semaforo valor={r.semaforo} texto={r.bloqueada && r.semaforo === "vermelho" ? "Parado" : undefined} />
       </div>
       <p className="mt-3 font-semibold leading-tight truncate">
         {v.veiculo.modelo}
@@ -142,7 +142,7 @@ export function CartaoOS({
         <ProgressoEtapas etapas={v.etapas} semaforo={r.semaforoAtual} />
       </div>
       {r.bloqueada && r.atual?.bloqueios.at(-1) && (
-        <p className="mt-2 text-[12px] font-medium text-alerta leading-snug">Impedimento: {r.atual.bloqueios.at(-1)!.motivo}</p>
+        <p className="mt-2 text-[12px] font-medium text-alerta leading-snug">Parado: {r.atual.bloqueios.at(-1)!.motivo}</p>
       )}
       <div className="mt-3 pt-3 border-t border-linha flex items-center justify-between gap-2">
         <Responsavel nome={nomePerfil(perfis, r.atual?.responsavelId)} />
