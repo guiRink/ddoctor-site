@@ -27,6 +27,7 @@ import { Vistorias } from "./telas/Vistorias";
 function Protegida({ modulo, children }: { modulo: Modulo; children: ReactNode }) {
   const { perfil } = useSessao();
   if (!podeVer(perfil.papel, modulo)) {
+    if (modulo === "geral") return <Navigate to={telaInicial(perfil.papel)} replace />;
     return <Vazio icone="bloqueio" titulo="Sem acesso a esta área" texto="O seu papel não usa esta tela. Fale com o dono da oficina se precisar." />;
   }
   return <>{children}</>;

@@ -94,3 +94,8 @@ export function rotuloHaQuanto(marco: MarcoISO | DataISO, agora: MarcoISO): stri
   if (h < 24) return `há ${h} h`;
   return `há ${plural(Math.floor(h / 24), "dia", "dias")}`;
 }
+
+/** Horário de relógio (não útil), para prazos que correm fora do expediente — ex.: proposta da Calia: "hoje 20h", "amanhã 9h". */
+export function rotuloHorario(marco: MarcoISO, agora: MarcoISO): string {
+  return `${rotuloDia(dataNoFuso(marco), dataNoFuso(agora))} ${hora(minutoDoDia(paraMs(marco)))}`;
+}

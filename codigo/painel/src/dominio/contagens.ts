@@ -9,7 +9,7 @@ import { compararMarcos, dataNoFuso, diferencaDias, paraMs } from "@compartilhad
 import { titulosDoCliente, valorEsperadoCliente } from "@compartilhado/dominio/pagamentos";
 import { etapaAtual, situacaoCartao, type SituacaoCartao } from "@compartilhado/dominio/semaforo";
 import type { OSVisao } from "../dados/repositorio";
-import { rotuloHaQuanto, rotuloPrazo } from "./horarios";
+import { rotuloHaQuanto, rotuloPrazo, rotuloHorario } from "./horarios";
 import { TIPO_PENDENCIA } from "./rotulos";
 
 export interface Contagem<T> {
@@ -408,7 +408,7 @@ export function paraFazerHoje(
     if (!v || !EM_ABERTO.has(v.os.estado)) continue;
     const restaMs = paraMs(ag.expiraEm) - agoraMs;
     if (restaMs > MS_DIA) continue;
-    const texto = restaMs <= 0 ? "Horário proposto expirou · remarcar" : `Horário proposto expira ${rotuloPrazo(ag.expiraEm, agora, config)}`;
+    const texto = restaMs <= 0 ? "Horário proposto expirou · remarcar" : `Horário proposto expira ${rotuloHorario(ag.expiraEm, agora)}`;
     itens.push(item("proposta_expirando", v, texto, "/agenda", ag.expiraEm, `:${ag.id}`));
   }
 
