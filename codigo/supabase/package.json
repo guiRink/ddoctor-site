@@ -1,0 +1,15 @@
+{
+  "name": "ddoctor-supabase",
+  "private": true,
+  "type": "module",
+  "description": "Ferramentas locais do banco (sem Docker): teste das migrations no PGlite e gerador dos seeds.",
+  "scripts": {
+    "testar": "node scripts/testar-local.mjs",
+    "seed": "node scripts/gerar-seed-teste.ts",
+    "concorrencia": "node scripts/concorrencia.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11",
+    "postgres": "^3.4.5"
+  }
+}
