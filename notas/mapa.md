@@ -1,9 +1,9 @@
 # GusPainel (D doctor) — mapa
 
 ## Estado atual (sempre atualizado, sempre curto)
-- Onde está: Sprint SF (pedidos do dono via Guilherme, depois de ver o SE) fechado em 20/10/2026 na branch `sprint/sf-pedidos-dono`; merge e publicação em 20/10/2026 (feitos pelo Guilherme logo após este registro). 329 testes, lint sem erros, build ok, jsPDF em chunk separado. Banco real ainda não existe (tudo em memória, fotos no IndexedDB do aparelho no demo). Antes: SE (13/10, visual clean) e SD (12/10, 14 telas em memória).
-- Próximo passo: Guilherme manda o link ao irmão (checkpoint); aguardar o domínio (hospedagem Cloudflare Pages) e a conta Supabase do dono; instalar OrbStack; depois S1 (Supabase local: migrations do núcleo mais as tabelas novas do SE, RLS, RepositorioSupabase, login por papel, `listarProducao`, mais permissões de fotos/config/tipos de serviço e fotos no R2).
-- Bloqueios: dono responder o questionário (1.1 tipos de reparo e etapas, trava o S3; 5.1 planilha financeira, trava o S4; as decisões L30–L36 e L39–L44 ainda não estão nele); L34 (guardar CPF/CNPJ do cliente, LGPD) antes de o S1 criar a coluna; dono decidir se a produção pode "pegar" etapas livres na fila (`docs/qa-sprintSD.md` item 6); domínio do dono e conta Supabase dele; OrbStack (ou Docker Desktop) no Mac (pré-requisito do S1); endereço completo e horário da oficina para a landing; confirmar se Porto/Azul chegam via Carglass e não via Maxpar.
+- Onde está: Sprint SG (revisão de produto: o Guilherme "odiou" o Geral e achou partes confusas; um especialista em sistemas e um mecânico especialista conversaram e fecharam o plano em `docs/revisao-sg/`) fechado em 21/10/2026 na branch `sprint/sg-revisao-produto`; 12 de 12 itens do plano feitos; merge, tag `sprint-SG` e publicação em 21/10/2026 (feitos pelo Guilherme logo após este registro). 436 testes no painel e 225 no compartilhado, lint sem erros, build ok; nova dependência `@dnd-kit`. Banco real ainda não existe (tudo em memória). Antes: SF (20/10), SE (13/10), SD (12/10).
+- Próximo passo: Guilherme manda o link ao irmão amanhã (22/10), como checkpoint; aguardar o domínio (hospedagem Cloudflare Pages) e a conta Supabase do dono; instalar OrbStack; depois S1 (Supabase local: migrations do núcleo mais as tabelas novas do SE e os itens do SG que precisam de banco, RLS, RepositorioSupabase, login por papel, `listarProducao`, permissões de fotos/config/tipos de serviço e fotos no R2).
+- Bloqueios: dono responder o questionário (1.1 tipos de reparo e etapas, trava o S3; 5.1 planilha financeira, trava o S4; as decisões L30–L36, L39–L44 e L45–L55 ainda não estão nele); L34 (guardar CPF/CNPJ do cliente, LGPD) antes de o S1 criar a coluna; dono decidir se a produção pode "pegar" etapas livres na fila (`docs/qa-sprintSD.md` item 6); domínio do dono e conta Supabase dele; OrbStack (ou Docker Desktop) no Mac (pré-requisito do S1); endereço completo e horário da oficina para a landing; confirmar se Porto/Azul chegam via Carglass e não via Maxpar.
 - Fontes atuais: `docs/painel-execucao.md`, `docs/painel-arquitetura.md`, `docs/painel-informacoes.md`, `docs/painel-design.md`. O plano antigo (`docs/painel-plano.md`) é só histórico do Sprint 0.
 
 ---
@@ -24,7 +24,7 @@ Todas as linhas abaixo estão como provisórias, com o valor sugerido do questio
 | L08 | A OS nasce quando o caso aparece, é aprovado ou o carro entra? Dois atendimentos no mesmo carro viram uma OS? | Nasce na entrada rápida como rascunho; 1 OS com N atendimentos, vínculo manual | provisória | 12/10/2026 · questionário 1.3 e 1.4 | SD domínio e Novo atendimento |
 | L09 | Tipos de reparo, etapas em ordem e prazo de cada etapa | 4 tipos de informações (`docs/painel-informacoes.md` §4) | provisória | 12/10/2026 · questionário 1.1 | SD domínio; trava o S3 |
 | L10 | Expediente, sábado, dias úteis ou corridos, prazo total por tipo | Seg–sex 8–18, sáb 8–12; soma das etapas + 20 %; feriados não contam | provisória | 12/10/2026 · questionário 2.1 e 1.2 | SD domínio (horas úteis) |
-| L11 | Quando o carro fica laranja? E vermelho? Quem muda prazo? | Laranja a partir de 8 h úteis (só limiar absoluto), vermelho vencido ou impedimento > 4 h úteis; dono e gestor mudam prazo; semáforo só em "na oficina" | provisória | 12/10/2026 · questionário 2.2 a 2.4 | SD domínio (semáforo) |
+| L11 | Quando o carro fica laranja? E vermelho? Quem muda prazo? | Original: laranja a partir de 8 h úteis (só limiar absoluto). Revista no SG: laranja a 80 % do prazo da etapa (ver L46). Vermelho vencido ou impedimento > 4 h úteis; dono e gestor mudam prazo; semáforo só em "na oficina" | revista (21/10/2026) | 12/10/2026 · questionário 2.2 a 2.4; revista em 21/10/2026 · Sprint SG | SD domínio (semáforo); SG semáforo por % do prazo |
 | L12 | Entradas por dia, carros ao mesmo tempo, cabine ou boxes que limitam | 4 por dia; 12 simultâneos (só aviso); boxes das placas | provisória | 12/10/2026 · questionário 3.1 a 3.3 | SD Agenda (capacidade); SF Ajustes → Agenda e capacidade editável ("Confirmar" tira o provisório) |
 | L13 | Vistoria final obrigatória? Peças por peça ou por ponto? Garantia | Aviso; por peça autorizada; 90 dias, OS "garantia" sem título | provisória | 12/10/2026 · questionário 1.5 | SD domínio e Vistorias |
 | L14 | Não compareceu: tolerância e quem marca? Previsão ao cliente é data ou data + hora? | 2 h após a janela, recepção; só data | provisória | 12/10/2026 · questionário 3.4 e 3.5 | SD Agenda |
@@ -58,7 +58,20 @@ Todas as linhas abaixo estão como provisórias, com o valor sugerido do questio
 | L42 | Tema padrão do painel | Automático (segue o aparelho); escolha Claro/Escuro/Automático salva por aparelho; placa e impressão sempre claras, TV escura | provisória | 20/10/2026 · Sprint SF | SF Modo escuro |
 | L43 | Peças no cartão da TV | Não aparecem mais (cartões se ajustam ao espaço) | provisória | 20/10/2026 · Sprint SF | SF Quadro da TV |
 | L44 | O que o PDF mostra no orçamento de seguradora | O total autorizado | provisória | 20/10/2026 · Sprint SF | SF Enviar orçamento (PDF) |
+| L45 | Nome da tela de orçamentos | "Atendimentos" (antes "Orçamentos") | provisória | 21/10/2026 · Sprint SG | SG Atendimentos |
+| L46 | Quando o carro fica laranja (semáforo) | A partir de 80 % do prazo da etapa ou entrega amanhã; configurável em Ajustes (revisa o limiar de 8 h da L11) | provisória | 21/10/2026 · Sprint SG | SG semáforo; Ajustes (laranja em %) |
+| L47 | "Cliente não buscou" | A partir de 2 dias depois de pronto | provisória | 21/10/2026 · Sprint SG | SG Geral (Parados e atrasados) |
+| L48 | Vistoria vencendo | Aviso a 2 dias do vencimento | provisória | 21/10/2026 · Sprint SG | SG Vistorias e Geral |
+| L49 | Encaixe acima da capacidade na Agenda | Permitido, com aviso | provisória | 21/10/2026 · Sprint SG | SG Agenda (a função do Supabase precisa aprender `encaixe` no S1) |
+| L50 | Quadrados de dinheiro no Geral | Mostram a quantidade de títulos/carros como número grande (o valor em R$ fica na segunda linha do quadrado; o dono pode preferir o R$ como número grande) | provisória | 21/10/2026 · Sprint SG | SG Geral |
+| L51 | "Avisar cliente" ao mover carro confirmado | Guardado só no aparelho até existir o banco | provisória | 21/10/2026 · Sprint SG | SG Agenda; banco no S1 |
+| L52 | Travar a entrega quando falta foto de saída | Hoje só avisa e deixa seguir (`docs/revisao-sg/plano.md`) | aberta | 21/10/2026 · Sprint SG, plano | SG aviso na entrega |
+| L53 | Capacidade pesada pelo tamanho do serviço | Sem resposta; hoje conta peças (`docs/revisao-sg/plano.md`) | aberta | 21/10/2026 · Sprint SG, plano | — |
+| L54 | Checklist "tudo ok" em um toque | Sem resposta (`docs/revisao-sg/plano.md`) | aberta | 21/10/2026 · Sprint SG, plano | — |
+| L55 | Passar em lote as etapas de quem faltou | Sem resposta (`docs/revisao-sg/plano.md`) | aberta | 21/10/2026 · Sprint SG, plano | — |
 | — | Produção pode "pegar" etapas livres na fila? | Sem resposta (`docs/qa-sprintSD.md` item 6) | aberta | 12/10/2026 · QA do SD | — |
+
+Nota L45–L55: IDs atribuídos pelo escrivão em 21/10/2026 (o resumo não trouxe IDs). L45–L51 vêm do resumo; L52–L55 são as perguntas "precisa do dono" do plano do SG, registradas como abertas. L46 revisa a L11.
 
 Nota L39–L44: IDs atribuídos pelo escrivão em 20/10/2026 às decisões provisórias novas do Sprint SF (o resumo não trouxe IDs).
 
@@ -69,6 +82,36 @@ Nota L20: a ficha original sugeria "não desconta", mas o estudo da Maxpar (§2.
 ---
 
 ## Histórico (mais recente primeiro)
+
+### 21/10/2026 Sprint SG — Revisão de produto: mecânico e especialista em sistemas (fechado; merge, tag e publicação em 21/10/2026)
+**Decisões tomadas** (provisórias, a confirmar com o dono — L45 a L51; L52 a L55 abertas):
+- Revisão feita por conversa entre um especialista em sistemas e um mecânico especialista, a pedido do Guilherme (ele odiou o Geral e achou partes confusas) — porquê: juntar o olhar de quem desenha o sistema e de quem vive o pátio; a conversa e o plano estão em `docs/revisao-sg/`.
+- Princípios do plano: todo número abre a própria lista; uma contagem e um nome para cada coisa em todas as telas; palavras da oficina; uma ação amarela por tela; "provisório" discreto — porquê: o Geral tinha números sem lista e contagens que divergiam entre telas.
+- Contagens únicas em `src/dominio/contagens.ts` (Na oficina = 8 no Geral, Produção, TV e Atendimentos) — porquê: o mesmo nome tinha números diferentes por tela.
+- Semáforo por 80 % do prazo da etapa, configurável em Ajustes (L46, revisa a L11) — porquê: o limiar fixo de 8 h pintava quase tudo de laranja; o alvo é no máximo 2 de 7 carros laranja na demonstração.
+- Nome "Atendimentos" no lugar de "Orçamentos" (L45) — porquê: a tela passou a cobrir o atendimento inteiro, não só o orçamento.
+- "Cliente não buscou" a partir de 2 dias (L47) e vistoria vencendo a 2 dias (L48) — porquê: pontos de partida para o dono ajustar.
+- Encaixe acima da capacidade permitido com aviso (L49) — porquê: a recepção precisa conseguir encaixar o carro urgente; o aviso mantém o controle.
+- Quadrados de dinheiro mostram a quantidade como número grande (L50) — porquê: o valor fica na lista; o quadrado serve para ver o tamanho do problema.
+- "Avisar cliente" guardado só no aparelho até o banco (L51) — porquê: não existe banco ainda.
+- Quem paga é a seguradora (HDI, Liberty…), nunca "Maxpar" — porquê: a Maxpar é a gestora, não a pagadora.
+- Aviso na entrega só avisa e deixa seguir (L52 aberta, travar a entrega sem foto) — porquê: travar é decisão do dono.
+
+**O que foi implementado:**
+- Geral em 6 quadrados com as placas dentro (Na oficina, Entram hoje, Saem hoje, Parados e atrasados, Esperando seguradora, Dinheiro vencido) e gaveta com a lista completa (tela cheia no celular); "Para fazer hoje" com quem faz; variações por papel (recepção, financeiro, produção em Minhas tarefas).
+- Horários legíveis ("hoje 16h", "amanhã", "atrasado 1 dia"); Produção, TV e Minhas tarefas com uma pílula por cartão e "próximo carro pra mim"; demonstração com prazos em horas úteis.
+- Atendimentos (ex-Orçamentos): busca na página, filtros de situação, seguradora, origem, valor e tempo (na URL), "há quanto tempo" na situação atual e soma no rodapé.
+- Agenda de arrastar e soltar (`@dnd-kit`): um ou vários carros, fila para o dia, encaixe, desfazer, "Mover para…" no celular, Avisar cliente, Não veio.
+- Ficha da OS: "Cliente deve" com regra única (`clienteDeveOS`), entrega prometida em destaque, Resultado parcial, aviso antes de entregar.
+- Menu por papel (11 itens para o dono, Equipe, "Ver como" no menu do usuário, Quadro da TV como botão na Produção); A receber por seguradora; Relatórios dentro do Financeiro; Estoque enxuto (Acabando, Lista de compra); Ajustes com "A confirmar" e laranja em %.
+- QA: nada bloqueava; 5 importantes e menores corrigidos (Na oficina = 8 em Atendimentos, Cliente deve com regra única, laranja na sexta, Não veio só confirmado, proposta mantém validade, seguradora nunca Maxpar). 436 testes no painel e 225 no compartilhado, lint 0 erros, build ok.
+
+**O que ficou de fora (de propósito):**
+- Precisa de banco (S1): complemento por dano oculto, peça encomendada com data prevista, glosa na baixa, mudança de prazo com motivo, decisão do cliente sobre item negado, retrabalho e garantia ligados à OS, carro reserva, vagas por turno, "Avisar cliente" no banco, `encaixe` na função do Supabase — porquê: dependem de tabelas e funções que só existem com o banco real.
+- Precisa do dono (L52–L55): travar a entrega sem foto, capacidade pesada pelo tamanho do serviço, checklist "tudo ok" em um toque, passar em lote as etapas de quem faltou — porquê: são regras de operação que não cabe ao painel decidir.
+
+**Arquivos relevantes:**
+- `docs/revisao-sg/` (`pedido.md`, `mecanico-r1.md`, `sistemas-r1.md`, `mecanico-r2.md`, `sistemas-r2.md`, `plano.md`), `notas/sprints/sprint-SG.md`, `codigo/painel/src/dominio/contagens.ts`, `codigo/painel/src/`, `codigo/compartilhado/src/`
 
 ### 20/10/2026 Sprint SF — Pedidos do dono (fechado; merge e publicação em 20/10/2026)
 **Decisões tomadas** (todas provisórias, a confirmar com o dono — L39 a L44):
