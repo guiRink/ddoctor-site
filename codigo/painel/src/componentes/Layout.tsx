@@ -1,7 +1,8 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { MENU, PAPEL } from "../dominio/rotulos";
-import { podeEditar, podeVer, telaInicial } from "../dominio/permissoes";
+import type { Perfil } from "@compartilhado/tipos";
+import { GRUPOS_MENU, MENU, PAPEL } from "../dominio/rotulos";
+import { modulosDoMenu, podeEditar, podeVer, telaInicial } from "../dominio/permissoes";
 import { useSessao } from "../dados/sessao";
 import { Icone } from "./Icone";
 import { iniciais } from "./ui/Basicos";
@@ -9,26 +10,36 @@ import { MarcaD } from "./ui/Marca";
 import { SeletorTema } from "./ui/SeletorTema";
 import { sairDaSessao } from "./PinGate";
 
-/** Casca do painel: barra lateral (desktop), barra inferior (celular), topo com busca e "Ver como". */
+/**
+ * Casca do painel: barra lateral (desktop), barra inferior (celular) e topo com a busca.
+ * O menu muda por papel (modulosDoMenu); "Ver como" (demonstração) mora no menu do usuário — rodapé da barra
+ * lateral no computador, "Mais" no celular.
+ */
 export function Layout() {
   const { perfil, perfis, trocarPerfil } = useSessao();
   const navegar = useNavigate();
   const [busca, setBusca] = useState("");
-  const [maisAberto, setMaisAberto] = useState(false);
   const local = useLocation();
-  useEffect(() => setMaisAberto(false), [local.pathname]);
+  // o menu "Mais" fecha sozinho ao trocar de tela: guarda a rota em que foi aberto
+  const [maisAbertoEm, setMaisAbertoEm] = useState<string | null>(null);
+  const maisAberto = maisAbertoEm === local.pathname;
+  const setMaisAberto = (v: boolean | ((atual: boolean) => boolean)) =>
+    setMaisAbertoEm((typeof v === "function" ? v(maisAberto) : v) ? local.pathname : null);
   const inicio = telaInicial(perfil.papel);
   // busca leva à lista de atendimentos: só para quem pode abrir Orçamentos
   const podeBuscar = podeVer(perfil.papel, "orcamentos");
 
-  const itens = MENU.filter((m) => podeVer(perfil.papel, m.modulo));
-  // celular: 4 atalhos + "Mais" (lista completa, Ver como e Sair)
+  const itens = modulosDoMenu(perfil.papel).flatMap((modulo) => {
+    const item = MENU.find((m) => m.modulo === modulo);
+    return item ? [{ ...item, nome: item.nomePara?.[perfil.papel] ?? item.nome }] : [];
+  });
+  // celular: 4 atalhos + "Mais" (lista completa, tema, Ver como e Sair)
   const atalhos = itens.slice(0, 4);
-  const grupos = [
-    { id: "operacao", nome: "Operação" },
-    { id: "gestao", nome: "Gestão" },
-    { id: "sistema", nome: "Sistema" },
-  ] as const;
+  const grupos = GRUPOS_MENU;
+  const verComo = (id: string) => {
+    trocarPerfil(id);
+    navegar("/");
+  };
   const podeCriar = podeEditar(perfil.papel, "orcamentos");
 
   function buscar(e: FormEvent) {
@@ -87,12 +98,8 @@ export function Layout() {
           })}
         </nav>
         <div className="shrink-0 border-t border-linha p-3">
-          <div className="flex items-center gap-2 px-1">
-            <span className="inline-grid place-items-center w-8 h-8 rounded-full bg-cinza-200 text-tinta text-[12px] font-semibold shrink-0">{iniciais(perfil.nome)}</span>
-            <span className="min-w-0 flex-1 leading-tight">
-              <span className="block text-[13px] font-semibold truncate" title={perfil.nome}>{perfil.nome}</span>
-              <span className="block text-[12px] text-tinta-fraca">{PAPEL[perfil.papel]}</span>
-            </span>
+          <div className="flex items-center gap-1">
+            <MenuUsuario perfil={perfil} perfis={perfis} onVerComo={verComo} />
             <div className="flex items-center gap-0.5 shrink-0">
               <SeletorTema />
               <button
@@ -138,24 +145,6 @@ export function Layout() {
               </form>
             )}
             <span className="hidden md:block flex-1" />
-            <label className="hidden lg:flex items-center gap-2 text-[13px] text-tinta-suave shrink-0">
-              <span>Ver como</span>
-              <select
-                value={perfil.id}
-                onChange={(e) => {
-                  trocarPerfil(e.target.value);
-                  navegar("/");
-                }}
-                className="h-9 pl-2.5 pr-2 bg-cartao border border-linha-forte shadow-controle text-[13px] font-medium text-tinta hover:border-tinta-fraca"
-                aria-label="Ver o painel como"
-              >
-                {perfis.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nome} · {PAPEL[p.papel]}
-                  </option>
-                ))}
-              </select>
-            </label>
             {podeCriar && (
               <Link
                 to="/orcamentos/novo"
@@ -249,10 +238,7 @@ export function Layout() {
                   Ver o painel como (demonstração)
                   <select
                     value={perfil.id}
-                    onChange={(e) => {
-                      trocarPerfil(e.target.value);
-                      navegar("/");
-                    }}
+                    onChange={(e) => verComo(e.target.value)}
                     className="h-11 px-3 bg-cartao border border-linha-forte text-tinta font-medium"
                   >
                     {perfis.map((p) => (
@@ -270,6 +256,131 @@ export function Layout() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Menu do usuário (rodapé da barra lateral): avatar, nome e papel; abre para cima com "Ver o painel como"
+ * (demonstração — no S1 o login decide o perfil e a lista some). Mesmo desenho e teclado do menu de tema.
+ */
+function MenuUsuario({ perfil, perfis, onVerComo }: { perfil: Perfil; perfis: Perfil[]; onVerComo: (id: string) => void }) {
+  const [aberto, setAberto] = useState(false);
+  const raiz = useRef<HTMLDivElement>(null);
+  const botao = useRef<HTMLButtonElement>(null);
+  const itens = useRef<(HTMLButtonElement | null)[]>([]);
+  const idMenu = useId();
+  const podeTrocar = perfis.length > 1;
+
+  useEffect(() => {
+    if (!aberto) return;
+    const fora = (e: PointerEvent) => {
+      if (!raiz.current?.contains(e.target as Node)) setAberto(false);
+    };
+    document.addEventListener("pointerdown", fora);
+    return () => document.removeEventListener("pointerdown", fora);
+  }, [aberto]);
+
+  useEffect(() => {
+    if (aberto) itens.current[Math.max(0, perfis.findIndex((p) => p.id === perfil.id))]?.focus();
+  }, [aberto, perfis, perfil.id]);
+
+  const fechar = (devolverFoco = true) => {
+    setAberto(false);
+    if (devolverFoco) botao.current?.focus();
+  };
+
+  function teclaNoMenu(e: KeyboardEvent<HTMLDivElement>) {
+    const lista = itens.current.filter(Boolean) as HTMLButtonElement[];
+    const i = lista.indexOf(document.activeElement as HTMLButtonElement);
+    const ir = (n: number) => {
+      e.preventDefault();
+      lista[(n + lista.length) % lista.length]?.focus();
+    };
+    if (e.key === "Escape") {
+      e.preventDefault();
+      fechar();
+    } else if (e.key === "ArrowDown") ir(i + 1);
+    else if (e.key === "ArrowUp") ir(i - 1);
+    else if (e.key === "Home") ir(0);
+    else if (e.key === "End") ir(lista.length - 1);
+    else if (e.key === "Tab") fechar(false);
+  }
+
+  const identidade = (
+    <>
+      <span className="inline-grid place-items-center w-8 h-8 rounded-full bg-cinza-200 text-tinta text-[12px] font-semibold shrink-0">{iniciais(perfil.nome)}</span>
+      <span className="min-w-0 flex-1 leading-tight text-left">
+        <span className="block text-[13px] font-semibold text-tinta truncate" title={perfil.nome}>
+          {perfil.nome}
+        </span>
+        <span className="block text-[12px] text-tinta-fraca">{PAPEL[perfil.papel]}</span>
+      </span>
+    </>
+  );
+
+  if (!podeTrocar) return <div className="flex items-center gap-2 px-1 min-w-0 flex-1">{identidade}</div>;
+
+  return (
+    <div ref={raiz} className="relative min-w-0 flex-1">
+      <button
+        ref={botao}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={aberto}
+        aria-controls={aberto ? idMenu : undefined}
+        aria-label={`${perfil.nome}, ${PAPEL[perfil.papel]}. Ver o painel como outra pessoa`}
+        onClick={() => setAberto((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+            setAberto(true);
+          }
+        }}
+        className={`w-full flex items-center gap-2 h-11 px-1 rounded-controle transition-colors duration-150 ${aberto ? "bg-cinza-100" : "hover:bg-cinza-50"}`}
+      >
+        {identidade}
+        <Icone nome="baixo" tamanho={14} className={`shrink-0 text-tinta-fraca transition-transform duration-150 ${aberto ? "rotate-180" : ""}`} />
+      </button>
+      {aberto && (
+        <div
+          id={idMenu}
+          role="menu"
+          aria-label="Ver o painel como"
+          onKeyDown={teclaNoMenu}
+          className="absolute bottom-full left-0 mb-2 z-40 w-[208px] max-h-[60svh] overflow-y-auto p-1 rounded-cartao bg-cartao border border-linha elevacao"
+        >
+          <div aria-hidden="true" className="px-2.5 h-7 flex items-center text-[12px] font-medium text-tinta-fraca">
+            Ver o painel como
+          </div>
+          {perfis.map((p, i) => {
+            const marcado = p.id === perfil.id;
+            return (
+              <button
+                key={p.id}
+                ref={(el) => {
+                  itens.current[i] = el;
+                }}
+                type="button"
+                role="menuitemradio"
+                aria-checked={marcado}
+                tabIndex={-1}
+                onClick={() => {
+                  fechar();
+                  if (!marcado) onVerComo(p.id);
+                }}
+                className="w-full flex items-center gap-2.5 min-h-10 py-1 px-2.5 rounded-controle text-left transition-colors duration-150 hover:bg-cinza-100 focus-visible:bg-cinza-100"
+              >
+                <span className="min-w-0 flex-1 leading-tight">
+                  <span className={`block text-[14px] truncate ${marcado ? "text-tinta font-semibold" : "text-tinta font-medium"}`}>{p.nome}</span>
+                  <span className="block text-[12px] text-tinta-fraca">{PAPEL[p.papel]}</span>
+                </span>
+                {marcado && <Icone nome="ok" tamanho={14} traco={2} className="shrink-0 text-tinta" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

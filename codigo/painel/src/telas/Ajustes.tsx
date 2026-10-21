@@ -16,8 +16,10 @@ import { Capacidade, PrazosECores } from "../componentes/ajustes/Configuracao";
 import { Categorias } from "../componentes/ajustes/Categorias";
 import { Checklist } from "../componentes/ajustes/Checklist";
 import { Auditoria } from "../componentes/ajustes/Auditoria";
+import { AConfirmar } from "../componentes/ajustes/AConfirmar";
 
 const SECOES: SecaoAjustes[] = [
+  { id: "confirmar", nome: "A confirmar", grupo: "Oficina" },
   { id: "tipos", nome: "Tipos de serviço", grupo: "Oficina" },
   { id: "prazos", nome: "Prazos e cores", grupo: "Oficina" },
   { id: "agenda", nome: "Agenda e capacidade", grupo: "Oficina" },
@@ -42,14 +44,12 @@ export function Ajustes() {
   const editarConfig = podeEditarConfig(perfil.papel);
   return (
     <>
-      <CabecalhoPagina
-        titulo="Ajustes"
-        resumo="Como o painel está configurado. Tipos de serviço, cores do prazo, capacidade, checklist, categorias e PIN se editam aqui; expediente e pagadores ainda são só leitura."
-      />
+      <CabecalhoPagina titulo="Ajustes" />
       <div className="lg:grid lg:grid-cols-[208px_minmax(0,1fr)] lg:gap-10 items-start">
         <NavLateral secoes={SECOES} />
         <ListaSecoes secoes={SECOES} />
         <div className="flex flex-col gap-6 min-w-0 max-w-[960px]">
+          <AConfirmar />
           <TiposServico podeEditar={podeCriarTipoReparo(perfil.papel)} />
           <PrazosECores podeEditar={editarConfig} />
           <Capacidade podeEditar={editarConfig} />
@@ -71,7 +71,7 @@ export function Ajustes() {
 function Pagadores() {
   const q = usePagadores();
   return (
-    <Secao id="pagadores" titulo="Pagadores e prazos" descricao="Quem paga cada parte do serviço e em quanto tempo; define o vencimento dos títulos." nota={<NotaProvisoria texto="prazos a confirmar com a oficina" />}>
+    <Secao id="pagadores" titulo="Pagadores e prazos" descricao="Em quanto tempo cada um paga; define o vencimento." nota={<NotaProvisoria texto="prazos a confirmar com a oficina" />}>
       <Consulta q={q}>
         {(pagadores: Pagador[]) =>
           pagadores.length === 0 ? (
@@ -182,9 +182,7 @@ function Acesso() {
           <h3 id="ajustes-pin-titulo" className="text-[14px] font-semibold">
             Trocar o PIN de entrada
           </h3>
-          <p className="mt-1 text-[13px] text-tinta-suave max-w-[70ch]">
-            O PIN fica guardado só neste navegador e não é segurança de verdade: evita que alguém abra o painel por engano.
-          </p>
+          <p className="mt-1 text-[13px] text-tinta-suave max-w-[70ch]">Fica só neste navegador; evita abrir o painel por engano.</p>
           <div className="mt-3 flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1.5" htmlFor="ajustes-pin-novo">
               <span className="text-[13px] font-medium text-tinta-suave">Novo PIN</span>
@@ -222,7 +220,7 @@ function Acesso() {
         </form>
       )}
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-        <p className="text-[13px] text-tinta-suave">Sair fecha o painel neste navegador; para entrar de novo, pede o PIN.</p>
+        <p className="text-[13px] text-tinta-suave">Para entrar de novo, o painel pede o PIN.</p>
         <Botao
           variante="contorno"
           icone="sair"
@@ -260,11 +258,7 @@ function Demonstracao() {
     <Secao id="demo" titulo="Demonstração" nota={<Etiqueta tom="atencao">Dados fictícios</Etiqueta>}>
       <div className="px-5 py-4">
         <p className="max-w-[75ch]">
-          Os carros, clientes, valores e pessoas que aparecem no painel são <strong>fictícios</strong>, criados para mostrar como as telas funcionam.
-          Eles ficam só neste navegador; nada sai daqui para a Maxpar, para as seguradoras ou para outro lugar.
-        </p>
-        <p className="mt-2 text-[13px] text-tinta-suave max-w-[75ch]">
-          Restaurar apaga o que foi mexido aqui (recebimentos, etapas, agendamentos) e volta tudo ao ponto de partida.
+          Carros, clientes, valores e pessoas são <strong>fictícios</strong> e ficam só neste navegador. Restaurar volta tudo ao ponto de partida.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {!confirmando ? (

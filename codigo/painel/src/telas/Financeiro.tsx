@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import type { CategoriaFinanceira, Despesa, FechamentoCaixa, Fornecedor, Pagador, Perfil, TituloReceber } from "@compartilhado/tipos";
+import { useSearchParams } from "react-router-dom";
+import type { CategoriaFinanceira, Despesa, FechamentoCaixa, Fornecedor, Perfil, TituloReceber } from "@compartilhado/tipos";
 import { resumoCompetencia } from "@compartilhado/dominio/caixa";
 import { formatarReais, somaCentavos } from "@compartilhado/dominio/dinheiro";
 import { dataNoFuso, mesDe } from "@compartilhado/dominio/fuso";
@@ -10,13 +11,12 @@ import {
   useFechamentos,
   useFornecedores,
   useOSs,
-  usePagadores,
   usePerfis,
   useTitulos,
 } from "../dados/hooks";
 import type { OSVisao } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
-import { podeEditar } from "../dominio/permissoes";
+import { podeEditar, podeVer, veCustosOS } from "../dominio/permissoes";
 import { Botao, CabecalhoPagina, Esqueleto, FaixaIndicadores, Indicador } from "../componentes/ui/Basicos";
 import { EstadoConsultas } from "../componentes/gestao/Consultas";
 import { Retorno } from "../componentes/gestao/Comuns";
@@ -25,28 +25,30 @@ import { SeletorPeriodo } from "../componentes/ui/Periodo";
 import { useParametro } from "../componentes/financeiro/useParametro";
 import { AbaResumo } from "../componentes/financeiro/AbaResumo";
 import { AbaDespesas } from "../componentes/financeiro/AbaDespesas";
-import { AbaEntradas } from "../componentes/financeiro/AbaEntradas";
+import { AbaRelatorios } from "../componentes/relatorios/AbaRelatorios";
 import { AbaCaixa } from "../componentes/financeiro/AbaCaixa";
 import { FormDespesa } from "../componentes/financeiro/FormDespesa";
 import { FormPagar } from "../componentes/financeiro/FormPagar";
 import { nomeCompetencia, somarMeses } from "../componentes/financeiro/formato";
 import { despesasDaCompetencia, entradasDoMes } from "../componentes/financeiro/modelo";
 
-const ABAS = ["resumo", "despesas", "entradas", "caixa"] as const;
+// Sprint SG: Relatórios virou aba (a rota /relatorios redireciona para cá). "Entradas" saiu: as entradas por
+// forma estão no Resumo e cada título recebido em A receber.
+const ABAS = ["resumo", "despesas", "caixa", "relatorios"] as const;
 type AbaFinanceiro = (typeof ABAS)[number];
+const MES_VALIDO = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 export function Financeiro() {
   const titulosQ = useTitulos();
   const despesasQ = useDespesas();
   const ossQ = useOSs();
-  const pagadoresQ = usePagadores();
   const categoriasQ = useCategorias();
   const fechamentosQ = useFechamentos();
   const perfisQ = usePerfis();
   const fornecedoresQ = useFornecedores();
   return (
     <EstadoConsultas
-      consultas={[titulosQ, despesasQ, ossQ, pagadoresQ, categoriasQ, fechamentosQ, perfisQ, fornecedoresQ]}
+      consultas={[titulosQ, despesasQ, ossQ, categoriasQ, fechamentosQ, perfisQ, fornecedoresQ]}
       esqueleto={
         <div className="flex flex-col gap-6" role="status" aria-label="Carregando o financeiro">
           <div className="esqueleto h-14 w-72" />
@@ -60,7 +62,6 @@ export function Financeiro() {
           titulos={titulosQ.data!}
           despesas={despesasQ.data!}
           oss={ossQ.data!}
-          pagadores={pagadoresQ.data!}
           categorias={categoriasQ.data!}
           fechamentos={fechamentosQ.data!}
           perfis={perfisQ.data!}
@@ -75,7 +76,6 @@ function Conteudo({
   titulos,
   despesas,
   oss,
-  pagadores,
   categorias,
   fechamentos,
   perfis,
@@ -84,7 +84,6 @@ function Conteudo({
   titulos: TituloReceber[];
   despesas: Despesa[];
   oss: OSVisao[];
-  pagadores: Pagador[];
   categorias: CategoriaFinanceira[];
   fechamentos: FechamentoCaixa[];
   perfis: Perfil[];
@@ -96,7 +95,22 @@ function Conteudo({
   const { perfil } = useSessao();
   const podePagar = podeEditar(perfil.papel, "financeiro");
   const [aba, setAba] = useParametro<AbaFinanceiro>("aba", ABAS, "resumo");
-  const [mes, setMes] = useState(mesAtual);
+  const veRelatorios = podeVer(perfil.papel, "relatorios");
+  const abaAtual: AbaFinanceiro = aba === "relatorios" && !veRelatorios ? "resumo" : aba;
+  // mês na URL (?mes=2026-10): o link do relatório antigo e o voltar do navegador caem no mesmo mês
+  const [params, setParams] = useSearchParams();
+  const mesParam = params.get("mes");
+  const mes = mesParam && MES_VALIDO.test(mesParam) ? mesParam : mesAtual;
+  const setMes = (m: string) =>
+    setParams(
+      (p) => {
+        const n = new URLSearchParams(p);
+        if (m === mesAtual) n.delete("mes");
+        else n.set("mes", m);
+        return n;
+      },
+      { replace: true },
+    );
   const [gaveta, setGaveta] = useState<{ tipo: "nova" } | { tipo: "pagar"; despesa: Despesa } | null>(null);
   const [aviso, setAviso] = useState<string>();
 
@@ -109,6 +123,7 @@ function Conteudo({
   const resumo = useMemo(() => resumoCompetencia(mes, titulos, despesas), [mes, titulos, despesas]);
   const daCompetencia = useMemo(() => despesasDaCompetencia(despesas, mes, hoje), [despesas, mes, hoje]);
   const entradas = useMemo(() => entradasDoMes(titulos, mes), [titulos, mes]);
+  const mesNaUrl = mes === mesAtual ? "" : `&mes=${mes}`;
   const nome = nomeCompetencia(mes);
   const nomeCurto = nome.split(" de ")[0];
   const pagasNoMes = despesas.filter((d) => d.pagoEm && mesDe(d.pagoEm) === mes).length;
@@ -119,17 +134,12 @@ function Conteudo({
     setGaveta(null);
     setAviso(msg);
   };
-  const para = (a: AbaFinanceiro) => `/financeiro?aba=${a}`;
+  const para = (a: AbaFinanceiro) => `/financeiro?aba=${a}${mesNaUrl}`;
 
   return (
     <>
       <CabecalhoPagina
         titulo="Financeiro"
-        resumo={
-          <>
-            Competência de <strong className="font-semibold text-tinta">{nome}</strong> · o que entrou e saiu do caixa no mês.
-          </>
-        }
         acoes={
           <>
             <SeletorMes mes={mes} mesAtual={mesAtual} onMudar={setMes} />
@@ -142,47 +152,6 @@ function Conteudo({
         }
       />
 
-      <FaixaIndicadores colunas={5} className="mb-6 max-md:[&>*:last-child:nth-child(odd)]:col-span-2 max-md:[&>*:last-child:nth-child(odd)]:border-r-0">
-        <Indicador
-          rotulo="Entradas"
-          valor={<span className="whitespace-nowrap">{formatarReais(resumo.entradas)}</span>}
-          detalhe={`${entradas.length} ${entradas.length === 1 ? "recebimento" : "recebimentos"}`}
-          para={para("entradas")}
-        />
-        <Indicador
-          rotulo="Saídas"
-          valor={<span className="whitespace-nowrap">{formatarReais(resumo.saidas)}</span>}
-          detalhe={`${pagasNoMes} ${pagasNoMes === 1 ? "despesa paga" : "despesas pagas"}`}
-          para={para("despesas")}
-        />
-        <Indicador
-          rotulo="Resultado"
-          valor={<span className="whitespace-nowrap">{formatarReais(resumo.resultado)}</span>}
-          alerta={resumo.resultado < 0}
-          detalhe="entradas − saídas"
-        />
-        <Indicador
-          rotulo="A pagar em aberto"
-          valor={<span className="whitespace-nowrap">{formatarReais(resumo.aPagarEmAberto)}</span>}
-          detalhe={
-            mes === mesAtual && vencidas.length > 0 ? (
-              <span className="text-alerta font-medium">
-                {vencidas.length} {vencidas.length === 1 ? "vencida" : "vencidas"} · {formatarReais(somaCentavos(vencidas.map((d) => d.valorPrevisto)))}
-              </span>
-            ) : (
-              `${abertasNoMes} ${abertasNoMes === 1 ? "despesa" : "despesas"} no mês`
-            )
-          }
-          para={para("despesas")}
-        />
-        <Indicador
-          rotulo="A receber em aberto"
-          valor={<span className="whitespace-nowrap">{formatarReais(resumo.aReceberEmAberto)}</span>}
-          detalhe="títulos com vencimento no mês"
-          para="/recebiveis"
-        />
-      </FaixaIndicadores>
-
       {aviso && (
         <div className="mb-4 flex items-center gap-2 px-4 h-11 rounded-cartao bg-ok-claro border border-ok/20">
           <Retorno ok={aviso} />
@@ -192,18 +161,59 @@ function Conteudo({
       <Abas<AbaFinanceiro>
         rotulo="Seções do financeiro"
         idBase="financeiro"
-        valor={aba}
+        valor={abaAtual}
         onMudar={setAba}
         abas={[
           { valor: "resumo", texto: "Resumo" },
           { valor: "despesas", texto: "Despesas", contagem: daCompetencia.length },
-          { valor: "entradas", texto: "Entradas", contagem: entradas.length },
           { valor: "caixa", texto: "Caixa do dia" },
+          ...(veRelatorios ? [{ valor: "relatorios" as const, texto: "Relatórios" }] : []),
         ]}
       />
 
-      <PainelAba idBase="financeiro" valor={aba}>
-        {aba === "resumo" && (
+      <PainelAba idBase="financeiro" valor={abaAtual}>
+        {abaAtual !== "relatorios" && (
+        <FaixaIndicadores colunas={5} className="mb-6 max-md:[&>*:last-child:nth-child(odd)]:col-span-2 max-md:[&>*:last-child:nth-child(odd)]:border-r-0">
+          <Indicador
+            rotulo="Entradas"
+            valor={<span className="whitespace-nowrap">{formatarReais(resumo.entradas)}</span>}
+            detalhe={`${entradas.length} ${entradas.length === 1 ? "recebimento" : "recebimentos"}`}
+          />
+          <Indicador
+            rotulo="Saídas"
+            valor={<span className="whitespace-nowrap">{formatarReais(resumo.saidas)}</span>}
+            detalhe={`${pagasNoMes} ${pagasNoMes === 1 ? "despesa paga" : "despesas pagas"}`}
+            para={para("despesas")}
+          />
+          <Indicador
+            rotulo="Resultado"
+            valor={<span className="whitespace-nowrap">{formatarReais(resumo.resultado)}</span>}
+            alerta={resumo.resultado < 0}
+            detalhe="entradas − saídas"
+          />
+          <Indicador
+            rotulo="A pagar em aberto"
+            valor={<span className="whitespace-nowrap">{formatarReais(resumo.aPagarEmAberto)}</span>}
+            detalhe={
+              mes === mesAtual && vencidas.length > 0 ? (
+                <span className="text-alerta font-medium">
+                  {vencidas.length} {vencidas.length === 1 ? "vencida" : "vencidas"} · {formatarReais(somaCentavos(vencidas.map((d) => d.valorPrevisto)))}
+                </span>
+              ) : (
+                `${abertasNoMes} ${abertasNoMes === 1 ? "despesa" : "despesas"} no mês`
+              )
+            }
+            para={para("despesas")}
+          />
+          <Indicador
+            rotulo="A receber em aberto"
+            valor={<span className="whitespace-nowrap">{formatarReais(resumo.aReceberEmAberto)}</span>}
+            detalhe="títulos com vencimento no mês"
+            para={podeVer(perfil.papel, "recebiveis") ? "/recebiveis" : undefined}
+          />
+        </FaixaIndicadores>
+        )}
+        {abaAtual === "resumo" && (
           <AbaResumo
             mes={mes}
             nomeMes={nomeCurto}
@@ -216,7 +226,7 @@ function Conteudo({
             onVerDespesas={() => setAba("despesas")}
           />
         )}
-        {aba === "despesas" && (
+        {abaAtual === "despesas" && (
           <AbaDespesas
             despesas={daCompetencia}
             nomeMes={nomeCurto}
@@ -226,8 +236,8 @@ function Conteudo({
             onNova={() => setGaveta({ tipo: "nova" })}
           />
         )}
-        {aba === "entradas" && <AbaEntradas entradas={entradas} oss={oss} pagadores={pagadores} nomeMes={nomeCurto} hoje={hoje} />}
-        {aba === "caixa" && <AbaCaixa titulos={titulos} despesas={despesas} fechamentos={fechamentos} perfis={perfis} hoje={hoje} podeFechar={podePagar} />}
+        {abaAtual === "caixa" && <AbaCaixa titulos={titulos} despesas={despesas} fechamentos={fechamentos} perfis={perfis} hoje={hoje} podeFechar={podePagar} />}
+        {abaAtual === "relatorios" && <AbaRelatorios oss={oss} mes={mes} veCustos={veCustosOS(perfil.papel)} />}
       </PainelAba>
 
       {podePagar && gaveta?.tipo === "nova" && (

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
+import { HashRouter, Navigate, Route, Routes, useSearchParams } from "react-router-dom";
 import { Layout } from "./componentes/Layout";
 import { PinGate } from "./componentes/PinGate";
 import { Vazio } from "./componentes/ui/Basicos";
@@ -21,7 +21,6 @@ import { Orcamentos } from "./telas/Orcamentos";
 import { Producao } from "./telas/Producao";
 import { ProducaoTV } from "./telas/ProducaoTV";
 import { Recebiveis } from "./telas/Recebiveis";
-import { Relatorios } from "./telas/Relatorios";
 import { Vistorias } from "./telas/Vistorias";
 
 /** Barra de acesso por papel na interface (a barreira real é a RLS no S1). */
@@ -36,6 +35,15 @@ function Protegida({ modulo, children }: { modulo: Modulo; children: ReactNode }
 function Inicio() {
   const { perfil } = useSessao();
   return <Navigate to={telaInicial(perfil.papel)} replace />;
+}
+
+/** Relatórios virou aba do Financeiro (sprint SG): o link antigo cai lá, no mesmo mês. */
+function RelatoriosAntigo() {
+  const [params] = useSearchParams();
+  const novo = new URLSearchParams({ aba: "relatorios" });
+  const mes = params.get("mes");
+  if (mes) novo.set("mes", mes);
+  return <Navigate to={`/financeiro?${novo.toString()}`} replace />;
 }
 
 export default function App() {
@@ -62,7 +70,7 @@ export default function App() {
               <Route path="/estoque" element={<Protegida modulo="estoque"><Estoque /></Protegida>} />
               <Route path="/recebiveis" element={<Protegida modulo="recebiveis"><Recebiveis /></Protegida>} />
               <Route path="/financeiro" element={<Protegida modulo="financeiro"><Financeiro /></Protegida>} />
-              <Route path="/relatorios" element={<Protegida modulo="relatorios"><Relatorios /></Protegida>} />
+              <Route path="/relatorios" element={<RelatoriosAntigo />} />
               <Route path="/ajustes" element={<Protegida modulo="ajustes"><Ajustes /></Protegida>} />
               <Route path="*" element={<Inicio />} />
             </Route>

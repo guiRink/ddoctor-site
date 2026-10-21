@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Despesa, TituloReceber } from "@compartilhado/tipos";
-import { despesasDaCompetencia, entradasDoMes, prazoDespesa, situacaoDespesa } from "./modelo";
+import { despesasDaCompetencia, entradasDoMes, prazoDespesa, quemPaga, situacaoDespesa } from "./modelo";
 import { lerQuantidade, nomeCompetencia, rotuloForma, somarMeses } from "./formato";
 
 const desp = (id: string, vencimento: string, pagoEm?: string): Despesa => ({
@@ -69,5 +69,23 @@ describe("financeiro — formato", () => {
     expect(lerQuantidade("1.000,25")).toBe(1000.25);
     expect(lerQuantidade("abc")).toBeNull();
     expect(lerQuantidade("")).toBeNull();
+  });
+});
+
+describe("a receber — quem paga", () => {
+  const v = (seguradoras: string[], origem: "maxpar" | "particular" = "maxpar") =>
+    ({
+      os: { origem } as never,
+      atendimentos: seguradoras.map((seguradora) => ({ seguradora }) as never),
+    }) as Parameters<typeof quemPaga>[1];
+  it("mostra a seguradora do atendimento, nunca a Maxpar", () => {
+    expect(quemPaga("maxpar", v(["Maxpar", "HDI"]))).toBe("HDI");
+    expect(quemPaga("seguradora", v(["Liberty"]))).toBe("Liberty");
+    expect(quemPaga("maxpar", v([]))).toBe("Seguradora");
+    expect(quemPaga("maxpar")).toBe("Seguradora");
+  });
+  it("cliente e outro ficam com o próprio nome", () => {
+    expect(quemPaga("cliente", v(["HDI"]))).toBe("Cliente");
+    expect(quemPaga("outro")).toBe("Outro");
   });
 });

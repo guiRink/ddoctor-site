@@ -116,6 +116,9 @@ export const LIMITES_CONFIG = {
   vermelhoBloqueioHoras: { min: 1, max: 80 },
 } as const;
 
+/** Fração do prazo da etapa em que o cartão fica laranja, ao editar em Ajustes: 50 % a 95 % (revisão SG). */
+export const LIMITES_LARANJA_FRACAO = { min: 0.5, max: 0.95 } as const;
+
 export interface ConfigParcial {
   capacidadePadrao?: { vagasEntrada?: number; carrosSimultaneos?: number; pecasDia?: number };
   expediente?: ConfigOficina["expediente"];
@@ -167,6 +170,13 @@ export function aplicarConfig(config: ConfigOficina, parcial: ConfigParcial): Re
       if (sem[campo] === undefined) continue;
       if (!inteiroEntre(sem[campo], LIMITES_CONFIG[campo])) return { ok: false, codigo: "valor_invalido", campo };
       semaforo = { ...semaforo, [campo]: sem[campo] };
+      mudou = true;
+    }
+    if (sem.laranjaFracao !== undefined) {
+      const f = sem.laranjaFracao;
+      if (typeof f !== "number" || !Number.isFinite(f) || f < LIMITES_LARANJA_FRACAO.min || f > LIMITES_LARANJA_FRACAO.max)
+        return { ok: false, codigo: "valor_invalido", campo: "laranjaFracao" };
+      semaforo = { ...semaforo, laranjaFracao: Math.round(f * 100) / 100 };
       mudou = true;
     }
     if (mudou) campos.push("semaforo");

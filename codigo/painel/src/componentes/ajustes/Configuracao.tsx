@@ -1,5 +1,5 @@
 import type { ConfigOficina } from "@compartilhado/tipos";
-import { LIMITES_CONFIG, campoConfigProvisorio, capacidadePecasDia } from "@compartilhado/dominio/config";
+import { LIMITES_CONFIG, LIMITES_LARANJA_FRACAO, campoConfigProvisorio, capacidadePecasDia, laranjaFracao } from "@compartilhado/dominio/config";
 import { useConfig } from "../../dados/hooks";
 import { Provisorio, Semaforo } from "../ui/Estado";
 import { Consulta, Dado, NotaProvisoria, Secao } from "./Estrutura";
@@ -22,7 +22,7 @@ export function Capacidade({ podeEditar }: { podeEditar: boolean }) {
     <Secao
       id="agenda"
       titulo="Agenda e capacidade"
-      descricao="Limites que a agenda e a produção prevista usam para avisar quando a oficina enche."
+      descricao="Quantos carros a oficina aguenta."
       nota={algum ? <NotaProvisoria texto="a confirmar no questionário" /> : undefined}
     >
       <Consulta q={q}>
@@ -89,7 +89,8 @@ function descreverExpediente(c: ConfigOficina): string {
   return partes.join(" · ") || "sem expediente cadastrado";
 }
 
-type CampoSemaforo = "laranjaAntesHoras" | "vermelhoBloqueioHoras";
+// "laranjaPct": a fração do prazo da etapa em % inteiro (50–95, passo 5); vai para o banco como laranjaFracao.
+type CampoSemaforo = "laranjaPct" | "vermelhoBloqueioHoras";
 
 export function PrazosECores({ podeEditar }: { podeEditar: boolean }) {
   const q = useConfig();
@@ -98,7 +99,7 @@ export function PrazosECores({ podeEditar }: { podeEditar: boolean }) {
     <Secao
       id="prazos"
       titulo="Prazos e cores"
-      descricao="Quando o semáforo de cada etapa muda de cor, contando só as horas do expediente."
+      descricao="Quando o cartão do carro muda de cor."
       nota={algum ? <NotaProvisoria texto="a confirmar no questionário" /> : undefined}
     >
       <Consulta q={q}>
@@ -107,13 +108,14 @@ export function PrazosECores({ podeEditar }: { podeEditar: boolean }) {
           const horasUteis = plural("h útil", "h úteis");
           const campos: CampoNumero<CampoSemaforo>[] = [
             {
-              chave: "laranjaAntesHoras",
-              nome: "Quando fica laranja",
+              chave: "laranjaPct",
+              nome: "Fica laranja com",
               adorno: <Semaforo valor="laranja" texto="Laranja" />,
-              explicacao: "Faltando essas horas úteis para o prazo da etapa. Produção e TV.",
-              unidade: horasUteis,
-              limites: LIMITES_CONFIG.laranjaAntesHoras,
-              valor: c.semaforo.laranjaAntesHoras,
+              explicacao: "Parte do prazo da etapa já gasta. Também fica laranja com a entrega amanhã.",
+              unidade: () => "% do prazo",
+              limites: { min: Math.round(LIMITES_LARANJA_FRACAO.min * 100), max: Math.round(LIMITES_LARANJA_FRACAO.max * 100) },
+              passo: 5,
+              valor: Math.round(laranjaFracao(c) * 100),
               provisorio,
             },
             {
@@ -139,7 +141,12 @@ export function PrazosECores({ podeEditar }: { podeEditar: boolean }) {
                 id="ajustes-sem"
                 campos={campos}
                 podeEditar={podeEditar}
-                montar={(v) => ({ semaforo: v })}
+                montar={({ laranjaPct, vermelhoBloqueioHoras }) => ({
+                  semaforo: {
+                    ...(laranjaPct !== undefined ? { laranjaFracao: laranjaPct / 100 } : {}),
+                    ...(vermelhoBloqueioHoras !== undefined ? { vermelhoBloqueioHoras } : {}),
+                  },
+                })}
                 rotuloSalvar="Salvar cores"
                 mensagemOk="Cores salvas. A Produção e a TV já usam os novos limites."
                 depois={

@@ -7,7 +7,7 @@ import type { OSVisao } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
 import { ESTADO_ETAPA } from "../dominio/rotulos";
 import { Botao, CabecalhoPagina, Responsavel, SUPERFICIE, Vazio } from "../componentes/ui/Basicos";
-import { Etiqueta, Provisorio } from "../componentes/ui/Estado";
+import { Etiqueta } from "../componentes/ui/Estado";
 import { EstadoConsultas } from "../componentes/gestao/Consultas";
 import { PlacaOS } from "../componentes/gestao/Comuns";
 import { GrupoFiltros } from "../componentes/ui/Filtros";
@@ -54,11 +54,11 @@ function Conteudo({ perfis, oss }: { perfis: Perfil[]; oss: OSVisao[] }) {
   return (
     <>
       <CabecalhoPagina
-        titulo="Funcionários"
+        titulo="Equipe"
         resumo={
           <>
-            O que cada pessoa da produção fez {textoPeriodo}: <span className="numero">{totais.concluidas}</span> etapas,{" "}
-            <span className="numero">{totais.pecas}</span> peças.
+            <span className="first-letter:uppercase inline-block">{textoPeriodo}</span>: <span className="numero">{totais.concluidas}</span> etapas ·{" "}
+            <span className="numero">{totais.pecas}</span> peças
           </>
         }
         acoes={
@@ -77,17 +77,12 @@ function Conteudo({ perfis, oss }: { perfis: Perfil[]; oss: OSVisao[] }) {
         }
       />
 
-      <p className="mb-4 text-[13px] text-tinta-suave max-w-[90ch]">
-        Números contados das etapas concluídas no painel. Tempo médio é o tempo em execução, sem fila e sem impedimento. Impedimento é contexto, não
-        penalidade. Comissão: <Provisorio>só entra se o dono pedir</Provisorio>.
-      </p>
-
       {pessoas.length === 0 ? (
         <div className={SUPERFICIE}>
           <Vazio
             icone="funcionarios"
             titulo="Ninguém da produção cadastrado"
-            texto="Cadastre funileiros, pintores e polidores em Ajustes → Pessoas e papéis (a edição chega com o login individual). Os números aparecem quando eles concluírem etapas."
+            texto="Funileiros, pintores e polidores aparecem aqui quando concluírem etapas."
           />
         </div>
       ) : (
@@ -96,11 +91,10 @@ function Conteudo({ perfis, oss }: { perfis: Perfil[]; oss: OSVisao[] }) {
             <thead>
               <tr>
                 <Th>Pessoa</Th>
-                <Th>Aparelho</Th>
                 <Th direita>Etapas</Th>
                 <Th direita>Peças</Th>
                 <Th direita>Carros</Th>
-                <Th direita>Tempo médio</Th>
+                <Th direita title="Tempo em execução, sem fila e sem impedimento">Tempo médio</Th>
                 <Th direita>Impedimentos</Th>
                 <Th>Agora</Th>
                 <Th>
@@ -118,7 +112,6 @@ function Conteudo({ perfis, oss }: { perfis: Perfil[]; oss: OSVisao[] }) {
                         <Responsavel nome={p.nome} />
                         <span className="block pl-9 text-[12px] text-tinta-suave">{p.funcao ?? "Produção"}</span>
                       </Td>
-                      <Td className="text-tinta-suave whitespace-nowrap">{p.usaTerminal ? "Terminal" : "Celular próprio"}</Td>
                       <Td numero className="font-semibold">
                         {n.concluidas.length}
                       </Td>
@@ -146,7 +139,7 @@ function Conteudo({ perfis, oss }: { perfis: Perfil[]; oss: OSVisao[] }) {
                     </Linha>
                     {estaAberto && (
                       <tr className="bg-cinza-50 border-b border-linha">
-                        <td colSpan={9} className="px-3 pb-4 pt-1">
+                        <td colSpan={8} className="px-3 pb-4 pt-1">
                           <Historico etapas={n.concluidas} porOS={porOS} agora={agora} ano={ano} />
                         </td>
                       </tr>
@@ -166,7 +159,7 @@ function Conteudo({ perfis, oss }: { perfis: Perfil[]; oss: OSVisao[] }) {
                     <span className="min-w-0">
                       <Responsavel nome={p.nome} />
                       <span className="block pl-9 text-[12px] text-tinta-suave">
-                        {p.funcao ?? "Produção"} · {p.usaTerminal ? "terminal" : "celular próprio"}
+                        {p.funcao ?? "Produção"}
                       </span>
                     </span>
                   </div>

@@ -185,7 +185,7 @@ function FormFechamento({
   return (
     <form onSubmit={fechar} aria-label={`Fechamento de caixa de ${dataComSemana(data)}`} className="px-4 md:px-5 py-4 flex flex-col gap-4">
       <p className="text-[13px] text-tinta-suave">
-        Só dinheiro em espécie. Pix, cartão e boleto não passam pela gaveta e ficam fora da conta.
+        Só dinheiro em espécie (Pix, cartão e boleto ficam fora).
       </p>
 
       <Rotulado

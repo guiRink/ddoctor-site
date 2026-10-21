@@ -28,16 +28,37 @@ const MATRIZ: Record<Modulo, Partial<Record<Papel, Acesso>>> = {
   clientes: { dono: "editar", gestor: "editar", recepcao: "editar", financeiro: "ler" },
   agenda: { dono: "editar", gestor: "editar", recepcao: "editar" },
   vistorias: { dono: "editar", gestor: "editar", recepcao: "editar", producao: "proprio", financeiro: "ler" },
-  producao: { dono: "editar", gestor: "editar", recepcao: "ler" },
+  // a produção vê o quadro da oficina só para ler (mecânico SG: "qual é o próximo carro que vem pra mim")
+  producao: { dono: "editar", gestor: "editar", recepcao: "ler", producao: "ler" },
   minhas_tarefas: { producao: "proprio", gestor: "editar", dono: "editar" },
   tv: { dono: "ler", gestor: "ler", dispositivo: "ler" },
-  funcionarios: { dono: "editar", gestor: "editar", producao: "proprio" },
+  // Equipe: a produção não vê (sprint SG: funileiro vendo o número do colega dá briga)
+  funcionarios: { dono: "editar", gestor: "editar" },
   estoque: { dono: "editar", gestor: "editar", financeiro: "ler" },
   recebiveis: { dono: "editar", gestor: "editar", recepcao: "ler", financeiro: "editar" },
   financeiro: { dono: "editar", gestor: "ler", financeiro: "editar" },
   relatorios: { dono: "ler", gestor: "ler", financeiro: "ler" },
   ajustes: { dono: "editar", gestor: "editar" },
 };
+
+/**
+ * Menu por papel, na ordem em que aparece (sprint SG, plano item 10). O menu é mais enxuto que o acesso:
+ * "Minhas tarefas" só para a produção, "Quadro da TV" é botão na Produção e "Relatórios" é aba do Financeiro —
+ * as rotas continuam abertas para quem a MATRIZ deixa.
+ */
+const MENU_DO_PAPEL: Record<Papel, Modulo[]> = {
+  dono: ["geral", "orcamentos", "agenda", "producao", "vistorias", "clientes", "recebiveis", "financeiro", "funcionarios", "estoque", "ajustes"],
+  gestor: ["geral", "orcamentos", "agenda", "producao", "vistorias", "clientes", "recebiveis", "financeiro", "funcionarios", "estoque", "ajustes"],
+  recepcao: ["geral", "orcamentos", "agenda", "producao", "vistorias", "clientes"],
+  financeiro: ["geral", "recebiveis", "financeiro", "clientes", "orcamentos"],
+  producao: ["minhas_tarefas", "producao", "vistorias"],
+  dispositivo: [],
+};
+
+/** Módulos que o papel vê no menu, na ordem do menu (só os que ele também pode abrir). */
+export function modulosDoMenu(papel: Papel): Modulo[] {
+  return (MENU_DO_PAPEL[papel] ?? []).filter((m) => podeVer(papel, m));
+}
 
 export function acesso(papel: Papel, modulo: Modulo): Acesso {
   return MATRIZ[modulo][papel] ?? null;
