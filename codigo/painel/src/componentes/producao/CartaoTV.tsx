@@ -42,7 +42,7 @@ export function CartaoTV({
         : item.cor === "vermelho_piscando"
           ? item.motivoCor
           : item.cor === "vermelho"
-            ? "Nada concluído" // a cor já diz "perto da entrega"; o cabeçalho é estreito
+            ? "Sem etapa concluída" // a cor já diz "perto da entrega"; o cabeçalho é estreito
             : COR_CARRO[item.cor].texto,
   };
   const bloqueio = item.impedido ? etapa?.bloqueios.find((b) => !b.fimEm) : undefined;

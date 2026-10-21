@@ -94,7 +94,7 @@ export const ESTADO_ETAPA: Record<EstadoEtapa, { texto: string; tom: Tom }> = {
   aguardando: { texto: "Aguardando", tom: "neutro" },
   na_fila: { texto: "Na fila", tom: "neutro" },
   em_execucao: { texto: "Em execução", tom: "amarelo" },
-  bloqueada: { texto: "Impedida", tom: "alerta" },
+  bloqueada: { texto: "Parada", tom: "alerta" },
   concluida: { texto: "Concluída", tom: "ok" },
   dispensada: { texto: "Dispensada", tom: "neutro" },
 };
@@ -340,7 +340,7 @@ export const ERRO_CAMPO_CONFIG: Record<string, string> = {
   laranjaAntesHoras: "Laranja: um número inteiro de horas úteis, de 1 a 80.",
   laranjaPct: "Laranja: de 50 % a 95 % do prazo da etapa.",
   laranjaFracao: "Laranja: de 50 % a 95 % do prazo da etapa.",
-  vermelhoBloqueioHoras: "Vermelho por impedimento: um número inteiro de horas úteis, de 1 a 80.",
+  vermelhoBloqueioHoras: "Vermelho quando parado: um número inteiro de horas úteis, de 1 a 80.",
   sabadoFim: "Fim do sábado: use HH:MM, depois do início do expediente.",
   // alerta do carro (Ajustes e ajuste por carro, salvarAlertaOS)
   laranjaDiasAntes: "Laranja: um número inteiro de dias úteis antes da entrega, de 0 a 60.",

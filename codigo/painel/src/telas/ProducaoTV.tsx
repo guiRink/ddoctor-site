@@ -429,7 +429,7 @@ function TVEtapas() {
         <ul className="flex-1 flex items-center justify-center gap-7 m-0 p-0 list-none text-papel-suave">
           <Legenda cor="bg-carro-verde" texto="No prazo" />
           <Legenda cor="bg-carro-laranja" texto="Atenção" />
-          <Legenda cor="bg-carro-vermelho" texto="Nada concluído" />
+          <Legenda cor="bg-carro-vermelho" texto="Sem etapa concluída" />
           <Legenda cor={PONTO_LEGENDA.piscando} texto="Atrasado" />
           <Legenda cor="bg-grafite-3" texto="Pronto" />
           <li className="flex items-center gap-2.5">
