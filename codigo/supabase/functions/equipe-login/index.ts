@@ -7,17 +7,25 @@
 //   { "acao": "remover",     "perfilId": "..." }                                           → apaga o usuário do Auth (cadastro fica)
 //   { "acao": "sincronizar", "perfilId": "..." }                                           → perfil inativo = login bloqueado (ban)
 // Resposta: { ok: true, usuario?, email? } | { ok: false, codigo } (códigos de rotulos.ts → ERRO).
-// definir/remover: só o dono. sincronizar: dono e gerente (só espelha perfil.ativo no Auth; chamada depois de
-// salvarFuncionario mudar "ativo"). E-mail técnico: <usuario>@equipe.ddoctor.app (emailDeLogin, dominio/equipe.ts).
+// definir/remover: só o dono. sincronizar: o dono (qualquer perfil) ou o gerente só para perfis de produção, recepção
+// e TV (espelha perfil.ativo no Auth; chamada depois de salvarFuncionario mudar "ativo").
+// perfil.login_desativado_em: gravado quando o login fica bloqueado (ban) por perfil inativo; limpo ao reativar
+// ou ao retirar o login. E-mail técnico: <usuario>@equipe.ddoctor.app (emailDeLogin, dominio/equipe.ts).
+// Senha: mínimo 8 caracteres e no máximo 72 BYTES em UTF-8 (limite do bcrypt do Auth; acento ocupa 2 bytes).
 //
 // Deploy (feito pelo Guilherme, à mão): supabase functions deploy equipe-login --project-ref <ref>
-// Variável opcional: PAINEL_ORIGENS="https://guirink.github.io,http://localhost:5173" (CORS).
+// Variável opcional: PAINEL_ORIGENS="https://ddoctorauto.com.br,https://www.ddoctorauto.com.br,https://guirink.github.io,http://localhost:5173" (CORS).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const DOMINIO_LOGIN = "equipe.ddoctor.app";
-const SENHA = { min: 8, max: 72 };
+const SENHA = { minCaracteres: 8, maxBytes: 72 };
+/** Papéis que o gerente pode bloquear/desbloquear (sincronizar); dono, gerente e financeiro só pelo dono. */
+const PAPEIS_DO_GERENTE = ["producao", "recepcao", "dispositivo"];
 const BANIDO = "876000h"; // ~100 anos
-const ORIGENS = (Deno.env.get("PAINEL_ORIGENS") ?? "https://guirink.github.io,http://localhost:5173")
+const ORIGENS = (
+  Deno.env.get("PAINEL_ORIGENS") ??
+  "https://ddoctorauto.com.br,https://www.ddoctorauto.com.br,https://guirink.github.io,http://localhost:5173"
+)
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
@@ -81,16 +89,18 @@ Deno.serve(async (req) => {
     return resposta({ ok: false, codigo: "pedido_invalido" }, 400, origem);
   }
   const acao = corpo.acao;
-  const podeAgir = chamador.papel === "dono" || (acao === "sincronizar" && chamador.papel === "gestor");
-  if (!podeAgir) return resposta({ ok: false, codigo: "sem_permissao" }, 403, origem);
+  const ehDono = chamador.papel === "dono";
+  if (!ehDono && !(acao === "sincronizar" && chamador.papel === "gestor")) return resposta({ ok: false, codigo: "sem_permissao" }, 403, origem);
 
   const { data: alvo } = await admin
     .from("perfil")
-    .select("id, oficina_id, nome, papel, ativo, usuario, auth_user_id")
+    .select("id, oficina_id, nome, papel, ativo, usuario, auth_user_id, login_desativado_em")
     .eq("id", corpo.perfilId ?? "")
     .eq("oficina_id", chamador.oficina_id)
     .maybeSingle();
   if (!alvo) return resposta({ ok: false, codigo: "perfil_inexistente" }, 404, origem);
+  // o gerente só sincroniza produção, recepção e TV (igual a salvar_funcionario no banco)
+  if (!ehDono && !PAPEIS_DO_GERENTE.includes(alvo.papel)) return resposta({ ok: false, codigo: "sem_permissao" }, 403, origem);
 
   const auditar = (acaoAud: string, resumo: string) =>
     admin.from("evento_auditoria").insert({
@@ -109,8 +119,8 @@ Deno.serve(async (req) => {
     const u = validarUsuario(corpo.usuario);
     if (!u.ok) return resposta({ ok: false, codigo: u.codigo }, 400, origem);
     const senha = String(corpo.senha ?? "");
-    if (senha.length < SENHA.min) return resposta({ ok: false, codigo: "senha_curta" }, 400, origem);
-    if (senha.length > SENHA.max) return resposta({ ok: false, codigo: "senha_longa" }, 400, origem);
+    if ([...senha].length < SENHA.minCaracteres) return resposta({ ok: false, codigo: "senha_curta" }, 400, origem);
+    if (new TextEncoder().encode(senha).length > SENHA.maxBytes) return resposta({ ok: false, codigo: "senha_longa" }, 400, origem);
     const { data: outro } = await admin
       .from("perfil")
       .select("id")
@@ -143,7 +153,7 @@ Deno.serve(async (req) => {
     }
     const { error: erroPerfil } = await admin
       .from("perfil")
-      .update({ auth_user_id: authId, usuario: u.usuario, login_desativado_em: null })
+      .update({ auth_user_id: authId, usuario: u.usuario, login_desativado_em: alvo.ativo ? null : new Date().toISOString() })
       .eq("id", alvo.id);
     if (erroPerfil) {
       if (criou) await admin.auth.admin.deleteUser(authId!); // não deixa usuário do Auth solto
@@ -159,7 +169,7 @@ Deno.serve(async (req) => {
       const { error } = await admin.auth.admin.deleteUser(alvo.auth_user_id);
       if (error && !/not.?found/i.test(error.message)) return resposta({ ok: false, codigo: "falha_auth" }, 400, origem);
     }
-    const { error: erroPerfil } = await admin.from("perfil").update({ auth_user_id: null }).eq("id", alvo.id);
+    const { error: erroPerfil } = await admin.from("perfil").update({ auth_user_id: null, login_desativado_em: null }).eq("id", alvo.id);
     if (erroPerfil) return resposta({ ok: false, codigo: "falha_banco" }, 400, origem);
     await auditar("tirar_login", `Login de ${alvo.nome} retirado`);
     return resposta({ ok: true }, 200, origem);
@@ -169,6 +179,12 @@ Deno.serve(async (req) => {
     if (alvo.auth_user_id) {
       const { error } = await admin.auth.admin.updateUserById(alvo.auth_user_id, { ban_duration: alvo.ativo ? "none" : BANIDO });
       if (error) return resposta({ ok: false, codigo: "falha_auth" }, 400, origem);
+      // espelho no banco: bloqueado desde agora (mantém a data se já estava) ou liberado
+      const { error: erroPerfil } = await admin
+        .from("perfil")
+        .update({ login_desativado_em: alvo.ativo ? null : (alvo.login_desativado_em ?? new Date().toISOString()) })
+        .eq("id", alvo.id);
+      if (erroPerfil) return resposta({ ok: false, codigo: "falha_banco" }, 400, origem);
     }
     return resposta({ ok: true }, 200, origem);
   }

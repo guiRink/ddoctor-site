@@ -66,6 +66,31 @@ select 'estrutura', 'funções internas e definir_primeiro_dono fora da API', bo
  where n.nspname = 'public' and p.proname in ('_auditar', '_baixar', '_movimentar', '_reservar', '_linhas_comissao', 'definir_primeiro_dono');
 
 insert into _resultado (secao, teste, ok, detalhe)
+select 'estrutura', 'views só leitura: nenhuma view com INSERT/UPDATE/DELETE/TRUNCATE para anon ou authenticated',
+       count(*) = 0, string_agg(distinct c.relname, ', ')
+  from pg_class c join pg_namespace n on n.oid = c.relnamespace, unnest(array['anon', 'authenticated']) r, unnest(array['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE']) pr
+ where n.nspname = 'public' and c.relkind in ('v', 'm') and has_table_privilege(r, c.oid, pr);
+
+insert into _resultado (secao, teste, ok, detalhe)
+select 'estrutura', 'authenticated sem TRUNCATE (passa por cima da RLS) em tabela de public', count(*) = 0, string_agg(c.relname, ', ')
+  from pg_class c join pg_namespace n on n.oid = c.relnamespace
+ where n.nspname = 'public' and c.relkind = 'r' and has_table_privilege('authenticated', c.oid, 'TRUNCATE');
+
+insert into _resultado (secao, teste, ok, detalhe)
+select 'estrutura', 'anon (sem login) executa só oficina_tem_dono()',
+       count(*) filter (where p.proname <> 'oficina_tem_dono') = 0 and count(*) filter (where p.proname = 'oficina_tem_dono') = 1,
+       string_agg(p.proname, ', ')
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'EXECUTE');
+
+insert into _resultado (secao, teste, ok, detalhe)
+select 'estrutura', 'grants e guardas internas fora da API (_aplicar_permissoes, _guarda_config, _responsavel_valido)',
+       bool_and(not has_function_privilege('authenticated', p.oid, 'EXECUTE')),
+       string_agg(p.proname, ', ') filter (where has_function_privilege('authenticated', p.oid, 'EXECUTE'))
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public' and p.proname in ('_aplicar_permissoes', '_guarda_config', '_responsavel_valido');
+
+insert into _resultado (secao, teste, ok, detalhe)
 select 'estrutura', 'funções security definer com search_path fixo', count(*) = 0, string_agg(p.proname, ', ')
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
  where n.nspname = 'public' and p.prosecdef and not exists (select 1 from unnest(coalesce(p.proconfig, '{}')) c where c like 'search_path=%');
@@ -129,6 +154,15 @@ declare
   v_custo_esperado bigint;
   v_t text;
   v_b boolean;
+  v_foto2 uuid;
+  v_desp uuid;
+  v_outra uuid;
+  v_outro_perfil uuid;
+  v_outra_os uuid;
+  v_view text;
+  v_op text;
+  v_neg int;
+  v_cfg public.config_oficina;
 begin
   begin
     v_hoje := public._dia(now(), v_fuso);
@@ -137,11 +171,11 @@ begin
     d3 := public._proximo_dia_util(d2 + 1, v_exp);
 
     -- usuários de teste (um por papel; producao2 = colega)
-    foreach v_papel in array array['dono', 'gestor', 'recepcao', 'producao', 'producao2', 'financeiro', 'dispositivo'] loop
+    foreach v_papel in array array['dono', 'gestor', 'gestor2', 'recepcao', 'producao', 'producao2', 'financeiro', 'dispositivo'] loop
       v_uid := gen_random_uuid();
       insert into auth.users (id, email) values (v_uid, 'checagem-' || v_papel || '-' || left(v_uid::text, 8) || '@teste.invalid');
       insert into public.perfil (oficina_id, auth_user_id, nome, papel)
-      values (v_of, v_uid, 'Checagem ' || v_papel, case when v_papel = 'producao2' then 'producao' else v_papel end)
+      values (v_of, v_uid, 'Checagem ' || v_papel, case v_papel when 'producao2' then 'producao' when 'gestor2' then 'gestor' else v_papel end)
       returning id into v_pid;
       au := au || jsonb_build_object(v_papel, v_uid);
       pf := pf || jsonb_build_object(v_papel, v_pid);
@@ -287,6 +321,9 @@ begin
     perform pg_temp.como(null);
 
     -- ------------------------------------------------ produção: etapas
+    perform pg_temp.como(au ->> 'gestor');
+    r := public.iniciar_etapa(e1, (pf ->> 'recepcao')::uuid);
+    res := pg_temp.esp(res, 'segurança', 'iniciar etapa com responsável da recepção', r, 'sem_responsavel');
     perform pg_temp.como(au ->> 'producao2');
     r := public.iniciar_etapa(e1, (pf ->> 'producao')::uuid);
     res := pg_temp.esp(res, 'producao', 'produção não inicia para outra pessoa', r, 'nao_responsavel');
@@ -327,11 +364,43 @@ begin
     res := pg_temp.esp(res, 'fotos', 'caminho fora da OS', r, 'arquivo_invalido');
     r := public.adicionar_foto(v_os1, jsonb_build_object('id', v_foto, 'fase', 'durante', 'legenda', 'Capô', 'caminho', v_of || '/' || v_os1 || '/' || v_foto || '.webp', 'bytes', 180000, 'largura', 1600, 'altura', 1200));
     res := pg_temp.esp(res, 'fotos', 'produção adiciona foto (Storage + registro)', r);
+    select count(*) into v_n from public.foto where id = v_foto;
+    res := pg_temp.chk(res, 'segurança', 'fotos: produção com etapa aberta na OS vê a foto (tabela)', v_n = 1, v_n::text);
+    select count(*) into v_n from storage.objects where bucket_id = 'fotos' and name = v_of || '/' || v_os1 || '/' || v_foto || '.webp';
+    res := pg_temp.chk(res, 'segurança', 'fotos: produção com etapa aberta na OS lê o arquivo', v_n = 1, v_n::text);
+    perform pg_temp.como(au ->> 'producao2');
+    select (select count(*) from public.foto where os_id = v_os1)
+         + (select count(*) from storage.objects where bucket_id = 'fotos' and name like v_of || '/' || v_os1 || '/%') into v_n;
+    res := pg_temp.chk(res, 'segurança', 'fotos: colega sem etapa aberta na OS não vê foto nem arquivo', v_n = 0, v_n::text);
+    -- foto da vistoria (externa) na mesma OS
+    perform pg_temp.como(null);
+    v_foto2 := gen_random_uuid();
+    insert into storage.objects (bucket_id, name) values ('fotos', v_of || '/' || v_os1 || '/' || v_foto2 || '.webp');
+    insert into public.foto (id, oficina_id, os_id, fase, caminho, origem)
+    values (v_foto2, v_of, v_os1, 'externa', v_of || '/' || v_os1 || '/' || v_foto2 || '.webp', 'maxpar');
+    perform pg_temp.como(au ->> 'producao');
+    select count(*) into v_n from public.foto where id = v_foto2;
+    res := pg_temp.chk(res, 'segurança', 'fotos: produção nunca vê a foto da vistoria (externa) — tabela', v_n = 0, v_n::text);
+    select count(*) into v_n from storage.objects where bucket_id = 'fotos' and name = v_of || '/' || v_os1 || '/' || v_foto2 || '.webp';
+    res := pg_temp.chk(res, 'segurança', 'fotos: produção nunca lê o arquivo da vistoria (externa)', v_n = 0, v_n::text);
+    perform pg_temp.como(au ->> 'recepcao');
+    select count(*) into v_n from storage.objects where bucket_id = 'fotos' and name = v_of || '/' || v_os1 || '/' || v_foto2 || '.webp';
+    res := pg_temp.chk(res, 'segurança', 'fotos: recepção lê o arquivo da vistoria', v_n = 1, v_n::text);
+    perform pg_temp.como(null);
+    delete from public.foto where id = v_foto2;
+    delete from storage.objects where bucket_id = 'fotos' and name = v_of || '/' || v_os1 || '/' || v_foto2 || '.webp';
+    perform pg_temp.como(au ->> 'producao');
     r := public.concluir_etapa(e2, null, array[v_foto]);
     res := pg_temp.esp(res, 'producao', 'etapa com contagem, sem contagem', r, 'contagem_obrigatoria');
     r := public.concluir_etapa(e2, 1, array[v_foto]);
     res := pg_temp.esp(res, 'producao', 'concluir com foto e contagem', r);
+    select count(*) into v_n from public.foto where id = v_foto;
+    res := pg_temp.chk(res, 'segurança', 'fotos: sem etapa aberta na OS, a produção deixa de ver a foto (tabela)', v_n = 0, v_n::text);
+    select count(*) into v_n from storage.objects where bucket_id = 'fotos' and name like v_of || '/' || v_os1 || '/%';
+    res := pg_temp.chk(res, 'segurança', 'fotos: sem etapa aberta na OS, a produção deixa de ver o arquivo', v_n = 0, v_n::text);
+    perform pg_temp.como(null);
     select etapa_id into v_pid from public.foto where id = v_foto;
+    perform pg_temp.como(au ->> 'producao');
     res := pg_temp.chk(res, 'fotos', 'foto indicada passa a comprovar a etapa', v_pid = e2, v_pid::text);
     r := public.remover_foto(v_foto);
     res := pg_temp.esp(res, 'fotos', 'única foto de etapa concluída não sai', r, 'foto_em_uso');
@@ -349,6 +418,10 @@ begin
     res := pg_temp.esp(res, 'producao', 'dispensar sem motivo', r, 'motivo_obrigatorio');
     r := public.dispensar_etapa(e3, 'Não precisou polir (checagem)');
     res := pg_temp.esp(res, 'producao', 'gerente dispensa etapa', r);
+    r := public.atribuir_responsavel(e4, (pf ->> 'dispositivo')::uuid);
+    res := pg_temp.esp(res, 'segurança', 'atribuir etapa à TV (dispositivo)', r, 'sem_responsavel');
+    r := public.atribuir_responsavel(e4, (pf ->> 'financeiro')::uuid);
+    res := pg_temp.esp(res, 'segurança', 'atribuir etapa ao financeiro', r, 'sem_responsavel');
     r := public.atribuir_responsavel(e4, (pf ->> 'producao2')::uuid);
     res := pg_temp.esp(res, 'producao', 'gerente atribui responsável', r);
     r := public.dispensar_etapa(e4, 'Revisão feita junto (checagem)');
@@ -426,8 +499,11 @@ begin
     res := pg_temp.esp(res, 'financeiro', 'vencimento que não existe', r, 'data_invalida');
     r := public.criar_despesa(jsonb_build_object('descricao', 'Despesa checagem', 'categoria', 'Outras despesas', 'valorPrevisto', 1500, 'vencimento', v_hoje + 10));
     res := pg_temp.esp(res, 'financeiro', 'despesa a pagar', r);
-    r := public.pagar_despesa((r ->> 'id')::uuid, 1500, (v_hoje - 0)::text, 'pix');
+    v_desp := (r ->> 'id')::uuid;
+    r := public.pagar_despesa(v_desp, 1500, (v_hoje - 0)::text, 'pix');
     res := pg_temp.esp(res, 'financeiro', 'pagar despesa', r);
+    r := public.pagar_despesa(v_desp, 1500, (v_hoje - 0)::text, 'pix');
+    res := pg_temp.esp(res, 'segurança', 'pagar de novo despesa já paga', r, 'ja_pago');
 
     -- ------------------------------------------------ estoque e custos
     perform pg_temp.como(au ->> 'gestor');
@@ -516,11 +592,14 @@ begin
     res := pg_temp.esp(res, 'folha', 'financeiro não muda o ajuste do dono', r, 'sem_permissao');
     r := public.pagar_folha((pf ->> 'producao')::uuid, to_char(v_hoje, 'YYYY-MM'), v_hoje::text);
     res := pg_temp.esp(res, 'folha', 'financeiro paga a folha (vira despesa Salários)', r);
+    v_desp := (r ->> 'despesaId')::uuid;
     select d.valor_pago, d.categoria into v_n, v_t from public.despesa d where d.id = (r ->> 'despesaId')::uuid;
     res := pg_temp.chk(res, 'folha', 'despesa = salário + comissões do mês, em "Salários e pró-labore"', v_n = v_custo_esperado and v_t = 'Salários e pró-labore',
                        format('%s (esperado %s) %s', v_n, v_custo_esperado, v_t));
     r := public.pagar_folha((pf ->> 'producao')::uuid, to_char(v_hoje, 'YYYY-MM'), v_hoje::text);
     res := pg_temp.esp(res, 'folha', 'pagar duas vezes', r, 'ja_pago');
+    r := public.pagar_despesa(v_desp, 1, v_hoje::text, 'pix');
+    res := pg_temp.esp(res, 'segurança', 'pagar de novo a despesa da folha', r, 'ja_pago');
 
     -- o último dono ativo não sai (validarMudancaPapel)
     perform pg_temp.como(null);
@@ -564,6 +643,174 @@ begin
     r := public.salvar_alerta_os(v_os2, '{"prazoDiasUteis":null,"laranjaDiasAntes":null}');
     select alerta is null into v_b from public.os where id = v_os2;
     res := pg_temp.chk(res, 'alerta', 'null volta para a base', v_b, null);
+
+    -- ------------------------------------------------ segurança (revisão do S1, migration 0015)
+
+    -- views só leitura: gerente e financeiro tentam insert/update/delete em cada view
+    foreach v_papel in array array['gestor', 'financeiro'] loop
+      perform pg_temp.como(au ->> v_papel);
+      for v_view in select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+                     where n.nspname = 'public' and c.relkind = 'v' order by c.relname loop
+        v_neg := 0;
+        foreach v_op in array array[
+          format('insert into public.%I (id) select gen_random_uuid() where false', v_view),
+          format('update public.%I set id = id where false', v_view),
+          format('delete from public.%I where false', v_view)] loop
+          begin
+            execute v_op;
+          exception when insufficient_privilege or object_not_in_prerequisite_state or feature_not_supported then
+            v_neg := v_neg + 1;
+          end;
+        end loop;
+        res := pg_temp.chk(res, 'segurança', format('%s não grava em %s (insert/update/delete negados)', v_papel, v_view), v_neg = 3,
+                           format('%s de 3 negados', v_neg));
+      end loop;
+    end loop;
+    perform pg_temp.como(au ->> 'gestor');
+    begin
+      update public.vw_material set nome = 'Material alterado pela view' where id = v_mat;
+      res := pg_temp.chk(res, 'segurança', 'gerente não altera material pela vw_material', false, 'alterou');
+    exception when insufficient_privilege then
+      res := pg_temp.chk(res, 'segurança', 'gerente não altera material pela vw_material', true);
+    end;
+    begin
+      update public.vw_regra_comissao set ativa = false, etapa_nome = 'Desligada pela view';
+      res := pg_temp.chk(res, 'segurança', 'gerente não desliga comissões pela vw_regra_comissao', false, 'alterou');
+    exception when insufficient_privilege then
+      res := pg_temp.chk(res, 'segurança', 'gerente não desliga comissões pela vw_regra_comissao', true);
+    end;
+
+    -- OS: da API só box, observações e previsão
+    perform pg_temp.como(au ->> 'recepcao');
+    foreach v_op in array array[
+      'origem = ''misto''', 'cliente_id = (select c.id from public.cliente c where c.id <> cliente_id limit 1)',
+      'veiculo_id = (select v.id from public.veiculo v where v.id <> veiculo_id limit 1)', 'motivo_cancelamento = ''x''',
+      'demo = not demo', 'criado_em = now() - interval ''1 day''', 'criado_por = null'] loop
+      begin
+        execute format('update public.os set %s where id = %L', v_op, v_os3);
+        res := pg_temp.chk(res, 'segurança', format('OS: recepção não muda direto (%s)', split_part(v_op, ' ', 1)), false, 'mudou');
+      exception when sqlstate 'DD001' then
+        res := pg_temp.chk(res, 'segurança', format('OS: recepção não muda direto (%s)', split_part(v_op, ' ', 1)), true);
+      end;
+    end loop;
+    begin
+      update public.os set box = 'Box checagem', observacoes = 'obs checagem', previsao_entrega = v_hoje + 7 where id = v_os3;
+      select count(*) into v_n from public.os where id = v_os3 and box = 'Box checagem' and previsao_entrega = v_hoje + 7;
+      res := pg_temp.chk(res, 'segurança', 'OS: recepção muda box, observações e previsão', v_n = 1, v_n::text);
+    exception when others then
+      res := pg_temp.chk(res, 'segurança', 'OS: recepção muda box, observações e previsão', false, sqlerrm);
+    end;
+
+    -- equipe: quem não é dono não mexe em dono, gerente nem financeiro
+    perform pg_temp.como(au ->> 'gestor');
+    r := public.salvar_funcionario(jsonb_build_object('id', pf ->> 'gestor2', 'nome', 'Checagem gestor2', 'papel', 'gestor', 'ativo', false));
+    res := pg_temp.esp(res, 'segurança', 'gerente não desativa outro gerente', r, 'sem_permissao');
+    r := public.salvar_funcionario(jsonb_build_object('id', pf ->> 'financeiro', 'nome', 'Checagem financeiro', 'papel', 'financeiro', 'ativo', false));
+    res := pg_temp.esp(res, 'segurança', 'gerente não desativa o financeiro', r, 'sem_permissao');
+    r := public.salvar_funcionario(jsonb_build_object('id', pf ->> 'dono', 'nome', 'Checagem dono', 'papel', 'dono', 'telefone', '+5541900000000'));
+    res := pg_temp.esp(res, 'segurança', 'gerente não edita o dono', r, 'sem_permissao');
+    r := public.salvar_funcionario(jsonb_build_object('id', pf ->> 'gestor', 'nome', 'Checagem gestor renomeado', 'papel', 'gestor'));
+    res := pg_temp.esp(res, 'segurança', 'gerente não edita o próprio cadastro de gerente', r, 'sem_permissao');
+    r := public.salvar_funcionario(jsonb_build_object('id', pf ->> 'producao2', 'nome', 'Checagem producao2', 'papel', 'producao', 'ativo', false));
+    res := pg_temp.esp(res, 'segurança', 'gerente desativa funcionário da produção', r);
+    perform pg_temp.como(au ->> 'dono');
+    r := public.salvar_funcionario(jsonb_build_object('id', pf ->> 'gestor2', 'nome', 'Checagem gestor2', 'papel', 'gestor', 'funcao', 'Gerente'));
+    res := pg_temp.esp(res, 'segurança', 'dono edita gerente', r);
+
+    -- configuração: banco valida; gerente não confirma o provisório
+    perform pg_temp.como(null);
+    select * into v_cfg from public.config_oficina where oficina_id = v_of;
+    perform pg_temp.como(au ->> 'gestor');
+    begin
+      update public.config_oficina
+         set provisorio = not v_cfg.provisorio, confirmado = '{"expediente":true,"semaforo":true}',
+             semaforo = v_cfg.semaforo || '{"laranjaAntesHoras":9}'
+       where oficina_id = v_of;
+    exception when others then
+      res := pg_temp.chk(res, 'segurança', 'config: gerente salva valores', false, sqlerrm);
+    end;
+    perform pg_temp.como(null);
+    select (c.semaforo ->> 'laranjaAntesHoras') = '9' and c.provisorio = v_cfg.provisorio and c.confirmado = v_cfg.confirmado
+      into v_b from public.config_oficina c where c.oficina_id = v_of;
+    res := pg_temp.chk(res, 'segurança', 'config: gerente salva valores, mas provisorio/confirmado ficam como estavam', v_b, null);
+    perform pg_temp.como(au ->> 'dono');
+    foreach v_op in array array[
+      '{"diasSemana":[],"inicio":"08:00","fim":"18:00"}', '{"diasSemana":[1,2,2],"inicio":"08:00","fim":"18:00"}',
+      '{"diasSemana":[1,7],"inicio":"08:00","fim":"18:00"}', '{"diasSemana":[1,2],"inicio":"18:00","fim":"08:00"}',
+      '{"diasSemana":[1,2],"inicio":"8h","fim":"18:00"}', '{"diasSemana":[1,6],"inicio":"08:00","fim":"18:00","sabadoFim":"07:00"}'] loop
+      begin
+        update public.config_oficina set expediente = v_op::jsonb where oficina_id = v_of;
+        res := pg_temp.chk(res, 'segurança', 'config: expediente inválido recusado ' || v_op, false, 'aceitou');
+      exception when sqlstate 'DD001' then
+        get stacked diagnostics v_t = message_text;
+        res := pg_temp.chk(res, 'segurança', 'config: expediente inválido recusado ' || v_op, v_t = 'config_invalida', v_t);
+      end;
+    end loop;
+    begin
+      update public.config_oficina set semaforo = '{"laranjaAntesHoras":-1,"vermelhoBloqueioHoras":4,"laranjaFracao":0.8}' where oficina_id = v_of;
+      res := pg_temp.chk(res, 'segurança', 'config: semáforo negativo recusado', false, 'aceitou');
+    exception when sqlstate 'DD001' then
+      res := pg_temp.chk(res, 'segurança', 'config: semáforo negativo recusado', true);
+    end;
+    update public.config_oficina set provisorio = false, confirmado = '{"expediente":true}' where oficina_id = v_of;
+    select not c.provisorio and c.confirmado = '{"expediente":true}' into v_b from public.config_oficina c where c.oficina_id = v_of;
+    res := pg_temp.chk(res, 'segurança', 'config: dono confirma (provisorio=false)', v_b, null);
+
+    -- estoque e custos: perfil e OS de outra oficina
+    perform pg_temp.como(null);
+    insert into public.oficina (nome) values ('Checagem outra oficina') returning id into v_outra;
+    insert into public.perfil (oficina_id, nome, papel) values (v_outra, 'Checagem outra', 'producao') returning id into v_outro_perfil;
+    insert into public.cliente (oficina_id, nome) values (v_outra, 'Checagem outro cliente') returning id into v_pid;
+    insert into public.veiculo (oficina_id, cliente_id, placa) values (v_outra, v_pid, 'ZZZ9Z90') returning id into v_uid;
+    insert into public.os (oficina_id, numero, veiculo_id, cliente_id, origem) values (v_outra, 1, v_uid, v_pid, 'particular') returning id into v_outra_os;
+    perform pg_temp.como(au ->> 'gestor');
+    r := public.movimentar_estoque(jsonb_build_object('materialId', v_mat, 'tipo', 'consumo_interno', 'quantidade', 1, 'perfilId', v_outro_perfil));
+    res := pg_temp.esp(res, 'segurança', 'estoque: perfil de outra oficina', r, 'perfil_inexistente');
+    r := public.movimentar_estoque(jsonb_build_object('materialId', v_mat, 'tipo', 'consumo_interno', 'quantidade', 1, 'osId', v_outra_os));
+    res := pg_temp.esp(res, 'segurança', 'estoque: OS de outra oficina', r, 'os_nao_encontrada');
+    r := public.movimentar_estoque(jsonb_build_object('materialId', v_mat, 'tipo', 'consumo_interno', 'quantidade', 1, 'osId', v_os1, 'perfilId', pf ->> 'producao'));
+    res := pg_temp.esp(res, 'segurança', 'estoque: perfil e OS da oficina', r);
+    perform pg_temp.como(au ->> 'financeiro');
+    r := public.lancar_custo(v_os1, jsonb_build_object('tipo', 'terceiro', 'descricao', 'Checagem', 'custoUnitario', 100, 'perfilId', v_outro_perfil));
+    res := pg_temp.esp(res, 'segurança', 'custo: perfil de outra oficina', r, 'perfil_inexistente');
+    r := public.lancar_custo(v_outra_os, jsonb_build_object('tipo', 'terceiro', 'descricao', 'Checagem', 'custoUnitario', 100));
+    res := pg_temp.esp(res, 'segurança', 'custo: OS de outra oficina', r, 'os_nao_encontrada');
+
+    -- entradas inválidas viram valor_invalido (sem erro cru do Postgres)
+    r := public.lancar_custo(v_os1, '{"tipo":"insumo","materialId":"nao-e-uuid","quantidade":1}');
+    res := pg_temp.esp(res, 'segurança', 'entrada: materialId inválido (lancar_custo)', r, 'valor_invalido');
+    r := public.criar_despesa(jsonb_build_object('descricao', 'X', 'categoriaId', 'abc', 'valorPrevisto', 100, 'vencimento', v_hoje));
+    res := pg_temp.esp(res, 'segurança', 'entrada: categoriaId inválido (criar_despesa)', r, 'valor_invalido');
+    perform pg_temp.como(au ->> 'gestor');
+    r := public.movimentar_estoque('{"materialId":"xyz","tipo":"consumo_interno","quantidade":1}');
+    res := pg_temp.esp(res, 'segurança', 'entrada: materialId inválido (movimentar_estoque)', r, 'valor_invalido');
+    r := public.movimentar_estoque(jsonb_build_object('materialId', v_mat, 'tipo', 'ajuste', 'sentido', 'mais', 'quantidade', 1, 'obs', 'x', 'em', 'ontem à tarde'));
+    res := pg_temp.esp(res, 'segurança', 'entrada: marco "em" inválido (movimentar_estoque)', r, 'valor_invalido');
+    r := public.movimentar_estoque(jsonb_build_object('materialId', v_mat, 'tipo', 'ajuste', 'sentido', 'mais', 'quantidade', 1e20, 'obs', 'x'));
+    res := pg_temp.esp(res, 'segurança', 'entrada: quantidade fora do limite (movimentar_estoque)', r, 'valor_invalido');
+    r := public.salvar_material(jsonb_build_object('id', v_mat, 'nome', 'Material checagem', 'unidade', 'L', 'saldoMinimo', 1, 'ultimaConferenciaEm', '2026-13-40'));
+    res := pg_temp.esp(res, 'segurança', 'entrada: data inválida (salvar_material)', r, 'data_invalida');
+    r := public.salvar_material(jsonb_build_object('id', 'x1', 'nome', 'Material checagem', 'unidade', 'L', 'saldoMinimo', 1));
+    res := pg_temp.esp(res, 'segurança', 'entrada: id inválido (salvar_material)', r, 'valor_invalido');
+    r := public.salvar_material(jsonb_build_object('id', v_mat, 'nome', 'Material checagem', 'unidade', 'L', 'saldoMinimo', 1, 'ativo', 'talvez'));
+    res := pg_temp.esp(res, 'segurança', 'entrada: booleano inválido (salvar_material)', r, 'valor_invalido');
+    r := public.salvar_funcionario('{"id":"nao-e-uuid","nome":"X","papel":"producao"}');
+    res := pg_temp.esp(res, 'segurança', 'entrada: id inválido (salvar_funcionario)', r, 'valor_invalido');
+    r := public.salvar_funcionario(jsonb_build_object('id', pf ->> 'producao', 'nome', 'Checagem Produção', 'papel', 'producao', 'ativo', 'sim'));
+    res := pg_temp.esp(res, 'segurança', 'entrada: ativo inválido (salvar_funcionario)', r, 'valor_invalido');
+    perform pg_temp.como(au ->> 'recepcao');
+    r := public.criar_atendimento_rapido('{"placa":"ZZZ9Z94","clienteId":"123","origem":"particular","pecas":[{"peca":"Capô","tecnica":"martelinho"}]}');
+    res := pg_temp.esp(res, 'segurança', 'entrada: clienteId inválido (criar_atendimento_rapido)', r, 'valor_invalido');
+    r := public.criar_atendimento_rapido('{"placa":"ZZZ9Z94","clienteNome":"X","origem":"particular","pecas":[{"peca":"Capô","tecnica":"martelinho","valor":1e40}]}');
+    res := pg_temp.esp(res, 'segurança', 'entrada: valor gigante (criar_atendimento_rapido)', r, 'valor_invalido');
+    r := public.salvar_tipo_reparo('{"nome":"Checagem bool","etapas":[{"ordem":1,"nome":"A","prazoPadraoHoras":1,"exigeFoto":"sim"}]}');
+    res := pg_temp.esp(res, 'segurança', 'entrada: booleano inválido (salvar_tipo_reparo)', r, 'valor_invalido');
+    r := public.salvar_tipo_reparo('{"id":"zz","nome":"Checagem id","etapas":[{"ordem":1,"nome":"A","prazoPadraoHoras":1}]}');
+    res := pg_temp.esp(res, 'segurança', 'entrada: id inválido (salvar_tipo_reparo)', r, 'valor_invalido');
+    r := public.adicionar_foto(v_os3, '{"id":"nao-e-uuid","fase":"entrada","caminho":"x"}');
+    res := pg_temp.esp(res, 'segurança', 'entrada: id inválido (adicionar_foto)', r, 'valor_invalido');
+    r := public.adicionar_foto(v_os3, jsonb_build_object('id', gen_random_uuid(), 'fase', 'durante', 'etapaId', 'e-1', 'caminho', 'x'));
+    res := pg_temp.esp(res, 'segurança', 'entrada: etapaId inválido (adicionar_foto)', r, 'valor_invalido');
 
     perform pg_temp.como(null);
     raise exception using errcode = 'DDTST';
