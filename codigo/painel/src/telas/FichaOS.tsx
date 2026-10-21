@@ -5,11 +5,12 @@ import { itensChecklist } from "@compartilhado/dominio/config";
 import { formatarReais } from "@compartilhado/dominio/dinheiro";
 import { formatarDocumento } from "@compartilhado/dominio/documento";
 import { estadoTitulo, saldoTitulo, valorAprovado } from "@compartilhado/dominio/financeiro";
-import { dataNoFuso, diferencaDias } from "@compartilhado/dominio/fuso";
+import { dataNoFuso, diferencaDias, paraMs } from "@compartilhado/dominio/fuso";
 import { formatarPlaca } from "@compartilhado/dominio/placa";
 import { progressoChecklist } from "@compartilhado/dominio/recepcao";
 import { semaforoEtapa, semaforoOS } from "@compartilhado/dominio/semaforo";
 import { formatarDuracao, tempoBloqueada, tempoEmExecucao, tempoEmFila } from "@compartilhado/dominio/tempos";
+import type { Fonte } from "@compartilhado/tipos";
 import { mensagemErro, useAcoes, useAgora, useConfig, useOS, usePagadores, usePerfis, useTiposReparo } from "../dados/hooks";
 import type { OSVisao } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
@@ -26,7 +27,7 @@ import {
   TECNICA,
   TIPO_PENDENCIA,
 } from "../dominio/rotulos";
-import { Botao, BotaoLink, Campo, Cartao, Erro, Esqueleto, Responsavel, Vazio } from "../componentes/ui/Basicos";
+import { Botao, BotaoLink, Campo, Cartao, Erro, Esqueleto, Responsavel, SUPERFICIE, Vazio } from "../componentes/ui/Basicos";
 import { ProgressoEtapas, nomePerfil } from "../componentes/ui/Carro";
 import { Etiqueta, Provisorio, Semaforo } from "../componentes/ui/Estado";
 import { Placa } from "../componentes/ui/Placa";
@@ -44,6 +45,8 @@ import { AbaRecepcao } from "../componentes/os/AbaRecepcao";
 import { AbaResultado } from "../componentes/os/AbaResultado";
 import { NivelCombustivelTexto } from "../componentes/recepcao/FormRecepcao";
 import { kmLegivel, nomeCarro } from "../componentes/os/formato";
+import { acaoPrimariaDoTopo, clienteDeve, numerosEtapas, prometidoAoCliente, textoEtapas, type ClienteDeve } from "../componentes/os/ficha";
+import { formatarPrazo } from "../componentes/producao/quadro";
 import { NumeroDemo } from "../componentes/clientes/Comuns";
 import { contatoClicavel } from "@compartilhado/dominio/clientes";
 import { BotaoEnviarOrcamento } from "../componentes/orcamento/BotaoEnviarOrcamento";
@@ -79,7 +82,7 @@ export function FichaOS() {
   const voltar = (
     <Link to="/orcamentos" className="inline-flex items-center gap-1.5 h-11 text-[13px] font-medium text-tinta-suave no-underline hover:text-tinta">
       <Icone nome="voltar" tamanho={16} />
-      Orçamentos
+      Atendimentos
     </Link>
   );
 
@@ -124,7 +127,7 @@ export function FichaOS() {
             icone="busca"
             titulo="OS não encontrada"
             texto="Ela pode ter sido removida junto com os dados de demonstração. Procure pela placa ou pelo protocolo na busca do topo."
-            acao={<BotaoLink para="/orcamentos">Ver todos os orçamentos</BotaoLink>}
+            acao={<BotaoLink para="/orcamentos">Ver todos os atendimentos</BotaoLink>}
           />
         </Cartao>
       </>
@@ -142,6 +145,10 @@ export function FichaOS() {
   const semaforo = v.etapas.length ? semaforoOS(v.os, v.etapas, agora, config.data) : "neutro";
   const ativo = !["encerrada", "cancelada"].includes(v.os.estado);
   const carro = nomeCarro(v.veiculo) || "Modelo não informado";
+  // o que o cliente paga na oficina (franquia/complemento/particular): só para quem vê dinheiro
+  const deve = sensivel && pagadores.data ? clienteDeve(v, pagadores.data) : null;
+  const primaria = podeAgir ? acaoPrimariaDoTopo(v.os.estado, deve?.falta ?? 0) : null;
+  const podePagar = (podeEditar(papel, "orcamentos") || podeEditar(papel, "recebiveis")) && v.os.estado !== "cancelada";
 
   const abas: Aba[] = ["geral", "recepcao"];
   if (custos) abas.push("custos", "resultado");
@@ -173,12 +180,14 @@ export function FichaOS() {
               Imprimir
             </Botao>
           )}
-          {podeEnviar && <BotaoEnviarOrcamento v={v} primario={emOrcamento} />}
+          {/* em "aguardando aprovação" o amarelo é o Registrar aprovação */}
+          {podeEnviar && <BotaoEnviarOrcamento v={v} primario={v.os.estado === "rascunho"} />}
         </div>
       </div>
 
       {/* ---------------- cabeçalho: placa, carro, cliente, estado e próxima ação */}
       <header className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] items-start mb-6">
+        <div className="flex flex-col gap-5 min-w-0">
         <div className="flex flex-col sm:flex-row items-start gap-x-6 gap-y-4 min-w-0">
           <Placa placa={v.veiculo.placa} tamanho="g" className="sm:mt-1" />
           <div className="min-w-0 flex-1">
@@ -214,7 +223,21 @@ export function FichaOS() {
             </div>
           </div>
         </div>
-        <ProximaAcao key={v.os.id} v={v} podeAgir={podeAgir} tipos={tipos.data} />
+        <Destaques
+          v={v}
+          agora={agora}
+          deve={deve}
+          // sem botão repetido: no Pagamentos o formulário já está na tela; com o amarelo da Próxima ação, ele basta
+          podePagar={podePagar && aba !== "pagamentos" && primaria !== "pagamento"}
+          onPagar={() => {
+            const p = new URLSearchParams(params);
+            p.set("aba", "pagamentos");
+            p.set("pagar", "1");
+            setParams(p, { replace: true });
+          }}
+        />
+        </div>
+        <ProximaAcao key={v.os.id} v={v} podeAgir={podeAgir} tipos={tipos.data} deve={deve} />
       </header>
 
       {/* ---------------- abas */}
@@ -257,6 +280,8 @@ export function FichaOS() {
           agora={agora}
           pagadores={pagadores.data ?? []}
           podeRegistrar={podeEditar(papel, "orcamentos") || podeEditar(papel, "recebiveis")}
+          deve={deve}
+          destaque={primaria === null || primaria === "pagamento"}
         />
       )}
 
@@ -271,7 +296,7 @@ export function FichaOS() {
             <SecaoCliente v={v} sensivel={sensivel} agora={agora} />
             {v.os.recepcao && <SecaoRecepcaoResumo v={v} config={config.data} onAbrir={() => irPara("recepcao")} />}
             {v.atendimentos.map((at) => (
-              <Cartao key={at.id} titulo="Atendimento externo" acao={<Proveniencia fonte={at.fonte} lidoEm={at.lidoEm} agora={agora} podeDesatualizar={ativo} />}>
+              <Cartao key={at.id} titulo="Atendimento externo" acao={<Origem fonte={at.fonte} lidoEm={at.lidoEm} agora={agora} podeDesatualizar={ativo} />}>
                 {at.estadoConciliacao !== "ok" && (
                   <p role="alert" className="px-4 py-2.5 bg-alerta-claro text-alerta text-[13px] font-medium border-b border-alerta/20">
                     {at.estadoConciliacao === "conflito" ? "Dados do portal divergem dos dados da oficina. Resolver antes de agendar." : "Vínculo com o portal ainda não conferido."}
@@ -303,6 +328,116 @@ export function FichaOS() {
         </div>
       )}
     </>
+  );
+}
+
+// ------------------------------------------------------------------ destaques do topo: entrega prometida e o que o cliente deve
+
+const maiuscula = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
+function Destaques({
+  v,
+  agora,
+  deve,
+  podePagar,
+  onPagar,
+}: {
+  v: OSVisao;
+  agora: MarcoISO;
+  deve: ClienteDeve | null;
+  podePagar: boolean;
+  onPagar: () => void;
+}) {
+  const prom = prometidoAoCliente(v.os.previsaoEntrega, v.os.estado, agora);
+  const entregueEm = ["entregue", "encerrada"].includes(v.os.estado) ? v.os.entregueEm : undefined;
+  const semData = !prom && ["na_oficina", "pronta"].includes(v.os.estado);
+  const temPrometido = Boolean(prom || semData || entregueEm);
+  if (!temPrometido && !deve) return null;
+  const rotulo = "text-[13px] font-medium text-tinta-suave";
+  const grande = "text-[24px] font-semibold leading-none tracking-[-0.01em] numero";
+  return (
+    <div className={`${SUPERFICIE} grid ${temPrometido && deve ? "sm:grid-cols-2" : ""} max-sm:[&>*+*]:border-t sm:[&>*+*]:border-l [&>*]:border-linha`}>
+      {temPrometido && (
+        <section aria-label="Entrega prometida ao cliente" className="px-4 py-3.5 min-w-0">
+          {entregueEm ? (
+            <>
+              <p className={rotulo}>Entregue ao cliente</p>
+              <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <span className={grande}>{diaCurto(dataNoFuso(entregueEm))}</span>
+                {v.os.previsaoEntrega && <span className="text-[13px] text-tinta-suave numero">prometido {diaCurto(v.os.previsaoEntrega)}</span>}
+              </p>
+            </>
+          ) : prom ? (
+            <>
+              <p className={rotulo}>Prometido ao cliente</p>
+              <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <span className={`${grande} ${prom.tom === "alerta" ? "text-alerta" : ""}`}>{diaCurto(prom.data)}</span>
+                <Etiqueta tom={prom.tom}>{maiuscula(prom.relativo)}</Etiqueta>
+              </p>
+            </>
+          ) : (
+            <>
+              <p className={rotulo}>Prometido ao cliente</p>
+              <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <span className={`${grande} text-tinta-fraca`}>Sem data</span>
+                <Etiqueta tom="atencao">Combinar com o cliente</Etiqueta>
+              </p>
+            </>
+          )}
+        </section>
+      )}
+      {deve && (
+        <section aria-label="O que o cliente deve" className="px-4 py-3.5 min-w-0 flex flex-wrap items-end justify-between gap-x-4 gap-y-2.5">
+          <div className="min-w-0">
+            <p className={rotulo}>Cliente deve</p>
+            <p className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className={grande}>{formatarReais(deve.total)}</span>
+              <span className="text-[13px] text-tinta-suave">
+                {deve.semFranquia ? "sem franquia" : deve.partes.map((p) => p.nome.toLowerCase()).join(" + ")}
+              </span>
+            </p>
+            {!deve.semFranquia && (
+              <p className="mt-1.5 text-[13px] numero">
+                {deve.falta === 0 ? (
+                  <Etiqueta tom="ok">Pago</Etiqueta>
+                ) : (
+                  <>
+                    <span className="text-tinta-suave">Pago {formatarReais(deve.pago)}</span>
+                    <span className="text-tinta-fraca" aria-hidden="true"> · </span>
+                    <span className="font-semibold text-atencao">falta {formatarReais(deve.falta)}</span>
+                  </>
+                )}
+              </p>
+            )}
+          </div>
+          {podePagar && deve.falta > 0 && (
+            <Botao variante="contorno" icone="recebiveis" onClick={onPagar}>
+              Registrar pagamento
+            </Botao>
+          )}
+        </section>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Origem do dado (informações §6.1) sem pesar na ficha: só a fonte à vista, data e hora na dica.
+ * Leitura com mais de 24 h volta a ser a etiqueta vermelha completa (dado desatualizado é estado, não ruído).
+ */
+function Origem({ fonte, lidoEm, agora, podeDesatualizar = true }: { fonte: Fonte; lidoEm?: MarcoISO; agora: MarcoISO; podeDesatualizar?: boolean }) {
+  const desatualizado = podeDesatualizar && lidoEm !== undefined && paraMs(agora) - paraMs(lidoEm) > 24 * 3_600_000;
+  if (desatualizado) return <Proveniencia fonte={fonte} lidoEm={lidoEm} agora={agora} podeDesatualizar />;
+  const nome = fonte === "manual" ? "manual" : fonte === "api" ? "API" : "Maxpar";
+  const dica = `${fonte === "manual" ? "Digitado no painel" : "Lido do portal"}${lidoEm ? ` em ${marcoCurto(lidoEm)}` : ""}`;
+  return (
+    <span
+      title={dica}
+      className={`inline-flex items-center gap-1 h-6 px-2 rounded-controle text-[12px] font-medium leading-none cursor-help ${fonte === "manual" ? "bg-cinza-100 text-tinta-suave" : "bg-maxpar-claro text-maxpar"}`}
+    >
+      {nome}
+      <span className="sr-only">: {dica}</span>
+    </span>
   );
 }
 
@@ -472,31 +607,40 @@ function SecaoProducao({
   semaforo: ReturnType<typeof semaforoOS>;
 }) {
   const atual = v.etapas.find((e) => ["na_fila", "em_execucao", "bloqueada"].includes(e.estado));
+  const numeros = numerosEtapas(v.etapas);
   return (
     <Cartao
       titulo="Produção"
       acao={v.os.estado === "na_oficina" ? <VerTudo para="/producao" rotulo="Abrir o quadro da produção">Quadro</VerTudo> : undefined}
     >
       {v.etapas.length === 0 ? (
-        <LinhaVazia>As etapas aparecem quando a entrada do carro for registrada: o tipo de reparo define a sequência.</LinhaVazia>
+        <LinhaVazia>Sem etapas até a entrada do carro.</LinhaVazia>
       ) : (
         <>
           <div className="px-4 py-3 border-b border-linha">
-            <ProgressoEtapas etapas={v.etapas} semaforo={atual ? semaforoEtapa(atual, agora, config) : semaforo} />
-            <p className="mt-2 text-[13px] text-tinta-suave numero flex flex-wrap gap-x-3 gap-y-1">
+            <ProgressoEtapas etapas={v.etapas} semaforo={atual ? semaforoEtapa(atual, agora, config) : semaforo} mostrarTexto={false} />
+            <p className="mt-2 text-[13px] text-tinta-suave numero">
+              {textoEtapas(v.etapas)}
+              {atual && (
+                <>
+                  {" · "}
+                  <span className="font-medium text-tinta">{atual.nome}</span>
+                </>
+              )}
+            </p>
+            <p className="mt-1 text-[13px] text-tinta-suave numero flex flex-wrap gap-x-3 gap-y-1">
               {v.tipoReparo && (
                 <span>
                   {v.tipoReparo.provisorio ? <Provisorio>{v.tipoReparo.nome}</Provisorio> : v.tipoReparo.nome}
                 </span>
               )}
               {v.os.entradaRealEm && <span>entrada {marcoCurto(v.os.entradaRealEm)}</span>}
-              {v.os.previsaoEntrega && <span className="font-semibold text-tinta">entrega prevista {diaCurto(v.os.previsaoEntrega)}</span>}
               {v.os.box && <span>{v.os.box}</span>}
             </p>
           </div>
           <ol>
             {v.etapas.map((e) => (
-              <LinhaEtapa key={e.id} e={e} agora={agora} config={config} perfis={perfis} />
+              <LinhaEtapa key={e.id} e={e} numero={numeros.get(e.id) ?? null} agora={agora} config={config} perfis={perfis} />
             ))}
           </ol>
         </>
@@ -505,7 +649,7 @@ function SecaoProducao({
   );
 }
 
-function LinhaEtapa({ e, agora, config, perfis }: { e: EtapaOS; agora: MarcoISO; config: ConfigOficina; perfis: Perfil[] }) {
+function LinhaEtapa({ e, numero, agora, config, perfis }: { e: EtapaOS; numero: number | null; agora: MarcoISO; config: ConfigOficina; perfis: Perfil[] }) {
   const est = ESTADO_ETAPA[e.estado];
   const ativa = ["na_fila", "em_execucao", "bloqueada"].includes(e.estado);
   const cor = ativa ? semaforoEtapa(e, agora, config) : "neutro";
@@ -521,7 +665,10 @@ function LinhaEtapa({ e, agora, config, perfis }: { e: EtapaOS; agora: MarcoISO;
         ativa ? "bg-amarelo-claro/60" : ""
       }`}
     >
-      <span className={`numero font-semibold text-[13px] ${e.estado === "concluida" ? "text-ok" : "text-tinta-suave"}`}>{e.ordem}</span>
+      {/* dispensada não leva número: a lista bate com "Etapa 2 de 3" */}
+      <span className={`numero font-semibold text-[13px] ${e.estado === "concluida" ? "text-ok" : "text-tinta-suave"}`}>
+        {numero ?? <span className="text-tinta-fraca" aria-label="dispensada">–</span>}
+      </span>
       <span className="min-w-0">
         <span className={`block font-medium ${e.estado === "dispensada" ? "line-through text-tinta-fraca" : ""}`}>{e.nome}</span>
         <span className="block text-[12px] text-tinta-suave numero">
@@ -535,7 +682,7 @@ function LinhaEtapa({ e, agora, config, perfis }: { e: EtapaOS; agora: MarcoISO;
       </span>
       <span className="flex flex-col items-end gap-1">
         {ativa ? <Semaforo valor={cor} texto={e.estado === "bloqueada" ? "Impedida" : undefined} /> : <Etiqueta tom={est.tom}>{est.texto}</Etiqueta>}
-        {ativa && e.prazoEm && <span className="text-[12px] text-tinta-suave numero">até {marcoCurto(e.prazoEm)}</span>}
+        {ativa && e.prazoEm && <span className="text-[12px] text-tinta-suave numero">até {formatarPrazo(e.prazoEm, agora)}</span>}
       </span>
     </li>
   );
@@ -553,13 +700,7 @@ function SecaoFotos({ v, perfis }: { v: OSVisao; perfis: Perfil[] }) {
       acao={<VerTudo para={`/vistorias?os=${v.os.id}`} rotulo="Abrir as vistorias desta OS">Vistorias</VerTudo>}
     >
       {v.fotos.length === 0 ? (
-        <LinhaVazia>
-          Nenhuma foto ainda. As fotos de entrada (panorâmica com placa e cada peça) são tiradas em{" "}
-          <Link to={`/vistorias?os=${v.os.id}`} className="font-medium text-tinta underline underline-offset-4">
-            Vistorias
-          </Link>
-          .
-        </LinhaVazia>
+        <LinhaVazia>Nenhuma foto ainda.</LinhaVazia>
       ) : (
         <div className="flex flex-wrap gap-x-8 gap-y-4 px-4 py-3">
           {FASES.map((fase) => {
@@ -603,13 +744,13 @@ function SecaoCliente({ v, sensivel, agora }: { v: OSVisao; sensivel: boolean; a
   const prov = v.cliente.proveniencia?.nome;
   return (
     <Cartao titulo="Cliente e veículo">
-      {prov && (
-        <p className="px-4 pt-3">
-          <Proveniencia fonte={prov.fonte} lidoEm={prov.lidoEm} agora={agora} podeDesatualizar={false} />
-        </p>
-      )}
       <dl className="m-0 px-4 py-1">
-        <Campo nome="Cliente">{v.cliente.nome}</Campo>
+        <Campo nome="Cliente">
+          <span className="inline-flex flex-wrap items-center gap-2">
+            {v.cliente.nome}
+            {prov && <Origem fonte={prov.fonte} lidoEm={prov.lidoEm} agora={agora} podeDesatualizar={false} />}
+          </span>
+        </Campo>
         {sensivel && v.cliente.documento && (
           <Campo nome={v.cliente.documento.length > 11 ? "CNPJ" : "CPF"}>
             <span className="numero select-all">{formatarDocumento(v.cliente.documento)}</span>

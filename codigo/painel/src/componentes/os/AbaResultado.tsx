@@ -2,14 +2,15 @@ import type { ReactNode } from "react";
 import { receitaOS, resultadoOS } from "@compartilhado/dominio/custos";
 import { formatarReais } from "@compartilhado/dominio/dinheiro";
 import type { OSVisao } from "../../dados/repositorio";
-import { Cartao, FaixaIndicadores, Indicador } from "../ui/Basicos";
+import { Botao, Cartao, FaixaIndicadores, Indicador } from "../ui/Basicos";
 import { Icone } from "../Icone";
 
 const pct = (f: number | null) => (f === null ? "—" : `${(f * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`);
 
 /**
  * Aba Resultado (só dono, gestor e financeiro — veCustosOS): receita, custos por tipo e margem em R$ e %,
- * com barra de composição. Avisa quando ainda não há custo lançado (margem 100 % engana).
+ * com barra de composição. Enquanto o carro não foi entregue, ou faltam insumos ou mão de obra, o título é
+ * "Resultado parcial": a margem só cai daqui em diante (margem alta com pouco custo lançado engana).
  */
 export function AbaResultado({ v, onIrCustos }: { v: OSVisao; onIrCustos?: () => void }) {
   const receita = receitaOS({ versoes: v.versoes, titulos: v.titulos });
@@ -17,6 +18,14 @@ export function AbaResultado({ v, onIrCustos }: { v: OSVisao; onIrCustos?: () =>
   const externo = v.versoes.find((x) => x.id === receita.versaoId)?.tipo === "externo";
   const negativa = r.margem < 0;
   const semCusto = v.custos.length === 0;
+  const naoTerminou = !["entregue", "encerrada"].includes(v.os.estado);
+  const faltando = [r.custoMaoDeObra === 0 && "mão de obra", r.custoInsumos === 0 && "insumos"].filter(Boolean) as string[];
+  const parcial = receita.aprovada && (naoTerminou || faltando.length > 0);
+  const porque = semCusto
+    ? "Nenhum custo lançado ainda."
+    : naoTerminou
+      ? `O carro ainda não saiu: a margem cai conforme os custos entram${faltando.length ? ` (falta ${faltando.join(" e ")})` : ""}.`
+      : `Falta lançar ${faltando.join(" e ")}.`;
 
   const partes = [
     { nome: "Insumos", valor: r.custoInsumos, cor: "bg-tinta" },
@@ -31,17 +40,25 @@ export function AbaResultado({ v, onIrCustos }: { v: OSVisao; onIrCustos?: () =>
       {!receita.aprovada && (
         <Nota>Ainda não há orçamento aprovado. A receita entra quando a aprovação for registrada.</Nota>
       )}
-      {semCusto && receita.aprovada && (
-        <Nota acao={onIrCustos && <button type="button" onClick={onIrCustos} className="font-semibold underline underline-offset-4 decoration-atencao/50 hover:decoration-atencao">Lançar custos</button>}>
-          Nenhum custo lançado nesta OS. A margem abaixo ainda não desconta insumos nem mão de obra.
-        </Nota>
+      {parcial && (
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="min-w-0">
+            <h2 className="text-[16px] font-semibold">Resultado parcial</h2>
+            <p className="mt-0.5 text-[13px] text-tinta-suave">{porque}</p>
+          </div>
+          {onIrCustos && (semCusto || faltando.length > 0) && (
+            <Botao tamanho="denso" variante="contorno" icone="mais" onClick={onIrCustos}>
+              Lançar custos
+            </Botao>
+          )}
+        </div>
       )}
 
       <FaixaIndicadores colunas={4}>
         <Indicador rotulo={externo ? "Receita (autorizado)" : "Receita (aprovado)"} valor={formatarReais(receita.valor)} detalhe={receita.complemento > 0 ? `inclui ${formatarReais(receita.complemento)} de complemento` : undefined} />
         <Indicador rotulo="Custos" valor={formatarReais(r.custoTotal)} detalhe={`${v.custos.length} ${v.custos.length === 1 ? "lançamento" : "lançamentos"}`} />
-        <Indicador rotulo="Margem" valor={formatarReais(r.margem)} alerta={negativa} />
-        <Indicador rotulo="Margem %" valor={pct(r.margemPct)} alerta={negativa} />
+        <Indicador rotulo={parcial ? "Margem até agora" : "Margem"} valor={formatarReais(r.margem)} alerta={negativa} />
+        <Indicador rotulo={parcial ? "Margem % até agora" : "Margem %"} valor={pct(r.margemPct)} alerta={negativa} />
       </FaixaIndicadores>
 
       <Cartao titulo="Demonstrativo">

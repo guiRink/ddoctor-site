@@ -1,23 +1,30 @@
 import { useId, useState, type FormEvent, type ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { TipoReparo } from "@compartilhado/tipos";
-import { etapaAtual, progressoEtapas } from "@compartilhado/dominio/semaforo";
+import { formatarReais } from "@compartilhado/dominio/dinheiro";
+import { etapaAtual } from "@compartilhado/dominio/semaforo";
 import { mensagemErro, useAcoes } from "../../dados/hooks";
 import type { OSVisao } from "../../dados/repositorio";
 import { JANELA } from "../../dominio/rotulos";
 import { Botao, BotaoLink, SUPERFICIE } from "../ui/Basicos";
 import { Icone } from "../Icone";
 import { ReceberCarro } from "../recepcao/ReceberCarro";
+import { acaoPrimariaDoTopo, faltasParaEntregar, textoEtapas, type ClienteDeve } from "../os/ficha";
 import { diaCurto } from "./formato";
 
 /**
- * Próxima ação da OS conforme o estado (arq. §7.2). O botão primário é a única ação em amarelo da ficha.
- * Aprovação e entrega abrem aqui mesmo, ao lado do botão; a entrada abre o fluxo "Receber o carro"
- * (painel lateral com dados, checklist e avarias).
+ * Próxima ação da OS conforme o estado (arq. §7.2). O botão primário é a única ação em amarelo da ficha
+ * (acaoPrimariaDoTopo). Aprovação e entrega abrem aqui mesmo, ao lado do botão; a entrada abre o fluxo
+ * "Receber o carro" (painel lateral com dados, checklist e avarias).
+ * Entrega: se o cliente ainda deve (franquia, complemento, particular) ou não há foto de saída, avisa o que
+ * falta e deixa seguir ("Entregar mesmo assim"); travar é decisão do dono.
+ * `deve` só chega para quem vê dinheiro (veDadosSensiveis); sem ele, nada de valores aqui.
  */
 type Painel = null | "aprovacao" | "entrada" | "entrega";
 
-export function ProximaAcao({ v, podeAgir, tipos }: { v: OSVisao; podeAgir: boolean; tipos: TipoReparo[] }) {
+export function ProximaAcao({ v, podeAgir, tipos, deve = null }: { v: OSVisao; podeAgir: boolean; tipos: TipoReparo[]; deve?: ClienteDeve | null }) {
   const acoes = useAcoes();
+  const [params, setParams] = useSearchParams();
   const [painel, setPainel] = useState<Painel>(null);
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
@@ -53,7 +60,22 @@ export function ProximaAcao({ v, podeAgir, tipos }: { v: OSVisao; podeAgir: bool
   let texto: ReactNode = null;
   let botoes: ReactNode = null;
   const atual = etapaAtual(v.etapas);
-  const prog = progressoEtapas(v.etapas);
+  const falta = deve?.falta ?? 0;
+  const primaria = acaoPrimariaDoTopo(os.estado, falta);
+  const naAbaPagamentos = params.get("aba") === "pagamentos";
+  const irParaPagamento = () => {
+    const p = new URLSearchParams(params);
+    p.set("aba", "pagamentos");
+    p.set("pagar", "1");
+    setParams(p, { replace: true });
+    setPainel(null);
+  };
+  // no Pagamentos o formulário já é a ação: o botão daqui sairia repetido (e seria um segundo amarelo)
+  const botaoPagamento = !naAbaPagamentos && (
+    <Botao variante="primario" icone="recebiveis" onClick={irParaPagamento}>
+      Registrar pagamento
+    </Botao>
+  );
   const abertas = v.pendencias.filter((p) => p.estado === "aberta" || p.estado === "em_andamento").length;
 
   switch (os.estado) {
@@ -104,27 +126,43 @@ export function ProximaAcao({ v, podeAgir, tipos }: { v: OSVisao; podeAgir: bool
       break;
     case "na_oficina":
       texto = atual
-        ? `${atual.estado === "bloqueada" ? "Impedido em" : atual.estado === "na_fila" ? "Na fila de" : "Em"} ${atual.nome} (${prog.concluidas} de ${prog.total} etapas feitas)${os.previsaoEntrega ? ` · entrega prevista ${diaCurto(os.previsaoEntrega)}` : ""}.`
+        ? `${atual.estado === "bloqueada" ? "Impedido em" : atual.estado === "na_fila" ? "Na fila de" : "Em"} ${atual.nome} · ${textoEtapas(v.etapas).replace(/^Etapa/, "etapa")}.`
         : "Em produção.";
       botoes = (
-        <BotaoLink para="/producao" variante="primario" icone="producao">
+        <BotaoLink para="/producao" variante="contorno" icone="producao">
           Ver na produção
         </BotaoLink>
       );
       break;
     case "pronta":
-      texto = "Pronto. Registre a entrega quando o cliente retirar o carro.";
+      texto =
+        primaria === "pagamento"
+          ? `Pronto. Receba ${formatarReais(falta)} do cliente antes de entregar.`
+          : "Pronto. Registre a entrega quando o cliente retirar o carro.";
       botoes = (
-        <Botao variante="primario" icone="ok" onClick={() => abrir("entrega")} aria-expanded={painel === "entrega"}>
-          Registrar entrega
-        </Botao>
+        <>
+          {primaria === "pagamento" && botaoPagamento}
+          <Botao
+            variante={primaria === "entrega" ? "primario" : "contorno"}
+            icone="ok"
+            onClick={() => abrir("entrega")}
+            aria-expanded={painel === "entrega"}
+          >
+            Registrar entrega
+          </Botao>
+        </>
       );
       break;
     case "entregue":
-      texto = abertas > 0 ? `Entregue. Falta ${abertas === 1 ? "1 ação" : `${abertas} ações`} no portal (veja Pendências).` : "Entregue. Aguardando o recebimento para encerrar.";
+      if (primaria === "pagamento") {
+        texto = `Entregue. Falta receber ${formatarReais(falta)} do cliente.`;
+        botoes = botaoPagamento || null;
+      } else {
+        texto = abertas > 0 ? `Entregue. Falta ${abertas === 1 ? "1 ação" : `${abertas} ações`} no portal (veja Pendências).` : "Entregue. Aguardando o recebimento para fechar.";
+      }
       break;
     case "encerrada":
-      texto = "OS encerrada: serviço entregue e recebido.";
+      texto = "Fechado: serviço entregue e recebido.";
       break;
     case "cancelada":
       texto = "OS cancelada.";
@@ -146,6 +184,7 @@ export function ProximaAcao({ v, podeAgir, tipos }: { v: OSVisao; podeAgir: bool
   }
 
   const idErro = `${idBase}-erro`;
+  const faltas = painel === "entrega" ? faltasParaEntregar(v, deve) : [];
 
   return (
     <section aria-label="Próxima ação" className={`${SUPERFICIE} p-4 min-w-0`}>
@@ -190,11 +229,44 @@ export function ProximaAcao({ v, podeAgir, tipos }: { v: OSVisao; podeAgir: bool
 
       {painel === "entrega" && (
         <form onSubmit={enviarEntrega} className="mt-3 flex flex-col gap-3" noValidate>
-          <p className="text-[13px]">
-            Confirme que o cliente retirou o carro.
-            {v.atendimentos.length > 0 && " Uma pendência “Encerrar no portal” será criada para a recepção."}
-          </p>
-          <Rodape erro={erro} idErro={idErro} ocupado={ocupado} confirmar="Confirmar entrega" onCancelar={() => abrir(null)} />
+          {faltas.length > 0 ? (
+            <div role="alert" className="px-3 py-2.5 rounded-controle border border-atencao/25 bg-atencao-claro text-atencao">
+              <p className="flex items-center gap-2 text-[13px] font-semibold">
+                <Icone nome="alerta" tamanho={16} className="shrink-0" />
+                Antes de entregar, falta:
+              </p>
+              <ul className="mt-1 pl-6 list-disc text-[14px] font-medium">
+                {faltas.map((f) => (
+                  <li key={f.tipo}>{f.texto}</li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="text-[13px]">Confirme que o cliente retirou o carro.</p>
+          )}
+          {faltas.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {faltas.map((f, i) =>
+                f.tipo === "pagamento" ? (
+                  <Botao key={f.tipo} variante={i === 0 ? "primario" : "contorno"} icone="recebiveis" onClick={irParaPagamento} disabled={ocupado}>
+                    Registrar pagamento
+                  </Botao>
+                ) : (
+                  <BotaoLink key={f.tipo} para={`/vistorias?os=${os.id}`} variante={i === 0 ? "primario" : "contorno"} icone="camera">
+                    Adicionar foto
+                  </BotaoLink>
+                ),
+              )}
+            </div>
+          )}
+          <Rodape
+            erro={erro}
+            idErro={idErro}
+            ocupado={ocupado}
+            confirmar={faltas.length > 0 ? "Entregar mesmo assim" : "Confirmar entrega"}
+            primario={faltas.length === 0}
+            onCancelar={() => abrir(null)}
+          />
         </form>
       )}
 
@@ -213,12 +285,14 @@ function Rodape({
   idErro,
   ocupado,
   confirmar,
+  primario = true,
   onCancelar,
 }: {
   erro: string;
   idErro: string;
   ocupado: boolean;
   confirmar: string;
+  primario?: boolean;
   onCancelar: () => void;
 }) {
   return (
@@ -229,7 +303,7 @@ function Rodape({
         </p>
       )}
       <div className="flex flex-wrap gap-2">
-        <Botao type="submit" variante="primario" disabled={ocupado}>
+        <Botao type="submit" variante={primario ? "primario" : "contorno"} disabled={ocupado}>
           {ocupado ? "Salvando…" : confirmar}
         </Botao>
         <Botao variante="fantasma" onClick={onCancelar} disabled={ocupado}>

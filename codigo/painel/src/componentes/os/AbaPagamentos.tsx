@@ -1,25 +1,43 @@
-import { useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useState, type FormEvent } from "react";
+import { useSearchParams } from "react-router-dom";
 import { FORMAS_PAGAMENTO, type FormaPagamento, type MarcoISO, type Pagador } from "@compartilhado/tipos";
 import { formatarReais, reaisParaCentavos } from "@compartilhado/dominio/dinheiro";
 import { estadoTitulo, saldoTitulo } from "@compartilhado/dominio/financeiro";
 import { dataNoFuso } from "@compartilhado/dominio/fuso";
 import { receitaOS } from "@compartilhado/dominio/custos";
-import { resumoPagamentosOS, saldoACobrarCliente, titulosDoCliente } from "@compartilhado/dominio/pagamentos";
+import { resumoPagamentosOS } from "@compartilhado/dominio/pagamentos";
 import { mensagemErro, useAcoes } from "../../dados/hooks";
 import type { OSVisao } from "../../dados/repositorio";
 import { ESTADO_TITULO, FORMA_PAGAMENTO } from "../../dominio/rotulos";
 import { descritoPor, formaLegivel } from "./formato";
+import type { ClienteDeve } from "./ficha";
 import { Botao, Cartao, FaixaIndicadores, Indicador } from "../ui/Basicos";
 import { Etiqueta } from "../ui/Estado";
 import { dataCurta, diaCurto } from "../orcamentos/formato";
 import { AreaTexto, Aviso, CLASSE_CAMPO, CampoComAfixo, Grupo, OpcoesEmGrade, Selecao } from "../ui/Campos";
 
 /**
- * Aba Pagamentos (quem vê dinheiro: veDadosSensiveis — nunca produção nem TV): total, recebido e saldo
- * dos títulos da OS, formulário de pagamento (vira baixa no título do cliente) e a lista de baixas.
- * Cliente sem nada a pagar (títulos dele quitados e nada mais a cobrar): no lugar do formulário, "Quitada".
+ * Aba Pagamentos (quem vê dinheiro: veDadosSensiveis — nunca produção nem TV). No topo, o total da OS
+ * (o autorizado/aprovado, mesmo antes de existir título), o recebido e o que falta. À esquerda, "Cliente deve":
+ * franquia e complemento (ou o serviço particular) desde a aprovação, com pago e falta, e o formulário de
+ * pagamento (vira baixa no título do cliente). À direita, as baixas e os títulos.
+ * `destaque`: o botão do formulário é o amarelo da tela (a Próxima ação não tem outro). `?pagar=1` foca o valor.
  */
-export function AbaPagamentos({ v, agora, pagadores, podeRegistrar }: { v: OSVisao; agora: MarcoISO; pagadores: Pagador[]; podeRegistrar: boolean }) {
+export function AbaPagamentos({
+  v,
+  agora,
+  pagadores,
+  podeRegistrar,
+  deve,
+  destaque = true,
+}: {
+  v: OSVisao;
+  agora: MarcoISO;
+  pagadores: Pagador[];
+  podeRegistrar: boolean;
+  deve: ClienteDeve | null;
+  destaque?: boolean;
+}) {
   const hoje = dataNoFuso(agora);
   const resumo = resumoPagamentosOS(v.titulos);
   const titulos = v.titulos.filter((t) => t.estado !== "cancelado");
@@ -28,35 +46,28 @@ export function AbaPagamentos({ v, agora, pagadores, podeRegistrar }: { v: OSVis
     .sort((a, b) => b.b.recebidoEm.localeCompare(a.b.recebidoEm));
   const pagador = (id: string) => pagadores.find((p) => p.id === id)?.nome ?? "Pagador não informado";
   const ativa = podeRegistrar && v.os.estado !== "cancelada";
-  // o mesmo critério do repositório (os_quitada): títulos do cliente sem saldo e nada mais a cobrar dele
-  const doCliente = titulosDoCliente(titulos, pagadores);
-  const vigente = v.versoes.find((x) => x.id === receitaOS({ versoes: v.versoes, titulos: v.titulos }).versaoId);
-  const aCobrar = saldoACobrarCliente({ origem: v.os.origem, versao: vigente, titulosCliente: doCliente });
-  const clienteQuitado = doCliente.length > 0 && doCliente.every((t) => saldoTitulo(t) === 0) && aCobrar <= 0;
-  const tudoQuitado = clienteQuitado && resumo.saldo === 0;
+  // antes da entrega ainda não há título: o total é o orçamento aprovado (+ complemento)
+  const receita = receitaOS({ versoes: v.versoes, titulos: v.titulos });
+  const total = Math.max(resumo.total, receita.valor);
+  const falta = Math.max(0, total - resumo.recebido);
+  const parteCliente = deve?.total ?? 0;
+  const parteSeguradora = v.os.origem === "particular" ? 0 : Math.max(0, total - parteCliente);
+  const vencido = titulos.some((t) => estadoTitulo(t, hoje) === "vencido");
 
   return (
     <div className="flex flex-col gap-6">
       <FaixaIndicadores colunas={3}>
-        <Indicador rotulo="Total da OS" valor={formatarReais(resumo.total)} detalhe={`${titulos.length} ${titulos.length === 1 ? "título" : "títulos"}`} />
+        <Indicador
+          rotulo="Total da OS"
+          valor={formatarReais(total)}
+          detalhe={parteSeguradora > 0 ? `${formatarReais(parteCliente)} do cliente · ${formatarReais(parteSeguradora)} da seguradora` : undefined}
+        />
         <Indicador rotulo="Recebido" valor={formatarReais(resumo.recebido)} detalhe={`${baixas.length} ${baixas.length === 1 ? "pagamento" : "pagamentos"}`} />
-        <Indicador rotulo="Saldo a receber" valor={formatarReais(resumo.saldo)} alerta={titulos.some((t) => estadoTitulo(t, hoje) === "vencido")} detalhe={resumo.total > 0 && resumo.saldo === 0 ? "quitado" : undefined} />
+        <Indicador rotulo="Falta receber" valor={formatarReais(falta)} alerta={vencido} detalhe={total > 0 && falta === 0 ? "quitado" : vencido ? "há título vencido" : undefined} />
       </FaixaIndicadores>
 
-      <div className={`grid gap-6 items-start ${ativa ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]" : ""}`}>
-        {ativa && !clienteQuitado && <FormPagamento v={v} hoje={hoje} />}
-        {ativa && clienteQuitado && (
-          <Cartao titulo="Registrar pagamento" acao={<Etiqueta tom="ok">{tudoQuitado ? "Quitada" : "Cliente quitado"}</Etiqueta>}>
-            <p className="px-4 py-4 text-[14px]">
-              {tudoQuitado ? "Quitada: não há saldo a receber nesta OS." : "O cliente já quitou a parte dele."}
-              <span className="block mt-1 text-[13px] text-tinta-suave">
-                {tudoQuitado
-                  ? "Todos os títulos foram recebidos."
-                  : `Falta receber ${formatarReais(resumo.saldo)} de outro pagador; a baixa é feita em Recebíveis.`}
-              </span>
-            </p>
-          </Cartao>
-        )}
+      <div className="grid gap-6 items-start lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+        <CartaoClienteDeve v={v} hoje={hoje} deve={deve} ativa={ativa} destaque={destaque} />
 
         <div className="flex flex-col gap-6 min-w-0">
           <Cartao titulo="Pagamentos recebidos" contagem={baixas.length}>
@@ -86,7 +97,7 @@ export function AbaPagamentos({ v, agora, pagadores, podeRegistrar }: { v: OSVis
           <Cartao titulo="Títulos da OS" contagem={titulos.length}>
             {titulos.length === 0 ? (
               <p className="px-4 py-4 text-[13px] text-tinta-suave">
-                Nenhum título ainda. Os títulos da seguradora e da franquia são sugeridos na entrega; um pagamento registrado aqui cria o título do cliente.
+                Nenhum título ainda. Os títulos saem na entrega.
               </p>
             ) : (
               <ul className="divide-y divide-linha">
@@ -121,10 +132,50 @@ export function AbaPagamentos({ v, agora, pagadores, podeRegistrar }: { v: OSVis
   );
 }
 
-function FormPagamento({ v, hoje }: { v: OSVisao; hoje: string }) {
+const paraCampo = (centavos: number) => (centavos / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** "Cliente deve": as partes (franquia, complemento, particular), pago e falta; o formulário enquanto falta. */
+function CartaoClienteDeve({ v, hoje, deve, ativa, destaque }: { v: OSVisao; hoje: string; deve: ClienteDeve | null; ativa: boolean; destaque: boolean }) {
+  const quitado = deve !== null && deve.total > 0 && deve.falta === 0;
+  const etiqueta = !deve ? undefined : deve.semFranquia ? (
+    <Etiqueta tom="neutro">Sem franquia</Etiqueta>
+  ) : quitado ? (
+    <Etiqueta tom="ok">Pago</Etiqueta>
+  ) : undefined;
+  return (
+    <Cartao titulo="Cliente deve" acao={etiqueta}>
+      {!deve ? (
+        <p className="px-4 py-4 text-[14px] text-tinta-suave">Sem orçamento aprovado ainda.</p>
+      ) : deve.semFranquia ? (
+        <p className="px-4 py-4 text-[14px]">Nada a pagar na oficina: a seguradora paga tudo.</p>
+      ) : (
+        <dl className="m-0 px-4 py-1">
+          {deve.partes.map((p) => (
+            <div key={p.nome} className="flex items-baseline justify-between gap-3 py-2.5 border-b border-linha">
+              <dt className="text-[14px] font-medium">{p.nome}</dt>
+              <dd className="m-0 numero text-[16px] font-semibold whitespace-nowrap">{formatarReais(p.valor)}</dd>
+            </div>
+          ))}
+          <div className="flex items-baseline justify-between gap-3 py-2.5 border-b border-linha">
+            <dt className="text-[13px] font-medium text-tinta-suave">Pago</dt>
+            <dd className="m-0 numero whitespace-nowrap text-ok font-medium">{formatarReais(deve.pago)}</dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-3 py-2.5">
+            <dt className="text-[13px] font-semibold">Falta</dt>
+            <dd className={`m-0 numero whitespace-nowrap text-[16px] font-semibold ${deve.falta > 0 ? "text-atencao" : ""}`}>{formatarReais(deve.falta)}</dd>
+          </div>
+        </dl>
+      )}
+      {ativa && deve && deve.falta > 0 && <FormPagamento key={deve.falta} v={v} hoje={hoje} sugerido={deve.falta} destaque={destaque} />}
+    </Cartao>
+  );
+}
+
+function FormPagamento({ v, hoje, sugerido, destaque }: { v: OSVisao; hoje: string; sugerido: number; destaque: boolean }) {
   const acoes = useAcoes();
   const id = useId();
-  const [valor, setValor] = useState("");
+  const [params, setParams] = useSearchParams();
+  const [valor, setValor] = useState(() => paraCampo(sugerido));
   const [forma, setForma] = useState<FormaPagamento>("pix");
   const [data, setData] = useState(hoje);
   const [parcelas, setParcelas] = useState("1");
@@ -132,6 +183,19 @@ function FormPagamento({ v, hoje }: { v: OSVisao; hoje: string }) {
   const [erros, setErros] = useState<{ valor?: string; data?: string }>({});
   const [aviso, setAviso] = useState<{ tom: "ok" | "alerta"; texto: string } | null>(null);
   const formas = FORMAS_PAGAMENTO.filter((f) => f !== "seguradora");
+
+  // vindo de "Registrar pagamento" (Próxima ação, topo da ficha, aviso da entrega): foca o valor uma vez
+  const pedido = params.get("pagar") === "1";
+  useEffect(() => {
+    if (!pedido) return;
+    const campo = document.getElementById(`${id}-v`) as HTMLInputElement | null;
+    campo?.focus();
+    campo?.select();
+    campo?.scrollIntoView({ block: "center" });
+    const p = new URLSearchParams(params);
+    p.delete("pagar");
+    setParams(p, { replace: true });
+  }, [pedido, params, setParams, id]);
 
   async function enviar(e: FormEvent) {
     e.preventDefault();
@@ -152,7 +216,7 @@ function FormPagamento({ v, hoje }: { v: OSVisao; hoje: string }) {
         return;
       }
       setAviso({ tom: "ok", texto: `Pagamento de ${formatarReais(centavos)} em ${FORMA_PAGAMENTO[forma].toLowerCase()} registrado.` });
-      setValor("");
+      setValor(sugerido > centavos ? paraCampo(sugerido - centavos) : "");
       setObs("");
       setParcelas("1");
     } catch {
@@ -161,7 +225,7 @@ function FormPagamento({ v, hoje }: { v: OSVisao; hoje: string }) {
   }
 
   return (
-    <Cartao titulo="Registrar pagamento">
+    <section aria-label="Registrar pagamento" className="border-t border-linha">
       <form onSubmit={enviar} noValidate className="p-4 flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <Grupo id={`${id}-v`} rotulo="Valor" erro={erros.valor}>
@@ -222,15 +286,13 @@ function FormPagamento({ v, hoje }: { v: OSVisao; hoje: string }) {
           <AreaTexto id={`${id}-o`} rows={2} maxLength={300} value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ex.: franquia paga na retirada" />
         </Grupo>
 
-        <p className="text-[12px] text-tinta-suave">Entra como baixa no título do cliente (franquia ou particular). Pagamentos da seguradora são baixados em Recebíveis.</p>
-
         {aviso && <Aviso tom={aviso.tom}>{aviso.texto}</Aviso>}
         <div>
-          <Botao type="submit" variante="primario" icone="ok" disabled={acoes.registrarPagamentoOS.isPending}>
+          <Botao type="submit" variante={destaque ? "primario" : "contorno"} icone="ok" disabled={acoes.registrarPagamentoOS.isPending}>
             {acoes.registrarPagamentoOS.isPending ? "Registrando…" : "Registrar pagamento"}
           </Botao>
         </div>
       </form>
-    </Cartao>
+    </section>
   );
 }
