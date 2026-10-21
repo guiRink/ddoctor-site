@@ -38,7 +38,7 @@ import { Quadrado } from "../componentes/geral/Quadrado";
  *   1. Na oficina · Entram hoje · Saem hoje (grandes);
  *   2. Atrasados · Parados (grandes; o dono quer zerados — "0" verde quando estão);
  *   3. Aguardando aprovação · Aguardando seguradora · Aguardando agendamento (+ Dinheiro vencido para dono/gestor).
- * Embaixo, "Para fazer hoje" com quem faz. Números de src/dominio/contagens.ts — os mesmos da Produção, da TV e de
+ * Embaixo, "Para fazer hoje" com quem faz (inclui "Pronto — cobrar franquia R$ X" para a recepção). Números de src/dominio/contagens.ts — os mesmos da Produção, da TV e de
  * Orçamentos. Recepção: mesma estrutura, sem Dinheiro vencido. Financeiro: os quadrados de dinheiro dele.
  * A produção começa em Minhas tarefas.
  */
@@ -107,7 +107,8 @@ export function Geral() {
       agendar: aguardandoAgendamento(o, ags.data, agora),
       vencido: dinheiroVencido(titulos.data, pagadores.data, o, agora),
       cobrar: prontosCobrarFranquia(o, pagadores.data),
-      afazer: paraFazerHoje(o, ags.data, agora, config.data),
+      // o lembrete de cobrar a franquia do carro pronto é da recepção (revisão QA do SH)
+      afazer: paraFazerHoje(o, ags.data, agora, config.data, undefined, pagadores.data),
       aVencer: venceEm7Dias(titulos.data, pagadores.data, o, agora),
       aPagar: aPagarEm7Dias(despesas.data ?? [], agora),
       recebido: recebidoNoMes(titulos.data, pagadores.data, o, agora),
@@ -153,7 +154,8 @@ export function Geral() {
 
   // ---------------------------------------------------------------- gaveta (lista do quadrado)
 
-  const permitidas = new Set<ChaveLista>([...chaves, "cobrar_franquia", ...(operacional ? (["afazer"] as const) : [])]);
+  // só abre a lista de um quadrado que existe para o papel (o "cobrar franquia" da recepção virou item de Para fazer hoje)
+  const permitidas = new Set<ChaveLista>([...chaves, ...(operacional ? (["afazer"] as const) : [])]);
   const listaBruta = params.get("lista");
   const listaParam = listaBruta ? (LISTA_ANTIGA[listaBruta] ?? listaBruta) : null;
   const aberta = ehLista(listaParam) && permitidas.has(listaParam) ? listaParam : null;

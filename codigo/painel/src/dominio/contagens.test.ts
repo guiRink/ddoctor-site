@@ -404,6 +404,23 @@ describe("paraFazerHoje", () => {
     expect(textos).toContain("Horário proposto expirou · remarcar");
     expect(textos).toContain("Ligar para agendar · aprovado há 2 dias"); // a proposta expirada não segura mais o carro
   });
+  it("com os pagadores, o carro pronto com o cliente devendo vira 'cobrar franquia' da recepção, na aba Pagamentos", () => {
+    const oss = [
+      visao("1", { estado: "pronta", prontaEm: m("2026-10-09T17:00") }),
+      visao("2", { estado: "pronta", origem: "particular", prontaEm: m("2026-10-12T08:30") }, { versoes: [versao({ tipo: "interno" })] }),
+      visao("3", { estado: "pronta" }, { versoes: [versao({ franquia: 0 })] }), // sem franquia: nada a cobrar
+      visao("4", { estado: "na_oficina" }),
+    ];
+    expect(paraFazerHoje(oss, [], agora, cfg).itens.filter((i) => i.tipo === "cobrar_franquia")).toEqual([]); // sem pagadores, como antes
+    const r = paraFazerHoje(oss, [], agora, cfg, undefined, pagadores);
+    const cobrar = r.itens.filter((i) => i.tipo === "cobrar_franquia");
+    expect(cobrar.map((i) => [i.v.os.id, i.texto, i.quem, i.para])).toEqual([
+      ["1", "Pronto — cobrar franquia R$ 160,00", "recepcao", "/orcamentos/1?aba=pagamentos"],
+      ["2", "Pronto — cobrar R$ 400,00 do cliente", "recepcao", "/orcamentos/2?aba=pagamentos"],
+    ]);
+    expect(cobrar.length).toBe(prontosCobrarFranquia(oss, pagadores).total); // o mesmo número da lista de prontos a cobrar
+    expect(r.total).toBe(r.itens.length);
+  });
 });
 
 // ---------------------------------------------------------------- demonstração: os números do Geral (sistemas-r2 §3)

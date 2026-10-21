@@ -3,7 +3,7 @@
 // e total === itens.length (todo número abre a própria lista). Funções puras: `agora` e config por parâmetro.
 import type { Agendamento, Centavos, ConfigOficina, CorCarro, DataISO, EstadoOS, EtapaOS, Id, Janela, MarcoISO, OrcamentoVersao, Pagador, Papel, PendenciaExterna, TituloReceber } from "@compartilhado/tipos";
 import { DIAS_PRONTO_NAO_BUSCOU_PADRAO, DIAS_VISTORIA_VENCENDO_PADRAO } from "@compartilhado/dominio/config";
-import { somaCentavos } from "@compartilhado/dominio/dinheiro";
+import { formatarReais, somaCentavos } from "@compartilhado/dominio/dinheiro";
 import { estadoTitulo, saldoTitulo } from "@compartilhado/dominio/financeiro";
 import { compararMarcos, dataNoFuso, diferencaDias, paraMs } from "@compartilhado/dominio/fuso";
 import { clienteDeveOS } from "@compartilhado/dominio/pagamentos";
@@ -499,7 +499,7 @@ export function aguardandoAgendamento(
 
 // ---------------------------------------------------------------- Para fazer hoje
 
-export type TipoAfazer = "proposta_expirando" | "vistoria_vencendo" | "pendencia_portal" | "agendar" | "sem_telefone";
+export type TipoAfazer = "proposta_expirando" | "vistoria_vencendo" | "cobrar_franquia" | "pendencia_portal" | "agendar" | "sem_telefone";
 
 export interface ItemAfazer {
   chave: string; // única na lista (para React)
@@ -512,12 +512,14 @@ export interface ItemAfazer {
   quando?: MarcoISO | DataISO; // prazo ou início, para ordenar
 }
 
-const ORDEM_AFAZER: Record<TipoAfazer, number> = { proposta_expirando: 0, vistoria_vencendo: 1, pendencia_portal: 2, agendar: 3, sem_telefone: 4 };
+const ORDEM_AFAZER: Record<TipoAfazer, number> = { proposta_expirando: 0, vistoria_vencendo: 1, cobrar_franquia: 2, pendencia_portal: 3, agendar: 4, sem_telefone: 5 };
 
 /**
  * O que a equipe tem de fazer hoje, com quem faz e para onde ir: pendências no portal (Maxpar) abertas,
  * vistoria vencendo (limite a até `diasVistoria` dias, antes da entrada), horário proposto expirando em 24 h
  * (ou já expirado e sem resposta), aprovado sem agendar (com telefone) e OS em aberto sem telefone do cliente.
+ * Com `pagadores`, também o carro pronto em que o cliente ainda paga na retirada ("Pronto — cobrar franquia R$ X",
+ * a mesma conta de prontosCobrarFranquia; revisão QA do SH), com destino na aba Pagamentos da ficha.
  * Cada OS aparece no máximo uma vez por tipo; "sem telefone" substitui "agendar".
  */
 export function paraFazerHoje(
@@ -526,6 +528,7 @@ export function paraFazerHoje(
   agora: MarcoISO,
   config: ConfigOficina,
   diasVistoria: number = DIAS_VISTORIA_VENCENDO_PADRAO,
+  pagadores?: readonly Pagador[],
 ): Contagem<ItemAfazer> {
   const hoje = dataNoFuso(agora);
   const agoraMs = paraMs(agora);
@@ -576,6 +579,13 @@ export function paraFazerHoje(
     } else if (v.os.estado === "aguardando_agendamento" && !propostaDa(v.os.id, agendamentos, agoraMs)) {
       const desde = versaoAtual(v)?.aprovacao?.aprovadoEm ?? v.os.criadoEm;
       itens.push(item("agendar", v, `Ligar para agendar · aprovado ${rotuloHaQuanto(desde, agora)}`, "/agenda", desde));
+    }
+  }
+
+  if (pagadores) {
+    for (const c of prontosCobrarFranquia(oss, pagadores).itens) {
+      const texto = c.tipo === "franquia" ? `Pronto — cobrar franquia ${formatarReais(c.valor)}` : `Pronto — cobrar ${formatarReais(c.valor)} do cliente`;
+      itens.push(item("cobrar_franquia", c.v, texto, `/orcamentos/${c.v.os.id}?aba=pagamentos`, c.v.os.prontaEm));
     }
   }
 

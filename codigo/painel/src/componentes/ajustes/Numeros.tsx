@@ -241,9 +241,9 @@ function LinhaNumero<K extends string>({
 
 /**
  * Número inteiro com − e + (um controle só, como o SeletorPeriodo): 40 px (44 no celular), botões fantasmas
- * por dentro, valor tabular no meio. Setas ↑ ↓ somam 1, PageUp/PageDown 5, Home/End vão aos limites.
+ * por dentro, valor tabular no meio (usado também no prazo do carro: ficha e Receber o carro). Setas ↑ ↓ somam 1, PageUp/PageDown 5, Home/End vão aos limites.
  */
-function Passo({
+export function Passo({
   id,
   rotulo,
   texto,

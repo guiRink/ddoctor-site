@@ -15,7 +15,8 @@ import { mensagemErro, useAcoes, useAgora, useConfig, useOS, usePagadores, usePe
 import type { OSVisao } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
 import { rotuloPrazo } from "../dominio/horarios";
-import { podeEditar, podeVer, veCustosOS, veDadosSensiveis } from "../dominio/permissoes";
+import { podeEditar, podeEditarAlertaOS, podeVer, veCustosOS, veDadosSensiveis } from "../dominio/permissoes";
+import { corDoCarro, type CorDoCarro } from "@compartilhado/dominio/corCarro";
 import {
   ESTADO_ETAPA,
   ESTADO_OS,
@@ -47,6 +48,9 @@ import { AbaResultado } from "../componentes/os/AbaResultado";
 import { NivelCombustivelTexto } from "../componentes/recepcao/FormRecepcao";
 import { kmLegivel, nomeCarro } from "../componentes/os/formato";
 import { acaoPrimariaDoTopo, clienteDeve, numerosEtapas, prometidoAoCliente, textoEtapas, type ClienteDeve } from "../componentes/os/ficha";
+import { GavetaPrazo, SeloCor } from "../componentes/os/PrazoCarro";
+import { temPrazoProprio } from "../componentes/os/prazo";
+import { Aviso } from "../componentes/ui/Campos";
 import { NumeroDemo } from "../componentes/clientes/Comuns";
 import { contatoClicavel } from "@compartilhado/dominio/clientes";
 import { BotaoEnviarOrcamento } from "../componentes/orcamento/BotaoEnviarOrcamento";
@@ -78,6 +82,8 @@ export function FichaOS() {
   const pagadores = usePagadores();
   const [params, setParams] = useSearchParams();
   const hrefImprimir = useHref(`/orcamentos/${id}/imprimir`);
+  const [ajustandoPrazo, setAjustandoPrazo] = useState(false);
+  const [avisoPrazo, setAvisoPrazo] = useState<string>();
 
   const voltar = (
     <Link to="/orcamentos" className="inline-flex items-center gap-1.5 h-11 max-sm:min-w-11 text-[13px] font-medium text-tinta-suave no-underline hover:text-tinta">
@@ -150,6 +156,11 @@ export function FichaOS() {
   const deve = sensivel && pagadores.data ? clienteDeve(v, pagadores.data) : null;
   const primaria = podeAgir ? acaoPrimariaDoTopo(v.os.estado, deve?.falta ?? 0) : null;
   const podePagar = (podeEditar(papel, "orcamentos") || podeEditar(papel, "recebiveis")) && v.os.estado !== "cancelada";
+  // cor do carro (pedido do dono, 2º áudio): só para o carro em serviço; "Parado" é um selo à parte
+  const naOficina = v.os.estado === "na_oficina";
+  const cor = naOficina ? corDoCarro(v.os, v.etapas, agora, config.data) : null;
+  const parado = naOficina && v.etapas.some((e) => e.estado === "bloqueada");
+  const podeAjustarPrazo = naOficina && podeEditarAlertaOS(papel);
 
   const abas: Aba[] = ["geral", "recepcao"];
   if (custos) abas.push("custos", "resultado");
@@ -218,7 +229,7 @@ export function FichaOS() {
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Etiqueta tom={estado.tom}>{estado.texto}</Etiqueta>
-              {v.os.estado === "na_oficina" && <Semaforo valor={semaforo} />}
+              {parado && <Etiqueta tom="alerta">Parado</Etiqueta>}
               {v.os.prioridade > 0 && <Etiqueta tom="alerta">{v.os.prioridade === 2 ? "Urgente" : "Prioridade alta"}</Etiqueta>}
               {v.os.demo && <span className="text-[12px] text-tinta-fraca">dado de demonstração</span>}
             </div>
@@ -228,6 +239,17 @@ export function FichaOS() {
           v={v}
           agora={agora}
           deve={deve}
+          cor={cor}
+          proprio={naOficina && temPrazoProprio(v, config.data)}
+          onAjustar={
+            podeAjustarPrazo
+              ? () => {
+                  setAvisoPrazo(undefined);
+                  setAjustandoPrazo(true);
+                }
+              : undefined
+          }
+          aviso={avisoPrazo}
           // sem botão repetido: no Pagamentos o formulário já está na tela; com o amarelo da Próxima ação, ele basta
           podePagar={podePagar && aba !== "pagamentos" && primaria !== "pagamento"}
           onPagar={() => {
@@ -240,6 +262,18 @@ export function FichaOS() {
         </div>
         <ProximaAcao key={v.os.id} v={v} podeAgir={podeAgir} tipos={tipos.data} deve={deve} />
       </header>
+      {ajustandoPrazo && podeAjustarPrazo && (
+        <GavetaPrazo
+          v={v}
+          config={config.data}
+          agora={agora}
+          onFechar={() => setAjustandoPrazo(false)}
+          onSalvo={(msg) => {
+            setAjustandoPrazo(false);
+            setAvisoPrazo(msg);
+          }}
+        />
+      )}
 
       {/* ---------------- abas */}
       <BarraAbas rotulo="Seções da OS" chave={aba}>
@@ -340,12 +374,23 @@ function Destaques({
   v,
   agora,
   deve,
+  cor,
+  proprio,
+  onAjustar,
+  aviso,
   podePagar,
   onPagar,
 }: {
   v: OSVisao;
   agora: MarcoISO;
   deve: ClienteDeve | null;
+  /** Cor do carro (só na oficina): o selo substitui o "em 3 dias" do prometido. */
+  cor: CorDoCarro | null;
+  /** O carro tem prazo ou limites próprios. */
+  proprio: boolean;
+  /** Abre "Prazo e urgência" (quem podeEditarAlertaOS, carro na oficina). */
+  onAjustar?: () => void;
+  aviso?: string;
   podePagar: boolean;
   onPagar: () => void;
 }) {
@@ -368,21 +413,38 @@ function Destaques({
                 {v.os.previsaoEntrega && <span className="text-[13px] text-tinta-suave numero">prometido {diaCurto(v.os.previsaoEntrega)}</span>}
               </p>
             </>
-          ) : prom ? (
-            <>
-              <p className={rotulo}>Prometido ao cliente</p>
-              <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                <span className={`${grande} ${prom.tom === "alerta" ? "text-alerta" : ""}`}>{diaCurto(prom.data)}</span>
-                <Etiqueta tom={prom.tom}>{maiuscula(prom.relativo)}</Etiqueta>
-              </p>
-            </>
           ) : (
             <>
-              <p className={rotulo}>Prometido ao cliente</p>
-              <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                <span className={`${grande} text-tinta-fraca`}>Sem data</span>
-                <Etiqueta tom="atencao">Combinar com o cliente</Etiqueta>
-              </p>
+              <div className="flex items-start justify-between gap-3">
+                <p className={rotulo}>Prometido ao cliente</p>
+                {onAjustar && (
+                  <Botao tamanho="denso" variante="contorno" icone="relogio" onClick={onAjustar} aria-haspopup="dialog" className="-mt-2 -mr-1.5 shrink-0">
+                    Ajustar prazo
+                  </Botao>
+                )}
+              </div>
+              {prom ? (
+                <p className={`${onAjustar ? "mt-0.5" : "mt-2"} flex flex-wrap items-center gap-x-3 gap-y-1.5`}>
+                  <span className={`${grande} ${prom.tom === "alerta" ? "text-alerta" : ""}`}>{diaCurto(prom.data)}</span>
+                  {!cor && <Etiqueta tom={prom.tom}>{maiuscula(prom.relativo)}</Etiqueta>}
+                </p>
+              ) : (
+                <p className={`${onAjustar ? "mt-0.5" : "mt-2"} flex flex-wrap items-center gap-x-3 gap-y-1.5`}>
+                  <span className={`${grande} text-tinta-fraca`}>Sem data</span>
+                  <Etiqueta tom="atencao">Combinar com o cliente</Etiqueta>
+                </p>
+              )}
+              {cor && (prom || cor.entrega) && (
+                <p className="mt-3 flex flex-wrap items-center gap-2">
+                  <SeloCor cor={cor.cor}>{cor.motivo}</SeloCor>
+                  {proprio && <Etiqueta tom="neutro">Prazo próprio</Etiqueta>}
+                </p>
+              )}
+              {aviso && (
+                <div className="mt-2.5">
+                  <Aviso tom="ok">{aviso}</Aviso>
+                </div>
+              )}
             </>
           )}
         </section>
@@ -658,7 +720,7 @@ function LinhaEtapa({ e, numero, agora, config, perfis }: { e: EtapaOS; numero: 
   if (e.entrouFilaEm && (e.iniciadaEm || e.estado === "na_fila")) tempos.push(`fila ${formatarDuracao(tempoEmFila(e, agora))}`);
   if (e.iniciadaEm) tempos.push(`execução ${formatarDuracao(tempoEmExecucao(e, agora))}`);
   const bloq = tempoBloqueada(e, agora);
-  if (bloq > 0) tempos.push(`impedida ${formatarDuracao(bloq)}`);
+  if (bloq > 0) tempos.push(`parada ${formatarDuracao(bloq)}`);
   const motivo = e.estado === "bloqueada" ? e.bloqueios.at(-1)?.motivo : undefined;
   // prazo da etapa no mesmo texto da Produção (horas úteis): "até hoje 16h", "atrasado 3 h"
   const rotulo = e.prazoEm ? rotuloPrazo(e.prazoEm, agora, config) : undefined;
@@ -680,13 +742,13 @@ function LinhaEtapa({ e, numero, agora, config, perfis }: { e: EtapaOS; numero: 
           {tempos.length ? tempos.join(" · ") : e.estado === "dispensada" ? e.motivoDispensa ?? "Dispensada" : `prazo ${e.prazoHoras} h`}
           {e.pecasPrevistas !== undefined && ` · peças ${e.pecasFeitas ?? 0}/${e.pecasPrevistas}`}
         </span>
-        {motivo && <span className="block text-[12px] font-medium text-alerta">Impedimento: {motivo}</span>}
+        {motivo && <span className="block text-[12px] font-medium text-alerta">Parada: {motivo}</span>}
       </span>
       <span className="hidden sm:block min-w-0">
         <Responsavel nome={nomePerfil(perfis, e.responsavelId)} />
       </span>
       <span className="flex flex-col items-end gap-1">
-        {ativa ? <Semaforo valor={cor} texto={e.estado === "bloqueada" ? "Impedida" : undefined} /> : <Etiqueta tom={est.tom}>{est.texto}</Etiqueta>}
+        {ativa ? <Semaforo valor={cor} texto={e.estado === "bloqueada" ? "Parada" : undefined} /> : <Etiqueta tom={est.tom}>{est.texto}</Etiqueta>}
         {ativa && prazo && <span className={`text-[12px] numero ${prazoVencido ? "text-alerta font-medium" : "text-tinta-suave"}`}>{prazo}</span>}
       </span>
     </li>

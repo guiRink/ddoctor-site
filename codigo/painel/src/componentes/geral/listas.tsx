@@ -705,6 +705,7 @@ export function partirAfazer(i: ItemAfazer): [string, string | undefined] {
 export function rotuloDestino(para: string): string {
   if (para.startsWith("/agenda")) return "Agenda";
   if (para.startsWith("/clientes")) return "Cadastro";
+  if (para.includes("aba=pagamentos")) return "Cobrar";
   return "Abrir";
 }
 
