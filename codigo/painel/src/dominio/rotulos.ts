@@ -325,6 +325,7 @@ export const ERRO: Record<string, string> = {
   ordem_invalida: "A ordem das etapas tem buraco ou repetição. Reorganize e salve de novo.",
   prazo_invalido: "Informe o prazo da etapa em horas, maior que zero (até 200 h).",
   tipo_nao_encontrado: "Tipo de reparo não encontrado. Atualize a tela.",
+  tipo_em_uso: "Há carro em aberto com essa categoria. Arquive depois que ele for entregue.",
   expediente_invalido: "Expediente inválido: marque ao menos um dia e use início antes do fim (HH:MM).",
   nada_a_salvar: "Nada mudou para salvar.",
 };

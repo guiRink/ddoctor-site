@@ -129,6 +129,7 @@ export function useAcoes() {
     salvarChecklistConfig: mut((itens: ChecklistItem[]) => repositorio.salvarChecklistConfig(itens)),
     salvarConfig: mut((parcial: ConfigParcial) => repositorio.salvarConfig(parcial)),
     salvarTipoReparo: mut((tipo: TipoReparoEntrada) => repositorio.salvarTipoReparo(tipo)),
+    arquivarTipoReparo: mut((id: Id, arquivar: boolean) => repositorio.arquivarTipoReparo(id, arquivar)),
     // fotos: comprima antes com comprimirFoto (dados/fotos.ts); ok com codigo "fotos_temporarias" = aviso
     adicionarFoto: mut((osId: Id, foto: NovaFoto) => repositorio.adicionarFoto(osId, foto)),
     removerFoto: mut((fotoId: Id) => repositorio.removerFoto(fotoId)),

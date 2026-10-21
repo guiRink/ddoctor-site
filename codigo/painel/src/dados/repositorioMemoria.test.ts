@@ -503,6 +503,38 @@ describe("repositório em memória", () => {
     expect((await repo.listarAuditoria()).some((a) => a.entidade === "tipo_reparo" && a.acao === "criar")).toBe(true);
   });
 
+  it("categorias padrão: Funilaria e pintura (tr-pintura) e Pintura sem funilaria, nesta ordem", async () => {
+    const tipos = await repo.listarTiposReparo();
+    expect(tipos.map((t) => t.nome)).toEqual(["Martelinho", "Funilaria e pintura", "Pintura", "SRA (arranhões)", "Polimento e higienização"]);
+    expect(tipos.find((t) => t.id === "tr-pintura")!.etapas.map((e) => e.nome)).toEqual(["Desmontagem", "Funilaria", "Preparação", "Pintura", "Polimento", "Montagem"]);
+    expect(tipos.find((t) => t.id === "tr-pintura-simples")!.etapas.map((e) => e.nome)).toEqual(["Desmontagem", "Preparação", "Pintura", "Polimento", "Montagem"]);
+  });
+
+  it("demo salvo antes do SI ganha a categoria Pintura e renomeia a antiga, sem duplicar nome criado", async () => {
+    const { completarTiposPadrao } = await import("./repositorioMemoria");
+    const { gerarDemo } = await import("./demo");
+    const antigo = gerarDemo();
+    antigo.tiposReparo = antigo.tiposReparo.filter((t) => t.id !== "tr-pintura-simples").map((t) => (t.id === "tr-pintura" ? { ...t, nome: "Pintura" } : t));
+    expect(completarTiposPadrao(antigo).tiposReparo.map((t) => t.id)).toEqual(["tr-martelinho", "tr-pintura", "tr-pintura-simples", "tr-sra", "tr-polimento"]);
+    expect(completarTiposPadrao(antigo).tiposReparo[1].nome).toBe("Funilaria e pintura");
+    // o dono já revisou "Pintura" (com funilaria) e confirmou: fica como está e a nova não entra com nome repetido
+    const revisto = { ...antigo, tiposReparo: antigo.tiposReparo.map((t) => (t.id === "tr-pintura" ? { ...t, provisorio: false } : t)) };
+    expect(completarTiposPadrao(revisto).tiposReparo.map((t) => t.nome)).toEqual(["Martelinho", "Pintura", "SRA (arranhões)", "Polimento e higienização"]);
+  });
+
+  it("arquivar categoria: recusada com carro em aberto; arquivada sai da entrada nova e pode voltar", async () => {
+    expect((await repo.arquivarTipoReparo("tr-pintura", true)).codigo).toBe("tipo_em_uso");
+    expect((await repo.arquivarTipoReparo("tr-x", true)).codigo).toBe("tipo_nao_encontrado");
+    expect((await repo.arquivarTipoReparo("tr-pintura-simples", true)).ok).toBe(true);
+    expect((await repo.listarTiposReparo()).find((t) => t.id === "tr-pintura-simples")?.ativo).toBe(false);
+    const v = await osPorPlaca("RNA4S66");
+    expect((await repo.registrarEntrada(v.os.id, "tr-pintura-simples")).codigo).toBe("sem_tipo_reparo");
+    expect((await repo.listarAuditoria())[0]).toMatchObject({ entidade: "tipo_reparo", entidadeId: "tr-pintura-simples" });
+    expect((await repo.arquivarTipoReparo("tr-pintura-simples", false)).ok).toBe(true);
+    expect((await repo.registrarEntrada(v.os.id, "tr-pintura-simples")).ok).toBe(true);
+    expect((await repo.arquivarTipoReparo("tr-pintura-simples", true)).codigo).toBe("tipo_em_uso");
+  });
+
   it("configuração: valor fora do limite é recusado; capacidade salva sai do provisório e vale na agenda", async () => {
     expect(await repo.salvarConfig({ capacidadePadrao: { vagasEntrada: 0 } })).toEqual({ ok: false, codigo: "valor_invalido", campo: "vagasEntrada" });
     expect((await repo.salvarConfig({ capacidadePadrao: { carrosSimultaneos: 100 } })).codigo).toBe("valor_invalido");

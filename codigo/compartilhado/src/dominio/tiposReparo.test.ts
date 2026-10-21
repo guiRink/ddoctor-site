@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ModeloEtapaItem } from "../tipos";
-import { ETAPAS_SUGERIDAS, validarTipoReparo } from "./tiposReparo";
+import { ETAPAS_SUGERIDAS, tipoReparoAtivo, usoTipoReparo, validarTipoReparo } from "./tiposReparo";
 
 const etapa = (ordem: number, nome: string, prazoPadraoHoras = 2): ModeloEtapaItem => ({
   ordem,
@@ -42,5 +42,27 @@ describe("validarTipoReparo", () => {
     const etapas = ETAPAS_SUGERIDAS.map((e, i) => ({ ...e, ordem: i + 1 }));
     expect(validarTipoReparo({ nome: "Completo", etapas }, existentes).ok).toBe(true);
     expect(new Set(ETAPAS_SUGERIDAS.map((e) => e.nome)).size).toBe(ETAPAS_SUGERIDAS.length);
+  });
+});
+
+describe("uso e arquivo de categoria", () => {
+  it("conta só as OS em aberto que usam a categoria", () => {
+    const oss = [
+      { tipoReparoId: "tr-a", estado: "na_oficina" as const },
+      { tipoReparoId: "tr-a", estado: "agendada" as const },
+      { tipoReparoId: "tr-a", estado: "entregue" as const },
+      { tipoReparoId: "tr-a", estado: "cancelada" as const },
+      { tipoReparoId: "tr-a", estado: "encerrada" as const },
+      { tipoReparoId: "tr-b", estado: "na_oficina" as const },
+      { estado: "rascunho" as const },
+    ];
+    expect(usoTipoReparo("tr-a", oss)).toBe(2);
+    expect(usoTipoReparo("tr-c", oss)).toBe(0);
+  });
+
+  it("arquivada = ativo false; ausente conta como ativa", () => {
+    expect(tipoReparoAtivo({})).toBe(true);
+    expect(tipoReparoAtivo({ ativo: true })).toBe(true);
+    expect(tipoReparoAtivo({ ativo: false })).toBe(false);
   });
 });
