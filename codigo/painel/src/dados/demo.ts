@@ -138,6 +138,69 @@ function vistaDaPeca(peca: string): VistaAvaria {
   return "lateral_esquerda";
 }
 
+/**
+ * Tipos de reparo (categorias de serviço) padrão do demo, provisórios (questionário 1.1): o dono muda, cria e arquiva.
+ * Ordem da escolha: Martelinho · Funilaria e pintura · Pintura (sem funilaria) · SRA · Polimento e higienização.
+ * "tr-pintura" mantém o id (OS antigas e insumos) e passou a se chamar "Funilaria e pintura" (pedido do dono, SI).
+ */
+export const TIPOS_REPARO_PADRAO: readonly TipoReparo[] = [
+  {
+    id: "tr-martelinho",
+    nome: "Martelinho",
+    provisorio: true,
+    etapas: [
+      { ordem: 1, nome: "Desmontagem", prazoPadraoHoras: 2, dispensavel: true, exigeFoto: false, exigeContagemPecas: false },
+      { ordem: 2, nome: "Martelinho", prazoPadraoHoras: 4, dispensavel: false, exigeFoto: true, exigeContagemPecas: true },
+      { ordem: 3, nome: "Polimento", prazoPadraoHoras: 2, dispensavel: false, exigeFoto: false, exigeContagemPecas: false },
+      { ordem: 4, nome: "Montagem e revisão", prazoPadraoHoras: 2, dispensavel: false, exigeFoto: true, exigeContagemPecas: false },
+    ],
+  },
+  {
+    id: "tr-pintura",
+    nome: "Funilaria e pintura",
+    provisorio: true,
+    etapas: [
+      { ordem: 1, nome: "Desmontagem", prazoPadraoHoras: 2, dispensavel: false, exigeFoto: false, exigeContagemPecas: false },
+      { ordem: 2, nome: "Funilaria", prazoPadraoHoras: 4, dispensavel: true, exigeFoto: true, exigeContagemPecas: true },
+      { ordem: 3, nome: "Preparação", prazoPadraoHoras: 4, dispensavel: false, exigeFoto: false, exigeContagemPecas: false },
+      { ordem: 4, nome: "Pintura", prazoPadraoHoras: 8, dispensavel: false, exigeFoto: true, exigeContagemPecas: true },
+      { ordem: 5, nome: "Polimento", prazoPadraoHoras: 2, dispensavel: false, exigeFoto: false, exigeContagemPecas: false },
+      { ordem: 6, nome: "Montagem", prazoPadraoHoras: 2, dispensavel: false, exigeFoto: true, exigeContagemPecas: false },
+    ],
+  },
+  {
+    id: "tr-pintura-simples",
+    nome: "Pintura",
+    provisorio: true,
+    etapas: [
+      { ordem: 1, nome: "Desmontagem", prazoPadraoHoras: 2, dispensavel: false, exigeFoto: false, exigeContagemPecas: false },
+      { ordem: 2, nome: "Preparação", prazoPadraoHoras: 4, dispensavel: false, exigeFoto: false, exigeContagemPecas: false },
+      { ordem: 3, nome: "Pintura", prazoPadraoHoras: 8, dispensavel: false, exigeFoto: true, exigeContagemPecas: true },
+      { ordem: 4, nome: "Polimento", prazoPadraoHoras: 2, dispensavel: false, exigeFoto: false, exigeContagemPecas: false },
+      { ordem: 5, nome: "Montagem", prazoPadraoHoras: 2, dispensavel: false, exigeFoto: true, exigeContagemPecas: false },
+    ],
+  },
+  {
+    id: "tr-sra",
+    nome: "SRA (arranhões)",
+    provisorio: true,
+    etapas: [
+      { ordem: 1, nome: "Preparação", prazoPadraoHoras: 2, dispensavel: false, exigeFoto: false, exigeContagemPecas: false },
+      { ordem: 2, nome: "Pintura localizada", prazoPadraoHoras: 4, dispensavel: false, exigeFoto: true, exigeContagemPecas: true },
+      { ordem: 3, nome: "Polimento", prazoPadraoHoras: 2, dispensavel: false, exigeFoto: true, exigeContagemPecas: false },
+    ],
+  },
+  {
+    id: "tr-polimento",
+    nome: "Polimento e higienização",
+    provisorio: true,
+    etapas: [
+      { ordem: 1, nome: "Polimento", prazoPadraoHoras: 4, dispensavel: true, exigeFoto: false, exigeContagemPecas: false },
+      { ordem: 2, nome: "Higienização", prazoPadraoHoras: 3, dispensavel: true, exigeFoto: true, exigeContagemPecas: false },
+    ],
+  },
+];
+
 /** Custo-hora de mão de obra da DEMONSTRAÇÃO (fictício; o valor real vem do dono). */
 const CUSTO_HORA_DEMO = 2800;
 
@@ -145,6 +208,8 @@ const CUSTO_HORA_DEMO = 2800;
 const INSUMOS_POR_TIPO: Record<string, [string, number, boolean][]> = {
   "tr-martelinho": [["m-12", 6, true], ["m-3", 3, true], ["m-4", 0.1, false], ["m-15", 1, false]],
   "tr-pintura": [["m-9", 5, true], ["m-8", 0.3, true], ["m-2", 0.4, true], ["m-5", 2, false], ["m-13", 0.5, false], ["m-1", 0.5, true], ["m-6", 1, false], ["m-7", 2, false], ["m-10", 5, true]],
+  // pintura sem funilaria: sem massa poliéster nem lixa grossa de massa
+  "tr-pintura-simples": [["m-10", 5, true], ["m-2", 0.4, true], ["m-5", 2, false], ["m-13", 0.5, false], ["m-1", 0.5, true], ["m-6", 1, false], ["m-7", 2, false]],
   "tr-sra": [["m-3", 4, false], ["m-5", 1, false], ["m-1", 0.2, false], ["m-4", 0.1, false]],
   "tr-polimento": [["m-4", 0.3, false], ["m-11", 0.2, false], ["m-14", 1, false], ["m-15", 2, false], ["m-16", 0.5, false]],
 };
@@ -180,52 +245,7 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
     { id: "p-tv", nome: "TV da oficina", papel: "dispositivo", ativo: true, usaTerminal: false },
   ];
 
-  // ---------------------------------------------------------------- tipos de reparo (provisórios)
-  const tiposReparo: TipoReparo[] = [
-    {
-      id: "tr-martelinho",
-      nome: "Martelinho",
-      provisorio: true,
-      etapas: [
-        { ordem: 1, nome: "Desmontagem", prazoPadraoHoras: 2, dispensavel: true, exigeFoto: false, exigeContagemPecas: false },
-        { ordem: 2, nome: "Martelinho", prazoPadraoHoras: 4, dispensavel: false, exigeFoto: true, exigeContagemPecas: true },
-        { ordem: 3, nome: "Polimento", prazoPadraoHoras: 2, dispensavel: false, exigeFoto: false, exigeContagemPecas: false },
-        { ordem: 4, nome: "Montagem e revisão", prazoPadraoHoras: 2, dispensavel: false, exigeFoto: true, exigeContagemPecas: false },
-      ],
-    },
-    {
-      id: "tr-pintura",
-      nome: "Pintura",
-      provisorio: true,
-      etapas: [
-        { ordem: 1, nome: "Desmontagem", prazoPadraoHoras: 2, dispensavel: false, exigeFoto: false, exigeContagemPecas: false },
-        { ordem: 2, nome: "Funilaria", prazoPadraoHoras: 4, dispensavel: true, exigeFoto: true, exigeContagemPecas: true },
-        { ordem: 3, nome: "Preparação", prazoPadraoHoras: 4, dispensavel: false, exigeFoto: false, exigeContagemPecas: false },
-        { ordem: 4, nome: "Pintura", prazoPadraoHoras: 8, dispensavel: false, exigeFoto: true, exigeContagemPecas: true },
-        { ordem: 5, nome: "Polimento", prazoPadraoHoras: 2, dispensavel: false, exigeFoto: false, exigeContagemPecas: false },
-        { ordem: 6, nome: "Montagem", prazoPadraoHoras: 2, dispensavel: false, exigeFoto: true, exigeContagemPecas: false },
-      ],
-    },
-    {
-      id: "tr-sra",
-      nome: "SRA (arranhões)",
-      provisorio: true,
-      etapas: [
-        { ordem: 1, nome: "Preparação", prazoPadraoHoras: 2, dispensavel: false, exigeFoto: false, exigeContagemPecas: false },
-        { ordem: 2, nome: "Pintura localizada", prazoPadraoHoras: 4, dispensavel: false, exigeFoto: true, exigeContagemPecas: true },
-        { ordem: 3, nome: "Polimento", prazoPadraoHoras: 2, dispensavel: false, exigeFoto: true, exigeContagemPecas: false },
-      ],
-    },
-    {
-      id: "tr-polimento",
-      nome: "Polimento e higienização",
-      provisorio: true,
-      etapas: [
-        { ordem: 1, nome: "Polimento", prazoPadraoHoras: 4, dispensavel: true, exigeFoto: false, exigeContagemPecas: false },
-        { ordem: 2, nome: "Higienização", prazoPadraoHoras: 3, dispensavel: true, exigeFoto: true, exigeContagemPecas: false },
-      ],
-    },
-  ];
+  const tiposReparo: TipoReparo[] = TIPOS_REPARO_PADRAO.map((t) => ({ ...t, etapas: t.etapas.map((e) => ({ ...e })) }));
 
   const config: ConfigOficina = {
     expediente: { diasSemana: [1, 2, 3, 4, 5, 6], inicio: "08:00", fim: "18:00", sabadoFim: "12:00" },

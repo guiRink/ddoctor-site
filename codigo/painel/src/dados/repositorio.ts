@@ -250,6 +250,11 @@ export interface Repositorio {
   salvarConfig(parcial: ConfigParcial): Promise<Resultado>;
   /** Cria (sem id) ou edita um tipo de reparo / categoria de serviço. Não muda etapas de OS já geradas. */
   salvarTipoReparo(tipo: TipoReparoEntrada): Promise<Resultado & { id?: Id }>;
+  /**
+   * Arquiva (some da escolha do serviço; `ativo: false`) ou reativa uma categoria. Arquivar falha com
+   * `tipo_em_uso` se alguma OS em aberto usa a categoria (usoTipoReparo). Mesma permissão de salvarTipoReparo.
+   */
+  arquivarTipoReparo(id: Id, arquivar: boolean): Promise<Resultado>;
 
   // fotos (comprimidas no aparelho; memória: IndexedDB; S1/S3: Cloudflare R2, L37)
   adicionarFoto(osId: Id, foto: NovaFoto): Promise<Resultado & { id?: Id; url?: string }>;

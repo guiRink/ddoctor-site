@@ -304,6 +304,8 @@ export interface TipoReparo {
   nome: string;
   etapas: ModeloEtapaItem[];
   provisorio: boolean; // true enquanto o dono não confirmar (questionário 1.1)
+  /** false = arquivada: some da escolha do serviço; as OS antigas continuam mostrando o nome. Ausente = ativa. */
+  ativo?: boolean;
 }
 
 export interface Bloqueio {

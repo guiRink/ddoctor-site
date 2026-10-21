@@ -20,8 +20,11 @@ import { FormRecepcao, MedidorCombustivel, type DadosRecepcao } from "./FormRece
 import { kmLegivel, nomeCarro } from "../os/formato";
 import { MapaAvarias, Marcador } from "./MapaAvarias";
 import { useSessao } from "../../dados/sessao";
-import { podeCriarTipoReparo, podeEditarAlertaOS } from "../../dominio/permissoes";
+import { podeCriarTipoReparo, podeEditarAlertaOS, podeEditarConfig } from "../../dominio/permissoes";
 import { FormTipoReparo } from "../tipos-reparo/FormTipoReparo";
+import { EditarCategorias } from "../tipos-reparo/EditarCategorias";
+import { EditarChecklist } from "./EditarChecklist";
+import { tipoReparoAtivo } from "@compartilhado/dominio/tiposReparo";
 import { Interruptor } from "../ajustes/Estrutura";
 import { Passo } from "../ajustes/Numeros";
 import { diaCurto } from "../orcamentos/formato";
@@ -30,8 +33,10 @@ import { diaCurto } from "../orcamentos/formato";
  * "Receber o carro": registra a entrada com a recepção em passos, num painel lateral (diálogo nativo:
  * Esc fecha, foco preso). 1 Dados (tipo de reparo, km, combustível, reclamação) · 2 Checklist ·
  * 3 Avarias · 4 Confirmar. Checklist e avarias podem ser pulados: a recepção fica registrada como incompleta.
- * No passo 1, quem pode (podeCriarTipoReparo) cria uma categoria nova na hora ("+ Criar nova categoria"),
- * que volta marcada; e quem pode (podeEditarAlertaOS) combina o prazo em dias úteis e marca "Urgente" (pedido do
+ * No passo 1, quem pode (podeCriarTipoReparo) edita/arquiva as categorias ("Editar categorias", gaveta por cima)
+ * e cria uma nova na hora ("+ Criar nova categoria"), que volta marcada; as arquivadas saem da escolha. No passo 2,
+ * dono e gestor (podeEditarConfig) editam o checklist da oficina ("Editar checklist"; pedido do dono, sprint SI)
+ * sem perder as marcações dos itens que continuam. E quem pode (podeEditarAlertaOS) combina o prazo em dias úteis e marca "Urgente" (pedido do
  * dono, 2º áudio) — gravados com salvarAlertaOS logo depois da entrada.
  * Usado na ficha da OS (Próxima ação e aba Recepção) e no painel da Agenda.
  */
@@ -56,15 +61,25 @@ export function ReceberCarro({
   const { perfil } = useSessao();
   const podeCriar = podeCriarTipoReparo(perfil.papel);
   const podePrazo = podeEditarAlertaOS(perfil.papel);
+  const podeChecklist = podeEditarConfig(perfil.papel);
 
   // categoria criada aqui: aparece já marcada, sem esperar a lista de tipos recarregar
   const [criando, setCriando] = useState(false);
+  const [editandoCategorias, setEditandoCategorias] = useState(false);
+  const [editandoChecklist, setEditandoChecklist] = useState(false);
   const [criado, setCriado] = useState<TipoReparo>();
-  const tipos = criado && !tiposRecebidos.some((t) => t.id === criado.id) ? [...tiposRecebidos, criado] : tiposRecebidos;
+  // todas (as arquivadas também: nome repetido e modelos) e as que aparecem na escolha
+  const todos = criado && !tiposRecebidos.some((t) => t.id === criado.id) ? [...tiposRecebidos, criado] : tiposRecebidos;
+  const tipos = todos.filter((t) => tipoReparoAtivo(t) || t.id === v.os.tipoReparoId);
   const focarCriado = useRef(false);
 
   const [passo, setPasso] = useState(0);
-  const [tipoId, setTipoId] = useState(v.os.tipoReparoId ?? (tiposRecebidos.length === 1 ? tiposRecebidos[0].id : ""));
+  const [tipoEscolhido, setTipoId] = useState(() => {
+    const ativos = tiposRecebidos.filter(tipoReparoAtivo);
+    return v.os.tipoReparoId ?? (ativos.length === 1 ? ativos[0].id : "");
+  });
+  // escolha preservada ao editar as categorias; se a escolhida foi arquivada, volta a "nenhuma"
+  const tipoId = tipos.some((t) => t.id === tipoEscolhido) ? tipoEscolhido : "";
   const [dados, setDados] = useState<DadosRecepcao>({
     km: v.os.recepcao?.km,
     combustivel: v.os.recepcao?.combustivel,
@@ -148,7 +163,9 @@ export function ReceberCarro({
       return;
     }
     try {
-      const r = await acoes.registrarEntrada.mutateAsync([v.os.id, tipoId, { ...dados, checklist, avarias }]);
+      // só os itens que ainda estão no checklist (o editor pode ter desativado algum no meio da recepção)
+      const conferidos = Object.fromEntries(Object.entries(checklist).filter(([id]) => itens.some((i) => i.id === id && i.ativo)));
+      const r = await acoes.registrarEntrada.mutateAsync([v.os.id, tipoId, { ...dados, checklist: conferidos, avarias }]);
       if (!r.ok) {
         setErro(mensagemErro(r.codigo));
         return;
@@ -226,21 +243,11 @@ export function ReceberCarro({
                   </label>
                 );
               })}
+              {podeCriar && todos.length > 0 && (
+                <AcaoLista icone="ajustes" titulo="Editar categorias" dica="Mudar nome, etapas e prazos, ou arquivar a que não se usa mais." onClick={() => setEditandoCategorias(true)} />
+              )}
               {podeCriar && (
-                <button
-                  type="button"
-                  onClick={() => setCriando(true)}
-                  aria-haspopup="dialog"
-                  className="flex items-center gap-3 px-3.5 min-h-12 w-full text-left text-[14px] font-medium text-tinta hover:bg-cinza-50 transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-amarelo-escuro focus-visible:-outline-offset-2"
-                >
-                  <span aria-hidden="true" className="inline-grid place-items-center w-4 h-4 shrink-0 text-tinta-suave">
-                    <Icone nome="mais" tamanho={16} />
-                  </span>
-                  <span className="min-w-0">
-                    Criar nova categoria
-                    <span className="block text-[12px] font-normal text-tinta-suave">Para um serviço que ainda não está na lista.</span>
-                  </span>
-                </button>
+                <AcaoLista icone="mais" titulo="Criar nova categoria" dica="Para um serviço que ainda não está na lista." onClick={() => setCriando(true)} />
               )}
             </div>
           )}
@@ -302,9 +309,16 @@ export function ReceberCarro({
             </div>
           </fieldset>
         )}
+        {editandoCategorias && (
+          <EditarCategorias
+            tipos={todos}
+            onFechar={() => setEditandoCategorias(false)}
+            onCriado={(t) => setCriado(t)}
+          />
+        )}
         {criando && (
           <FormTipoReparo
-            existentes={tipos}
+            existentes={todos}
             onFechar={() => setCriando(false)}
             onSalvo={(t) => {
               setCriado(t);
@@ -322,20 +336,36 @@ export function ReceberCarro({
       <div className="flex flex-col gap-4">
         <p className="text-[13px] text-tinta-suave">Confira com o cliente presente. O que não estiver no carro fica desmarcado.</p>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <ProgressoChecklist checklist={checklist} itens={itens} className="flex-1 max-w-sm" />
-          <Botao
-            tamanho="denso"
-            variante="fantasma"
-            onClick={() => setChecklist(Object.fromEntries(itens.filter((i) => i.ativo).map((i) => [i.id, !prog.completo])))}
-          >
-            {prog.completo ? "Desmarcar tudo" : "Marcar tudo"}
-          </Botao>
+          <ProgressoChecklist checklist={checklist} itens={itens} className="flex-1 min-w-[11rem] max-w-sm" />
+          <span className="flex items-center gap-2 ml-auto">
+            <Botao
+              tamanho="denso"
+              variante="fantasma"
+              onClick={() => setChecklist(Object.fromEntries(itens.filter((i) => i.ativo).map((i) => [i.id, !prog.completo])))}
+            >
+              {prog.completo ? "Desmarcar tudo" : "Marcar tudo"}
+            </Botao>
+            {podeChecklist && (
+              <Botao tamanho="denso" variante="contorno" icone="ajustes" aria-haspopup="dialog" onClick={() => setEditandoChecklist(true)}>
+                Editar checklist
+              </Botao>
+            )}
+          </span>
         </div>
         <Checklist itens={itens} valor={checklist} onMudar={setChecklist} mostrarProgresso={false} />
         {!config.data.checklist && (
           <p className="text-[12px] text-tinta-suave">
-            <Provisorio>Checklist padrão provisório — a confirmar</Provisorio>. O dono ajusta os itens em Ajustes.
+            <Provisorio>Checklist padrão provisório — a confirmar</Provisorio>.{" "}
+            {podeChecklist ? "Falta um item ou um grupo? Use Editar checklist." : "O dono ajusta os itens em Ajustes."}
           </p>
+        )}
+        {editandoChecklist && (
+          <EditarChecklist
+            itens={itens}
+            padrao={!config.data.checklist}
+            onFechar={() => setEditandoChecklist(false)}
+            onSalvo={() => setEditandoChecklist(false)}
+          />
         )}
       </div>
     );
@@ -561,5 +591,25 @@ function LinhaResumo({ nome, onEditar, children }: { nome: string; onEditar: () 
         Alterar
       </button>
     </div>
+  );
+}
+
+/** Linha de ação no fim da lista de categorias ("Editar categorias", "Criar nova categoria"): ícone, título e dica. */
+function AcaoLista({ icone, titulo, dica, onClick }: { icone: "mais" | "ajustes"; titulo: string; dica: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-haspopup="dialog"
+      className="flex items-center gap-3 px-3.5 py-2.5 min-h-12 w-full text-left text-[14px] font-medium text-tinta border-b border-linha last:border-b-0 hover:bg-cinza-50 transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-amarelo-escuro focus-visible:-outline-offset-2"
+    >
+      <span aria-hidden="true" className="inline-grid place-items-center w-4 h-4 shrink-0 text-tinta-suave">
+        <Icone nome={icone} tamanho={16} />
+      </span>
+      <span className="min-w-0">
+        {titulo}
+        <span className="block text-[12px] font-normal text-tinta-suave">{dica}</span>
+      </span>
+    </button>
   );
 }

@@ -15,10 +15,10 @@ import { calcularFechamento, checarCaixaAberto } from "@compartilhado/dominio/ca
 import { resumoPagamentosCliente, saldoACobrarCliente } from "@compartilhado/dominio/pagamentos";
 import { alertaCarroBase, aplicarConfig, laranjaFracao } from "@compartilhado/dominio/config";
 import { aplicarAlertaOS } from "@compartilhado/dominio/corCarro";
-import { validarTipoReparo } from "@compartilhado/dominio/tiposReparo";
+import { chaveNome, tipoReparoAtivo, usoTipoReparo, validarTipoReparo } from "@compartilhado/dominio/tiposReparo";
 import { COMPRESSAO_FOTO, FASES_FOTO_ETAPA, FASES_FOTO_INTERNA, expiracaoFoto, fotosDaEtapa } from "@compartilhado/dominio/fotos";
 import { FASE_VISTORIA } from "../dominio/rotulos";
-import { gerarDemo, type EstadoDemo } from "./demo";
+import { TIPOS_REPARO_PADRAO, gerarDemo, type EstadoDemo } from "./demo";
 import { apagarBlobs, apagarOrfaos, guardarBlobs, lerBlobs, limparBlobs } from "./fotosLocais";
 import { LIMITE_AUDITORIA, type ClienteFicha, type ClienteResumo, type NovoAtendimentoRapido, type OSVisao, type Repositorio, type Resultado } from "./repositorio";
 
@@ -49,12 +49,29 @@ function carregar(): EstadoDemo {
     if (bruto) {
       const salvo = JSON.parse(bruto) as EstadoDemo;
       // demo de outro dia: regera para os prazos continuarem fazendo sentido
-      if (salvo.versao === 3 && dataNoFuso(salvo.geradoEm) === dataNoFuso(agora())) return salvo;
+      if (salvo.versao === 3 && dataNoFuso(salvo.geradoEm) === dataNoFuso(agora())) return completarTiposPadrao(salvo);
     }
   } catch {
     /* sem armazenamento ou dado corrompido: regera */
   }
   return gerarDemo();
+}
+
+/**
+ * Migração leve do demo salvo (sem trocar a CHAVE): categorias padrão novas entram na posição delas, e o
+ * "Pintura" provisório antigo (tr-pintura, com funilaria) passa a "Funilaria e pintura" (sprint SI).
+ * Não mexe no que o dono já revisou (provisorio false) nem duplica nome que ele tenha criado.
+ */
+export function completarTiposPadrao(salvo: EstadoDemo): EstadoDemo {
+  let tipos = salvo.tiposReparo.map((t) => (t.id === "tr-pintura" && t.provisorio && t.nome === "Pintura" ? { ...t, nome: "Funilaria e pintura" } : t));
+  TIPOS_REPARO_PADRAO.forEach((p, i) => {
+    if (tipos.some((t) => t.id === p.id || chaveNome(t.nome) === chaveNome(p.nome))) return;
+    // depois do padrão anterior que existir; senão, no começo
+    const antes = TIPOS_REPARO_PADRAO.slice(0, i).map((x) => x.id);
+    const pos = tipos.reduce((k, t, j) => (antes.includes(t.id) ? j + 1 : k), 0);
+    tipos = [...tipos.slice(0, pos), { ...p, etapas: p.etapas.map((e) => ({ ...e })) }, ...tipos.slice(pos)];
+  });
+  return { ...salvo, tiposReparo: tipos };
 }
 
 let estado: EstadoDemo = carregar();
@@ -603,7 +620,8 @@ export const repositorioMemoria: Repositorio = {
     const os = estado.oss.find((o) => o.id === osId);
     const tipo = estado.tiposReparo.find((t) => t.id === tipoReparoId);
     if (!os) return { ok: false, codigo: "transicao_invalida" };
-    if (!tipo) return { ok: false, codigo: "sem_tipo_reparo" };
+    // arquivada só vale para a OS que já estava com ela (as em aberto seguram o arquivo)
+    if (!tipo || (!tipoReparoAtivo(tipo) && os.tipoReparoId !== tipo.id)) return { ok: false, codigo: "sem_tipo_reparo" };
     const checagem = transicaoOS(os, "na_oficina", { tipoReparoId });
     if (!checagem.ok) return { ok: false, codigo: checagem.codigo };
     let rec: RecepcaoVeiculo | undefined = os.recepcao;
@@ -1254,6 +1272,18 @@ export const repositorioMemoria: Repositorio = {
     auditar("criar", "tipo_reparo", id, `Tipo de reparo ${r.nome} criado (${r.etapas.map((e) => e.nome).join(", ")})`);
     salvar();
     return { ok: true, id };
+  },
+
+  async arquivarTipoReparo(id, arquivar) {
+    await pausa();
+    const tipo = estado.tiposReparo.find((t) => t.id === id);
+    if (!tipo) return { ok: false, codigo: "tipo_nao_encontrado" };
+    if (arquivar && usoTipoReparo(id, estado.oss) > 0) return { ok: false, codigo: "tipo_em_uso" };
+    if (tipoReparoAtivo(tipo) === !arquivar) return { ok: true };
+    estado.tiposReparo = estado.tiposReparo.map((t) => (t.id === id ? { ...t, ativo: !arquivar } : t));
+    auditar("editar", "tipo_reparo", id, `Tipo de reparo ${tipo.nome} ${arquivar ? "arquivado" : "reativado"}`);
+    salvar();
+    return { ok: true };
   },
 
   // ------------------------------------------------------------ fotos

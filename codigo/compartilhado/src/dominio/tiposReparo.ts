@@ -1,4 +1,4 @@
-import type { Id, ModeloEtapaItem, TipoReparo } from "../tipos";
+import type { EstadoOS, Id, ModeloEtapaItem, TipoReparo } from "../tipos";
 import { falha, type Resultado } from "./resultado";
 
 /**
@@ -68,3 +68,17 @@ export function validarTipoReparo(
   }
   return { ok: true, nome, etapas: limpas };
 }
+
+/** OS que já saíram do fluxo: não seguram a categoria (dá para arquivar). */
+const FORA_DO_FLUXO: ReadonlySet<EstadoOS> = new Set(["entregue", "encerrada", "cancelada"]);
+
+/**
+ * Quantas OS em aberto (não entregues, encerradas nem canceladas) usam a categoria. Com alguma, ela não pode
+ * ser arquivada: o carro ainda vai passar pelas etapas dela.
+ */
+export function usoTipoReparo(tipoId: Id, oss: readonly { tipoReparoId?: Id; estado: EstadoOS }[]): number {
+  return oss.filter((o) => o.tipoReparoId === tipoId && !FORA_DO_FLUXO.has(o.estado)).length;
+}
+
+/** Categoria disponível na escolha do serviço (as arquivadas ficam de fora). */
+export const tipoReparoAtivo = (t: Pick<TipoReparo, "ativo">): boolean => t.ativo !== false;
