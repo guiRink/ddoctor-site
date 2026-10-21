@@ -1,19 +1,21 @@
 import { useId, useState, type FormEvent } from "react";
 import type { ConfigOficina, EtapaOS, Foto, Id, MarcoISO } from "@compartilhado/tipos";
 import { fotosDaEtapa } from "@compartilhado/dominio/fotos";
-import { progressoEtapas, semaforoEtapa } from "@compartilhado/dominio/semaforo";
+import { progressoEtapas, situacaoCartao } from "@compartilhado/dominio/semaforo";
+import { paraMs } from "@compartilhado/dominio/fuso";
 import { formatarDuracao, tempoBloqueada, tempoEmExecucao, tempoEmFila } from "@compartilhado/dominio/tempos";
 import type { DadosConclusaoEtapa, OSVisao } from "../../dados/repositorio";
 import { mensagemErro, useAcoes } from "../../dados/hooks";
 import { useSessao } from "../../dados/sessao";
 import { podeAdicionarFoto, podeRemoverFoto } from "../../dominio/permissoes";
+import { rotuloPrazo } from "../../dominio/horarios";
 import { ESTADO_ETAPA, TECNICA } from "../../dominio/rotulos";
 import { Botao, SUPERFICIE } from "../ui/Basicos";
-import { Etiqueta, Semaforo } from "../ui/Estado";
+import { Etiqueta } from "../ui/Estado";
 import { Placa } from "../ui/Placa";
 import { CapturaFoto, type EstadoCaptura } from "../fotos/CapturaFoto";
 import { Icone } from "../Icone";
-import { formatarPrazo } from "./quadro";
+import { PilulaSituacao } from "./Situacao";
 
 /** Motivos de impedimento (docs/painel-informacoes.md §3.5). "Outro" exige o texto. */
 const MOTIVOS_IMPEDIMENTO = [
@@ -57,7 +59,9 @@ export function CartaoTarefa({
   const [erro, setErro] = useState("");
   const id = useId();
 
-  const semaforo = semaforoEtapa(etapa, agora, config);
+  // a mesma pílula única do quadro (impedido vence atrasado e atenção)
+  const situacao = situacaoCartao(v.os, v.etapas, agora, config) ?? "no_prazo";
+  const etapaVencida = Boolean(etapa.prazoEm && paraMs(agora) > paraMs(etapa.prazoEm));
   const bloqueada = etapa.estado === "bloqueada";
   const bloqueio = bloqueada ? etapa.bloqueios.find((b) => !b.fimEm) : undefined;
   const { total, atualIndex } = progressoEtapas(v.etapas);
@@ -86,21 +90,21 @@ export function CartaoTarefa({
       <div className="p-4">
         <div className="flex items-start justify-between gap-3">
           <Placa placa={placa} tamanho="m" />
-          <Semaforo valor={semaforo} texto={bloqueada && semaforo === "vermelho" ? "Impedido" : undefined} />
+          <PilulaSituacao situacao={situacao} />
         </div>
         <p className="mt-3 text-[16px] font-semibold leading-tight">
           {v.veiculo.modelo ?? "Modelo não informado"}
           {v.veiculo.cor && <span className="font-normal text-tinta-suave"> · {v.veiculo.cor}</span>}
         </p>
-        <h3 id={`${id}-titulo`} className="mt-1.5 titulo text-[28px]">
-          {etapa.nome}
+        {/* etapa em destaque · tipo de serviço do carro ("Funilaria · serviço: Pintura"): o funileiro não lê "Pintura" como a etapa dele */}
+        <h3 id={`${id}-titulo`} className="mt-1.5 flex flex-wrap items-baseline gap-x-2 leading-tight">
+          <span className="titulo text-[28px]">{etapa.nome}</span>
+          {v.tipoReparo && v.tipoReparo.nome.toLowerCase() !== etapa.nome.toLowerCase() && <span className="text-[16px] font-medium text-tinta-suave">· serviço: {v.tipoReparo.nome}</span>}
         </h3>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <Etiqueta tom={ESTADO_ETAPA[etapa.estado].tom}>{ESTADO_ETAPA[etapa.estado].texto}</Etiqueta>
-          <span className="text-[13px] text-tinta-suave numero">
-            {atualIndex !== null ? `Etapa ${atualIndex + 1} de ${total}` : ""}
-            {v.tipoReparo && ` · ${v.tipoReparo.nome}`}
-          </span>
+          {/* impedida: a pílula do topo e o quadro do impedimento já dizem; sem segunda pílula vermelha */}
+          {!bloqueada && <Etiqueta tom={ESTADO_ETAPA[etapa.estado].tom}>{ESTADO_ETAPA[etapa.estado].texto}</Etiqueta>}
+          {atualIndex !== null && <span className="text-[13px] text-tinta-suave numero">etapa {atualIndex + 1} de {total}</span>}
         </div>
 
         <dl className="mt-4 pt-3 border-t border-linha grid grid-cols-2 gap-x-4 gap-y-3 numero">
@@ -109,7 +113,7 @@ export function CartaoTarefa({
           {bloqueada ? (
             <Dado nome="Parada há" valor={formatarDuracao(tempoBloqueada(etapa, agora))} alerta />
           ) : (
-            <Dado nome="Prazo da etapa" valor={etapa.prazoEm ? formatarPrazo(etapa.prazoEm, agora) : "—"} alerta={semaforo === "vermelho"} />
+            <Dado nome="Prazo da etapa" valor={etapa.prazoEm ? rotuloPrazo(etapa.prazoEm, agora, config) : "—"} alerta={etapaVencida} />
           )}
           <Dado nome="Peças previstas" valor={etapa.pecasPrevistas !== undefined ? String(etapa.pecasPrevistas) : "—"} />
           <Dado nome="Foto ao concluir" valor={etapa.exigeFoto ? "Obrigatória" : "Não precisa"} />

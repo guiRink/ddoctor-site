@@ -48,7 +48,8 @@ function useTamanhoTela() {
  * Quadro da TV da oficina (docs/painel-design.md §4): fundo preto, sem menu, sem cursor, sem foco e
  * sem rolagem. Atualiza a cada 15 s. Todas as etapas com carro numa tela, em colunas fluidas; cada coluna
  * encolhe os cartões (cheio → médio → compacto) antes de paginar sozinha a cada 20 s (§5.1).
- * Filtro fixo pela URL: #/producao/tv?filtro=atrasados|hoje|impedidos.
+ * Filtro fixo pela URL: #/producao/tv?filtro=parados|hoje (atrasados/impedidos antigos caem em parados).
+ * Os contadores são as contagens do Geral (src/dominio/contagens.ts): Na oficina, Parados e atrasados, Saem hoje.
  */
 export function ProducaoTV() {
   const consulta = useOSs();
@@ -111,10 +112,9 @@ export function ProducaoTV() {
         </div>
 
         <dl className="flex-1 flex justify-end items-center gap-3 m-0">
-          <Contador nome="Na oficina" valor={totais.naOficina} />
-          <Contador nome="Atrasados" valor={totais.atrasados} alerta />
-          <Contador nome="Impedidos" valor={totais.impedidos} alerta />
-          <Contador nome="Entregam hoje" valor={totais.hoje} />
+          <Contador nome="Na oficina" valor={totais.naOficina} detalhe={`${totais.emServico} em serviço · ${totais.prontos} ${totais.prontos === 1 ? "pronto" : "prontos"}`} />
+          <Contador nome="Parados e atrasados" valor={totais.parados} alerta />
+          <Contador nome="Saem hoje" valor={totais.hoje} />
         </dl>
 
         <Relogio />
@@ -129,7 +129,7 @@ export function ProducaoTV() {
         ) : colunas.length === 0 ? (
           <Aviso
             icone="ok"
-            titulo={filtro === "todos" ? "Nenhum carro na produção agora" : `Nenhum carro em “${NOME_FILTRO[filtro].toLowerCase()}”`}
+            titulo={filtro === "todos" ? "Nenhum carro na oficina agora" : `Nenhum carro em “${NOME_FILTRO[filtro].toLowerCase()}”`}
             texto={filtro === "todos" ? "Os carros aparecem aqui quando a recepção registra a entrada." : "Tudo em dia neste recorte."}
           />
         ) : (
@@ -160,7 +160,7 @@ export function ProducaoTV() {
                   {/* altura fixa por densidade: cartões da mesma linha alinham entre colunas */}
                   <div className="flex-1 min-h-0 grid content-start" style={{ gap: VAO_CARTAO_PX, gridAutoRows: ALTURA_TV[densidade] }}>
                     {itensPagina.map((i) => (
-                      <CartaoTV key={i.v.os.id} item={i} agora={agora} perfis={perfisQ.data ?? []} densidade={densidade} estreito={estreito} />
+                      <CartaoTV key={i.v.os.id} item={i} perfis={perfisQ.data ?? []} densidade={densidade} estreito={estreito} />
                     ))}
                   </div>
                 </section>
@@ -211,11 +211,14 @@ export function ProducaoTV() {
   );
 }
 
-function Contador({ nome, valor, alerta = false }: { nome: string; valor: number; alerta?: boolean }) {
+function Contador({ nome, valor, detalhe, alerta = false }: { nome: string; valor: number; detalhe?: string; alerta?: boolean }) {
   const vermelho = alerta && valor > 0;
   return (
     <div className={`flex items-center gap-4 h-16 pl-6 pr-7 rounded-full ${vermelho ? "bg-alerta text-cartao" : "bg-grafite-2"}`}>
-      <dt className={`text-[20px] font-medium leading-none whitespace-nowrap ${vermelho ? "text-cartao" : "text-papel-suave"}`}>{nome}</dt>
+      <dt className={`leading-none whitespace-nowrap ${vermelho ? "text-cartao" : "text-papel-suave"}`}>
+        <span className="block text-[20px] font-medium">{nome}</span>
+        {detalhe && <span className="block mt-1 text-[16px] numero">{detalhe}</span>}
+      </dt>
       <dd className="m-0 text-[40px] font-semibold leading-none numero">{valor}</dd>
     </div>
   );

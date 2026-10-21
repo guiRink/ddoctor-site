@@ -1,89 +1,128 @@
 // Montagem do quadro de produção (gestor e TV): colunas, classificação e ordem dos cartões.
 // Só organiza para exibir; as regras (semáforo, tempos, etapa atual) vêm de @compartilhado/dominio.
-import type { ConfigOficina, DataISO, MarcoISO, Semaforo } from "@compartilhado/tipos";
+import type { ConfigOficina, DataISO, EtapaOS, MarcoISO, Perfil, Semaforo } from "@compartilhado/tipos";
 import { dataNoFuso, diaSemana, diferencaDias, FUSO, paraMs } from "@compartilhado/dominio/fuso";
+import type { SituacaoCartao } from "@compartilhado/dominio/semaforo";
 import type { OSVisao } from "../../dados/repositorio";
+import { naOficina, paradosEAtrasados, saemHoje } from "../../dominio/contagens";
+import { rotuloHaQuanto, rotuloPrazo } from "../../dominio/horarios";
+import type { Tom } from "../ui/Estado";
 import { resumoProducao } from "../ui/Carro";
 
 export const COLUNA_PRONTOS = "__prontos";
 export const COLUNA_SEM_ETAPA = "__sem_etapa";
 
-export type FiltroQuadro = "todos" | "atrasados" | "impedidos" | "hoje";
-export const FILTROS: readonly FiltroQuadro[] = ["todos", "atrasados", "impedidos", "hoje"];
+// Filtros da Produção e da TV. "Parados e atrasados" e "Saem hoje" são as mesmas contagens do Geral
+// (src/dominio/contagens.ts). Links antigos (?filtro=atrasados|impedidos) caem em "parados".
+export type FiltroQuadro = "todos" | "parados" | "hoje";
+export const FILTROS: readonly FiltroQuadro[] = ["todos", "parados", "hoje"];
 export const NOME_FILTRO: Record<FiltroQuadro, string> = {
   todos: "Todos",
-  atrasados: "Atrasados",
-  impedidos: "Impedidos",
-  hoje: "Entregam hoje",
+  parados: "Parados e atrasados",
+  hoje: "Saem hoje",
 };
 
 export function lerFiltro(valor: string | null): FiltroQuadro {
+  if (valor === "atrasados" || valor === "impedidos") return "parados";
   return FILTROS.includes(valor as FiltroQuadro) ? (valor as FiltroQuadro) : "todos";
 }
+
+/** Uma pílula por carro (situacaoCartao): texto, tom e a cor do segmento atual no progresso. */
+export const SITUACAO: Record<SituacaoCartao, { texto: string; tom: Tom; cor: Semaforo }> = {
+  impedido: { texto: "Impedido", tom: "alerta", cor: "vermelho" },
+  atrasado: { texto: "Atrasado", tom: "alerta", cor: "vermelho" },
+  atencao: { texto: "Atenção", tom: "atencao", cor: "laranja" },
+  no_prazo: { texto: "No prazo", tom: "ok", cor: "verde" },
+  pronto: { texto: "Pronto", tom: "ok", cor: "neutro" },
+};
 
 export interface ItemQuadro {
   v: OSVisao;
   coluna: string;
   resumo: ReturnType<typeof resumoProducao>;
-  semaforo: Semaforo;
+  /** A única situação do cartão (impedido vence atrasado e atenção). */
+  situacao: SituacaoCartao;
   impedido: boolean;
   atrasado: boolean;
+  /** Está em "Parados e atrasados" (impedido ou atrasado). */
+  parado: boolean;
+  /** Está em "Saem hoje" (entrega prometida hoje). */
   entregaHoje: boolean;
   pronto: boolean;
   responsavelId?: string;
+  /** Prazo da etapa atual legível: "hoje 16h", "amanhã 10h", "atrasado 3 h". */
+  prazoEtapa?: string;
+  etapaVencida: boolean;
+  /** Entrega prometida legível: "hoje", "amanhã", "qui", "atrasado 1 dia". */
+  entrega?: string;
+  entregaVencida: boolean;
+  /** Prontos: "há 5 h". */
+  prontoHa?: string;
 }
 
-/** Cartões do quadro: só OS na oficina e prontas. */
+/**
+ * Cartões do quadro = "Na oficina" (naOficina: na_oficina + pronta), com as marcas de "Saem hoje" e
+ * "Parados e atrasados" tiradas das mesmas funções do Geral — os números batem em todas as telas.
+ */
 export function montarItens(oss: readonly OSVisao[], agora: MarcoISO, config: ConfigOficina): ItemQuadro[] {
   const hoje = dataNoFuso(agora);
-  const itens: ItemQuadro[] = [];
-  for (const v of oss) {
-    if (v.os.estado !== "na_oficina" && v.os.estado !== "pronta") continue;
-    const pronto = v.os.estado === "pronta";
+  const agoraMs = paraMs(agora);
+  const saem = new Set(saemHoje(oss, agora, config, []).itens.map((i) => i.v.os.id));
+  const parados = new Set(paradosEAtrasados(oss, agora, config).itens.map((i) => i.v.os.id));
+  return naOficina(oss, agora, config).itens.map(({ v, situacao }) => {
+    const pronto = situacao === "pronto";
     const resumo = resumoProducao(v, agora, config);
-    const impedido = !pronto && resumo.bloqueada;
-    itens.push({
+    const etapa = pronto ? undefined : resumo.atual;
+    const previsao = v.os.previsaoEntrega?.slice(0, 10);
+    return {
       v,
-      coluna: pronto ? COLUNA_PRONTOS : (resumo.atual?.nome ?? COLUNA_SEM_ETAPA),
+      coluna: pronto ? COLUNA_PRONTOS : (etapa?.nome ?? COLUNA_SEM_ETAPA),
       resumo,
-      semaforo: pronto ? "neutro" : resumo.semaforo,
-      impedido,
-      atrasado: !pronto && !impedido && resumo.semaforo === "vermelho",
-      entregaHoje: v.os.previsaoEntrega === hoje,
+      situacao,
+      impedido: situacao === "impedido",
+      atrasado: situacao === "atrasado",
+      parado: parados.has(v.os.id),
+      entregaHoje: saem.has(v.os.id),
       pronto,
-      responsavelId: resumo.atual?.responsavelId,
-    });
-  }
-  return itens;
+      responsavelId: etapa?.responsavelId,
+      prazoEtapa: etapa?.prazoEm ? rotuloPrazo(etapa.prazoEm, agora, config) : undefined,
+      etapaVencida: Boolean(etapa?.prazoEm && agoraMs > paraMs(etapa.prazoEm)),
+      entrega: previsao ? rotuloPrazo(previsao, agora, config) : undefined,
+      entregaVencida: Boolean(previsao && hoje > previsao),
+      prontoHa: pronto && v.os.prontaEm ? rotuloHaQuanto(v.os.prontaEm, agora) : undefined,
+    };
+  });
 }
 
+/** Números do cabeçalho e dos filtros: total = emServico + prontos; parados = atrasados + impedidos. */
 export function contarItens(itens: readonly ItemQuadro[]) {
+  const prontos = itens.filter((i) => i.pronto).length;
   return {
-    naOficina: itens.filter((i) => !i.pronto).length,
-    prontos: itens.filter((i) => i.pronto).length,
+    naOficina: itens.length,
+    emServico: itens.length - prontos,
+    prontos,
     atrasados: itens.filter((i) => i.atrasado).length,
     impedidos: itens.filter((i) => i.impedido).length,
+    parados: itens.filter((i) => i.parado).length,
     hoje: itens.filter((i) => i.entregaHoje).length,
   };
 }
 
 export function filtrarItens(itens: readonly ItemQuadro[], filtro: FiltroQuadro, responsavelId?: string): ItemQuadro[] {
   return itens.filter((i) => {
-    if (filtro === "atrasados" && !i.atrasado) return false;
-    if (filtro === "impedidos" && !i.impedido) return false;
+    if (filtro === "parados" && !i.parado) return false;
     if (filtro === "hoje" && !i.entregaHoje) return false;
     if (responsavelId && i.responsavelId !== responsavelId) return false;
     return true;
   });
 }
 
-const PESO: Record<Semaforo, number> = { vermelho: 3, laranja: 2, verde: 1, neutro: 0 };
+const PESO: Record<SituacaoCartao, number> = { atrasado: 4, impedido: 3, atencao: 2, no_prazo: 1, pronto: 0 };
 
-/** Pior semáforo primeiro; depois prioridade, prazo da etapa e previsão de entrega. */
+/** Pior situação primeiro (atrasado, impedido, atenção, no prazo); depois prioridade, prazo da etapa e entrega. */
 export function compararItens(a: ItemQuadro, b: ItemQuadro): number {
   return (
-    PESO[b.semaforo] - PESO[a.semaforo] ||
-    Number(b.impedido) - Number(a.impedido) ||
+    PESO[b.situacao] - PESO[a.situacao] ||
     b.v.os.prioridade - a.v.os.prioridade ||
     tempo(a.resumo.atual?.prazoEm) - tempo(b.resumo.atual?.prazoEm) ||
     (a.v.os.previsaoEntrega ?? "9").localeCompare(b.v.os.previsaoEntrega ?? "9") ||
@@ -172,6 +211,64 @@ export function montarColunas(itens: readonly ItemQuadro[], todas: readonly OSVi
       itens: itens.filter((i) => i.coluna === id).sort(compararItens),
     }))
     .filter((c) => c.itens.length > 0);
+}
+
+// ------------------------------------------------------------------ próximo carro (celular da produção)
+
+const FECHADA: ReadonlySet<EtapaOS["estado"]> = new Set(["concluida", "dispensada"]);
+const sem = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/** A etapa é da função da pessoa? Palavra do nome da etapa (4+ letras) dentro da função ("Martelinho e funilaria"). */
+export function etapaDaFuncao(nomeEtapa: string, funcao?: string): boolean {
+  if (!funcao) return false;
+  const f = sem(funcao);
+  return sem(nomeEtapa)
+    .split(/[^a-z]+/)
+    .some((p) => p.length >= 4 && f.includes(p));
+}
+
+export interface ProximoCarro {
+  v: OSVisao;
+  etapa: EtapaOS;
+  /** Etapas abertas antes da dele (a primeira é a que está sendo feita agora). */
+  antes: EtapaOS[];
+  /** Pela função (etapa sem responsável), e não por atribuição. */
+  pelaFuncao: boolean;
+  /** Quantos outros carros vêm depois para a pessoa. */
+  depois: number;
+}
+
+/**
+ * "Próximo carro pra mim": a etapa ainda aguardando, num carro na oficina, que é da pessoa —
+ * atribuída a ela ou, sem responsável, da função dela. O que tem menos etapas abertas na frente vem
+ * primeiro; empate: pior situação, depois a entrega mais cedo.
+ */
+export function proximoCarro(oss: readonly OSVisao[], pessoa: Pick<Perfil, "id" | "funcao">, agora: MarcoISO, config: ConfigOficina): ProximoCarro | undefined {
+  const situacoes = new Map(naOficina(oss, agora, config).itens.map((i) => [i.v.os.id, i.situacao]));
+  const candidatos: (ProximoCarro & { peso: number })[] = [];
+  for (const v of oss) {
+    if (v.os.estado !== "na_oficina") continue;
+    const ordem = [...v.etapas].sort((a, b) => a.ordem - b.ordem);
+    const minha = ordem.find(
+      (e) => e.estado === "aguardando" && (e.responsavelId === pessoa.id || (!e.responsavelId && etapaDaFuncao(e.nome, pessoa.funcao))),
+    );
+    if (!minha) continue;
+    const antes = ordem.filter((e) => e.ordem < minha.ordem && !FECHADA.has(e.estado));
+    const situacao = situacoes.get(v.os.id) ?? "no_prazo";
+    candidatos.push({ v, etapa: minha, antes, pelaFuncao: minha.responsavelId !== pessoa.id, depois: 0, peso: PESO[situacao] });
+  }
+  candidatos.sort(
+    (a, b) =>
+      a.antes.length - b.antes.length ||
+      b.peso - a.peso ||
+      (a.v.os.previsaoEntrega ?? "9").localeCompare(b.v.os.previsaoEntrega ?? "9") ||
+      a.v.veiculo.placa.localeCompare(b.v.veiculo.placa),
+  );
+  const [primeiro] = candidatos;
+  if (!primeiro) return undefined;
+  const { peso: _peso, ...resto } = primeiro;
+  void _peso;
+  return { ...resto, depois: candidatos.length - 1 };
 }
 
 // ------------------------------------------------------------------ visão (quadro ou lista) e densidade da TV

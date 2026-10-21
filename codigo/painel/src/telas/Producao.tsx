@@ -108,12 +108,12 @@ export function Producao() {
   const abaCelular = colunaCelular ? etapaCelular : TODAS;
   const itensCelular = colunaCelular ? colunaCelular.itens : porUrgencia;
 
+  // os mesmos números do Geral (src/dominio/contagens.ts): Na oficina = em serviço + prontos
   const resumo = consulta.data ? (
     <span className="numero">
-      {plural(totais.naOficina, "carro na oficina", "carros na oficina")}
+      Na oficina {totais.naOficina} · {totais.emServico} em serviço · {plural(totais.prontos, "pronto", "prontos")}
       {totais.atrasados > 0 && <span className="text-alerta font-semibold"> · {plural(totais.atrasados, "atrasado", "atrasados")}</span>}
       {totais.impedidos > 0 && <span className="text-alerta font-semibold"> · {plural(totais.impedidos, "impedido", "impedidos")}</span>}
-      {totais.prontos > 0 && <> · {plural(totais.prontos, "pronto para entrega", "prontos para entrega")}</>}
     </span>
   ) : (
     <span className="inline-block esqueleto h-4 w-64 align-middle" />
@@ -131,7 +131,7 @@ export function Producao() {
           valor: f,
           texto: NOME_FILTRO[f],
           contagem: consulta.data ? n : "–",
-          critico: (f === "atrasados" || f === "impedidos") && n > 0,
+          critico: f === "parados" && n > 0,
         };
       })}
     />
@@ -161,7 +161,7 @@ export function Producao() {
         <Vazio
           icone="producao"
           titulo="Nenhum carro na oficina agora"
-          texto="Os carros entram na produção quando a recepção registra a entrada na ficha da OS. As etapas são geradas pelo tipo de reparo."
+          texto="Os carros aparecem aqui quando a recepção registra a entrada."
           acao={
             podeVer(perfil.papel, "agenda") ? (
               <BotaoLink para="/agenda" variante="secundario" icone="agenda">
@@ -178,7 +178,7 @@ export function Producao() {
         <Vazio
           icone="filtro"
           titulo={filtro === "todos" ? "Nenhum carro com esse responsável" : `Nenhum carro em “${NOME_FILTRO[filtro]}”`}
-          texto={filtro === "atrasados" || filtro === "impedidos" ? "Bom sinal: nada travado nesse recorte." : "Troque o filtro para ver os outros carros."}
+          texto={filtro === "parados" ? "Nada parado nem atrasado." : undefined}
           acao={
             <Botao variante="contorno" onClick={limpar}>
               Ver todos os carros
@@ -210,7 +210,7 @@ export function Producao() {
                 valor: c.id,
                 texto: c.id === COLUNA_PRONTOS ? "Prontos" : c.id === COLUNA_SEM_ETAPA ? "Sem etapa" : c.nome,
                 contagem: c.itens.length,
-                critico: c.itens.some((i) => i.atrasado || i.impedido),
+                critico: c.itens.some((i) => i.parado),
               })),
             ]}
           />

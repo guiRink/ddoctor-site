@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { EtapaOS, OS } from "@compartilhado/tipos";
 import { CONFIG_PADRAO } from "@compartilhado/dominio/config";
 import type { OSVisao } from "../../dados/repositorio";
-import { COLUNA_PRONTOS, contarItens, densidadeTV, etapasSemCarro, filtrarItens, formatarDia, formatarPrazoCurto, lerVisao, montarColunas, montarItens, ordemEtapas, ordenarPorUrgencia, paginasTV } from "./quadro";
+import { COLUNA_PRONTOS, contarItens, etapaDaFuncao, lerFiltro, proximoCarro, densidadeTV, etapasSemCarro, filtrarItens, formatarDia, formatarPrazoCurto, lerVisao, montarColunas, montarItens, ordemEtapas, ordenarPorUrgencia, paginasTV } from "./quadro";
 
 const AGORA = "2026-10-13T10:00:00-03:00"; // terça, dentro do expediente
 
@@ -69,10 +69,29 @@ describe("montarItens e colunas", () => {
     expect(itens.map((i) => i.v.os.id).sort()).toEqual(["1", "2", "3"]);
   });
 
-  it("separa atrasado de impedido e conta entregas de hoje", () => {
-    expect(contarItens(itens)).toEqual({ naOficina: 2, prontos: 1, atrasados: 1, impedidos: 1, hoje: 2 });
-    expect(filtrarItens(itens, "impedidos").map((i) => i.v.os.id)).toEqual(["2"]);
-    expect(filtrarItens(itens, "atrasados").map((i) => i.v.os.id)).toEqual(["1"]);
+  it("conta como o Geral: na oficina = em serviço + prontos; parados = atrasados + impedidos; saem hoje", () => {
+    expect(contarItens(itens)).toEqual({ naOficina: 3, emServico: 2, prontos: 1, atrasados: 1, impedidos: 1, parados: 2, hoje: 2 });
+    expect(filtrarItens(itens, "parados").map((i) => i.v.os.id).sort()).toEqual(["1", "2"]);
+    expect(filtrarItens(itens, "hoje").map((i) => i.v.os.id).sort()).toEqual(["1", "3"]);
+  });
+
+  it("uma situação por cartão: impedido vence atrasado; horários legíveis", () => {
+    const porId = Object.fromEntries(itens.map((i) => [i.v.os.id, i]));
+    expect(porId["1"].situacao).toBe("atrasado");
+    expect(porId["1"].prazoEtapa).toBe("atrasado 1 dia");
+    expect(porId["1"].etapaVencida).toBe(true);
+    expect(porId["1"].entrega).toBe("hoje");
+    expect(porId["2"].situacao).toBe("impedido");
+    expect(porId["2"].prazoEtapa).toBe("amanhã 17h");
+    expect(porId["3"].situacao).toBe("pronto");
+    expect(itens.map((i) => i.prazoEtapa ?? "").join(" ")).not.toMatch(/\d{2}:\d{2}/);
+  });
+
+  it("links antigos de filtro caem em Parados e atrasados", () => {
+    expect(lerFiltro("atrasados")).toBe("parados");
+    expect(lerFiltro("impedidos")).toBe("parados");
+    expect(lerFiltro("hoje")).toBe("hoje");
+    expect(lerFiltro("x")).toBe("todos");
   });
 
   it("monta colunas pela etapa atual, com Prontos no fim", () => {
@@ -143,5 +162,36 @@ describe("paginasTV", () => {
   it("tolera zero páginas", () => {
     expect(paginasTV(4, 0).paginaColunas).toBe(0);
     expect(paginasTV(4, 1).paginaDaColuna(0)).toBe(0);
+  });
+});
+
+describe("proximoCarro", () => {
+  const oss = [
+    visao("1", "na_oficina", [
+      etapa("1", 1, "Desmontagem", "em_execucao", { iniciadaEm: AGORA, prazoEm: "2026-10-13T12:00:00-03:00", responsavelId: "p-rafael" }),
+      etapa("1", 2, "Funilaria", "aguardando", { responsavelId: "p-diego" }),
+    ]),
+    visao("2", "na_oficina", [
+      etapa("2", 1, "Desmontagem", "em_execucao", { iniciadaEm: AGORA, prazoEm: "2026-10-13T12:00:00-03:00" }),
+      etapa("2", 2, "Preparação", "aguardando"),
+      etapa("2", 3, "Funilaria", "aguardando", { responsavelId: "p-diego" }),
+    ]),
+    visao("3", "na_oficina", [etapa("3", 1, "Martelinho", "aguardando")]),
+  ];
+
+  it("pega a etapa atribuída com menos etapas na frente e conta as outras", () => {
+    const p = proximoCarro(oss, { id: "p-diego" }, AGORA, CONFIG_PADRAO);
+    expect(p?.v.os.id).toBe("1");
+    expect(p?.etapa.nome).toBe("Funilaria");
+    expect(p?.antes.map((e) => e.nome)).toEqual(["Desmontagem"]);
+    expect([p?.pelaFuncao, p?.depois]).toEqual([false, 1]);
+  });
+
+  it("sem atribuição, usa a função da pessoa; sem nada, devolve undefined", () => {
+    const p = proximoCarro(oss, { id: "p-x", funcao: "Martelinho e funilaria" }, AGORA, CONFIG_PADRAO);
+    expect([p?.v.os.id, p?.pelaFuncao]).toEqual(["3", true]);
+    expect(proximoCarro(oss, { id: "p-x", funcao: "Pintor" }, AGORA, CONFIG_PADRAO)).toBeUndefined();
+    expect(etapaDaFuncao("Montagem e revisão", "Preparação e montagem")).toBe(true);
+    expect(etapaDaFuncao("Preparação", undefined)).toBe(false);
   });
 });

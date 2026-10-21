@@ -1,15 +1,19 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import type { ConfigOficina, EtapaOS, MarcoISO, Perfil } from "@compartilhado/tipos";
 import { formatarDuracao, tempoEmExecucao, tempoEmFila } from "@compartilhado/dominio/tempos";
+import { situacaoCartao } from "@compartilhado/dominio/semaforo";
+import { dataNoFuso, paraMs } from "@compartilhado/dominio/fuso";
+import { rotuloHaQuanto, rotuloPrazo } from "../../dominio/horarios";
 import type { OSVisao } from "../../dados/repositorio";
 import { mensagemErro, useAcoes } from "../../dados/hooks";
-import { ESTADO_ETAPA, ESTADO_OS } from "../../dominio/rotulos";
+import { ESTADO_ETAPA } from "../../dominio/rotulos";
 import { Botao, BotaoLink, Responsavel } from "../ui/Basicos";
-import { Etiqueta, Semaforo } from "../ui/Estado";
+import { Etiqueta } from "../ui/Estado";
 import { Placa } from "../ui/Placa";
 import { ProgressoEtapas, nomePerfil, resumoProducao } from "../ui/Carro";
 import { Icone } from "../Icone";
-import { formatarDia, formatarPrazo } from "./quadro";
+import { PilulaSituacao } from "./Situacao";
+import { SITUACAO } from "./quadro";
 
 type Aviso = { tipo: "ok" | "erro"; texto: string } | null;
 
@@ -36,6 +40,11 @@ export function PainelOS({
   onFechar: () => void;
 }) {
   const r = resumoProducao(v, agora, config);
+  // a mesma pílula única do cartão (impedido vence atrasado e atenção)
+  const situacao = situacaoCartao(v.os, v.etapas, agora, config);
+  const previsao = v.os.previsaoEntrega?.slice(0, 10);
+  const entregaVencida = Boolean(previsao && previsao < dataNoFuso(agora) && situacao !== null);
+  const etapaVencida = Boolean(r.atual?.prazoEm && paraMs(agora) > paraMs(r.atual.prazoEm));
   const titulo = useRef<HTMLHeadingElement>(null);
   const [aviso, setAviso] = useState<Aviso>(null);
   const idTitulo = useId();
@@ -71,11 +80,7 @@ export function PainelOS({
         <section className="px-5 pt-5 pb-4 border-b border-linha">
           <div className="flex items-start justify-between gap-3">
             <Placa placa={v.veiculo.placa} tamanho="g" />
-            {v.os.estado === "pronta" ? (
-              <Etiqueta tom={ESTADO_OS.pronta.tom}>{ESTADO_OS.pronta.texto}</Etiqueta>
-            ) : (
-              <Semaforo valor={r.semaforo} texto={r.bloqueada && r.semaforo === "vermelho" ? "Impedido" : undefined} />
-            )}
+            {situacao && <PilulaSituacao situacao={situacao} />}
           </div>
           <h2 ref={titulo} id={idTitulo} tabIndex={-1} className="mt-3 text-[20px] font-semibold tracking-[-0.01em] leading-tight outline-none">
             {v.veiculo.modelo ?? "Modelo não informado"}
@@ -91,11 +96,11 @@ export function PainelOS({
             </Etiqueta>
           )}
           <div className="mt-4">
-            <ProgressoEtapas etapas={v.etapas} semaforo={r.semaforoAtual} />
+            <ProgressoEtapas etapas={v.etapas} semaforo={situacao ? SITUACAO[situacao].cor : r.semaforoAtual} />
           </div>
           <dl className="mt-4 grid grid-cols-2 gap-3 numero">
-            <Dado nome="Etapa até" valor={r.atual?.prazoEm ? formatarPrazo(r.atual.prazoEm, agora) : "—"} />
-            <Dado nome="Entrega prevista" valor={v.os.previsaoEntrega ? formatarDia(v.os.previsaoEntrega, agora) : "—"} />
+            <Dado nome="Entrega prometida" valor={previsao ? rotuloPrazo(previsao, agora, config) : "—"} alerta={entregaVencida} />
+            {r.atual && <Dado nome="Prazo da etapa" valor={r.atual.prazoEm ? rotuloPrazo(r.atual.prazoEm, agora, config) : "—"} alerta={etapaVencida} />}
             {r.atual && <Dado nome="Na fila" valor={formatarDuracao(r.fila)} />}
             {r.atual?.iniciadaEm && <Dado nome="Em execução" valor={formatarDuracao(r.execucao)} />}
             {r.bloqueio > 0 && <Dado nome="Impedida" valor={formatarDuracao(r.bloqueio)} />}
@@ -103,7 +108,7 @@ export function PainelOS({
           {bloqueioAberto && (
             <p className="mt-4 px-3 py-2.5 rounded-controle bg-alerta-claro text-alerta text-[13px] font-medium leading-snug">
               <Icone nome="bloqueio" tamanho={14} className="inline -mt-0.5 mr-1.5" />
-              Impedimento desde {formatarPrazo(bloqueioAberto.inicioEm, agora)}: {bloqueioAberto.motivo}
+              Impedido {rotuloHaQuanto(bloqueioAberto.inicioEm, agora)}: {bloqueioAberto.motivo}
             </p>
           )}
         </section>
@@ -149,11 +154,11 @@ export function PainelOS({
   );
 }
 
-function Dado({ nome, valor }: { nome: string; valor: string }) {
+function Dado({ nome, valor, alerta = false }: { nome: string; valor: string; alerta?: boolean }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[12px] text-tinta-fraca">{nome}</dt>
-      <dd className="m-0 text-[16px] font-semibold truncate">{valor}</dd>
+      <dt className="text-[12px] text-tinta-suave">{nome}</dt>
+      <dd className={`m-0 text-[16px] font-semibold truncate ${alerta ? "text-alerta" : ""}`}>{valor}</dd>
     </div>
   );
 }
