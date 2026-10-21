@@ -364,7 +364,7 @@ export const ERRO: Record<string, string> = {
   regra_nao_encontrada: "Comissão não encontrada. Atualize a tela.",
   ajuste_invalido: "Ajuste inválido. Use reais, com sinal de menos para desconto, como -150,00.",
   total_invalido: "O desconto passa do valor a receber; o total do mês não pode ficar negativo.",
-  ja_pago: "Isso já foi pago (folha do mês ou despesa já quitada)."
+  ja_pago: "Isso já foi pago (folha do mês ou despesa já quitada).",
   config_invalida: "Configuração inválida: confira os dias e horários do expediente, o semáforo e a capacidade.",
   fora_da_folha: "Essa pessoa não entra na folha desse mês.",
   // sprint S1: banco real (Supabase), login e Edge Function equipe-login
