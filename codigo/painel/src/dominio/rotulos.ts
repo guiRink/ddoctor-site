@@ -152,7 +152,7 @@ export const TIPO_PENDENCIA: Record<TipoPendencia, string> = {
 
 export const PAPEL: Record<Papel, string> = {
   dono: "Dono",
-  gestor: "Gestor",
+  gestor: "Gerente",
   recepcao: "Recepção",
   producao: "Produção",
   financeiro: "Financeiro",

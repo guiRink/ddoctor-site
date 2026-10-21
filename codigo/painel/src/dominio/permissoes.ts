@@ -1,8 +1,40 @@
 import type { Papel } from "@compartilhado/tipos";
 
 /**
- * Matriz papel × módulo — docs/painel-arquitetura.md §9.1.
- * Na interface só esconde o que o papel não usa; a barreira real é a RLS do banco (S1).
+ * Matriz papel × módulo — docs/painel-arquitetura.md §9.1, revista no S1 (pedido do Guilherme, 22/10/2026:
+ * "gerente vê quase tudo menos o financeiro"). Na interface só esconde o que o papel não usa; a barreira real é a
+ * RLS do banco (S1) — o arquiteto-dados espelha esta matriz nas políticas.
+ *
+ * Matriz final (E = editar, L = ler, P = só o próprio, — = não vê). "gestor" aparece como "Gerente".
+ *
+ *   módulo          dono  gestor  recepcao  producao  financeiro  dispositivo
+ *   geral            L     L       L         —         L           —
+ *   orcamentos       E     E       E         —         L           —
+ *   clientes         E     E       E         —         L           —
+ *   agenda           E     E       E         —         —           —
+ *   vistorias        E     E       E         P         L           —
+ *   producao         E     E       L         L         —           —
+ *   minhas_tarefas   E     E       —         P         —           —
+ *   tv               L     L       —         —         —           L
+ *   equipe           E     E       —         —         —           —     (gestor: lista, cadastro, função, histórico)
+ *   folha            E     —       —         —         E           —     (salários, comissões, marcar pago)
+ *   estoque          E     E       —         —         L           —     (custo médio/valores: veCustosOS)
+ *   recebiveis       E     —       —         —         E           —     (A receber)
+ *   financeiro       E     —       —         —         E           —     (inclui caixa)
+ *   relatorios       L     —       —         —         L           —
+ *   ajustes          E     E       —         —         —           —     (Comissões: só o dono)
+ *
+ * Fora da matriz (helpers abaixo):
+ *   veFinanceiro          dono, financeiro — dinheiro da oficina: A receber, caixa, "Dinheiro vencido" do Geral.
+ *   veCustosOS            dono, financeiro — custos, resultado e margem da OS (o gerente NÃO vê).
+ *   veDadosSensiveis      todos menos produção e TV — preço do orçamento, telefone, documento, seguradora.
+ *   podeVerFolha          dono, financeiro — folha, salários e comissões em R$ (na Equipe, só o dono entre os
+ *                         que abrem a Equipe; o financeiro vê a folha pelo módulo `folha`).
+ *   podeGerenciarEquipe   dono, gestor — cadastrar funcionário, editar nome/função/telefone, ativar/desativar.
+ *   podeEditarPapel       dono — trocar papel (permissão), criar/trocar login e senha, desligar o dono.
+ *   podeEditarSalario     dono — salário mensal e ajustes da folha.
+ *   podeEditarComissoes   dono — regras de comissão em Ajustes.
+ *   podePagarFolha        dono, financeiro — marcar a folha como paga (gera despesa "Salários").
  */
 export type Modulo =
   | "geral"
@@ -13,6 +45,9 @@ export type Modulo =
   | "producao"
   | "minhas_tarefas"
   | "tv"
+  | "equipe"
+  | "folha"
+  /** @deprecated nome antigo da Equipe (rota /funcionarios); mesmo acesso de "equipe". Migrar telas e menu. */
   | "funcionarios"
   | "estoque"
   | "recebiveis"
@@ -21,6 +56,9 @@ export type Modulo =
   | "ajustes";
 
 export type Acesso = "editar" | "ler" | "proprio" | null;
+
+// Equipe: a produção não vê (sprint SG: funileiro vendo o número do colega dá briga)
+const EQUIPE: Partial<Record<Papel, Acesso>> = { dono: "editar", gestor: "editar" };
 
 const MATRIZ: Record<Modulo, Partial<Record<Papel, Acesso>>> = {
   geral: { dono: "ler", gestor: "ler", recepcao: "ler", financeiro: "ler" },
@@ -32,25 +70,31 @@ const MATRIZ: Record<Modulo, Partial<Record<Papel, Acesso>>> = {
   producao: { dono: "editar", gestor: "editar", recepcao: "ler", producao: "ler" },
   minhas_tarefas: { producao: "proprio", gestor: "editar", dono: "editar" },
   tv: { dono: "ler", gestor: "ler", dispositivo: "ler" },
-  // Equipe: a produção não vê (sprint SG: funileiro vendo o número do colega dá briga)
-  funcionarios: { dono: "editar", gestor: "editar" },
+  equipe: EQUIPE,
+  funcionarios: EQUIPE,
+  folha: { dono: "editar", financeiro: "editar" },
   estoque: { dono: "editar", gestor: "editar", financeiro: "ler" },
-  recebiveis: { dono: "editar", gestor: "editar", recepcao: "ler", financeiro: "editar" },
-  financeiro: { dono: "editar", gestor: "ler", financeiro: "editar" },
-  relatorios: { dono: "ler", gestor: "ler", financeiro: "ler" },
+  // dinheiro da oficina: só o dono e o financeiro (S1: o gerente e a recepção saem)
+  recebiveis: { dono: "editar", financeiro: "editar" },
+  financeiro: { dono: "editar", financeiro: "editar" },
+  relatorios: { dono: "ler", financeiro: "ler" },
   ajustes: { dono: "editar", gestor: "editar" },
 };
+
+/** Módulos de dinheiro da oficina (o gerente não vê nenhum). */
+export const MODULOS_FINANCEIROS: readonly Modulo[] = ["recebiveis", "financeiro", "relatorios", "folha"];
 
 /**
  * Menu por papel, na ordem em que aparece (sprint SG, plano item 10). O menu é mais enxuto que o acesso:
  * "Minhas tarefas" só para a produção, "Quadro da TV" é botão na Produção e "Relatórios" é aba do Financeiro —
- * as rotas continuam abertas para quem a MATRIZ deixa.
+ * as rotas continuam abertas para quem a MATRIZ deixa. A Equipe ainda entra como "funcionarios" (item do MENU em
+ * rotulos.ts); a folha do financeiro é o módulo "folha" (o frontend decide se é aba do Financeiro ou rota própria).
  */
 const MENU_DO_PAPEL: Record<Papel, Modulo[]> = {
   dono: ["geral", "orcamentos", "agenda", "producao", "vistorias", "clientes", "recebiveis", "financeiro", "funcionarios", "estoque", "ajustes"],
-  gestor: ["geral", "orcamentos", "agenda", "producao", "vistorias", "clientes", "recebiveis", "financeiro", "funcionarios", "estoque", "ajustes"],
+  gestor: ["geral", "orcamentos", "agenda", "producao", "vistorias", "clientes", "funcionarios", "estoque", "ajustes"],
   recepcao: ["geral", "orcamentos", "agenda", "producao", "vistorias", "clientes"],
-  financeiro: ["geral", "recebiveis", "financeiro", "clientes", "orcamentos"],
+  financeiro: ["geral", "recebiveis", "financeiro", "folha", "clientes", "orcamentos"],
   producao: ["minhas_tarefas", "producao", "vistorias"],
   dispositivo: [],
 };
@@ -79,11 +123,52 @@ export function veDadosSensiveis(papel: Papel): boolean {
 }
 
 /**
- * Custos lançados, resultado e margem da OS: só dono, gestor e financeiro (quem lança custo é quem os vê).
- * Produção e TV nunca veem custo, margem, valor, documento, telefone nem endereço (veDadosSensiveis).
+ * Dinheiro da oficina (A receber, caixa, Relatórios, "Dinheiro vencido"/"Recebido no mês" do Geral): dono e
+ * financeiro. O gerente vê a operação inteira, mas não o financeiro (S1).
+ */
+export function veFinanceiro(papel: Papel): boolean {
+  return papel === "dono" || papel === "financeiro";
+}
+
+/**
+ * Custos lançados, resultado e margem da OS (e custo médio/valor do estoque): só dono e financeiro (S1: o gerente
+ * saiu). Produção e TV nunca veem custo, margem, valor, documento, telefone nem endereço (veDadosSensiveis).
  */
 export function veCustosOS(papel: Papel): boolean {
-  return papel === "dono" || papel === "gestor" || papel === "financeiro";
+  return veFinanceiro(papel);
+}
+
+/** Folha de pagamento, salários e comissões em R$: dono e financeiro. */
+export function podeVerFolha(papel: Papel): boolean {
+  return podeVer(papel, "folha");
+}
+
+/** Marcar a folha como paga (vira despesa "Salários"): quem edita a folha — dono e financeiro. */
+export function podePagarFolha(papel: Papel): boolean {
+  return acesso(papel, "folha") === "editar";
+}
+
+/** Cadastrar funcionário, editar nome/função/telefone, ativar/desativar: dono e gerente. */
+export function podeGerenciarEquipe(papel: Papel): boolean {
+  return acesso(papel, "equipe") === "editar";
+}
+
+/**
+ * Trocar o papel (permissão) de alguém, criar/trocar login e senha: só o dono. A guarda do último dono ativo
+ * é validarMudancaPapel (compartilhado/dominio/equipe).
+ */
+export function podeEditarPapel(papel: Papel): boolean {
+  return papel === "dono";
+}
+
+/** Salário mensal e ajustes da folha: só o dono (o financeiro paga, não muda o salário). */
+export function podeEditarSalario(papel: Papel): boolean {
+  return papel === "dono";
+}
+
+/** Regras de comissão em Ajustes → Comissões: só o dono (o gerente edita o resto de Ajustes). */
+export function podeEditarComissoes(papel: Papel): boolean {
+  return papel === "dono";
 }
 
 /**

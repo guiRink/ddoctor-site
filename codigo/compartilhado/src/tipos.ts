@@ -13,6 +13,15 @@ export type Centavos = number;
 export const PAPEIS = ["dono", "gestor", "recepcao", "producao", "financeiro", "dispositivo"] as const;
 export type Papel = (typeof PAPEIS)[number];
 
+/**
+ * Funcionário da oficina (aba Equipe). `papel` é a PERMISSÃO (o que a pessoa vê no painel; "gestor" aparece como
+ * "Gerente"); `funcao` é o ofício em texto livre ("Pintor", "Funileiro") e não muda permissão.
+ * Login (sprint S1): o dono cria `usuario` + senha; o Supabase Auth recebe o e-mail técnico
+ * `emailDeLogin(usuario)` = "<usuario>@equipe.ddoctor.app" (domínio sem caixa postal), salvo se a pessoa tiver
+ * `email` real cadastrado para login. Ver dominio/equipe.ts.
+ * `salarioMensal` só chega a quem podeVerFolha (dono e financeiro); no banco mora fora da tabela de perfis lida
+ * pelo gerente (pedido ao arquiteto-dados: coluna/tabela com RLS própria).
+ */
 export interface Perfil {
   id: Id;
   nome: string;
@@ -21,6 +30,49 @@ export interface Perfil {
   especialidade?: string;
   ativo: boolean;
   usaTerminal: boolean;
+  /** Login curto, já normalizado (normalizarUsuario): "diego", "ana.paula". */
+  usuario?: string;
+  /** E-mail real (opcional; contato ou login). */
+  email?: string;
+  /** E.164 sem formatação: +5541999990000. */
+  telefone?: string;
+  /** true quando já existe usuário no Supabase Auth ligado a este perfil. */
+  temLogin?: boolean;
+  /** Salário fixo do mês, em centavos (folha). Ausente = sem salário fixo (só comissões). */
+  salarioMensal?: Centavos;
+  admitidoEm?: DataISO;
+}
+
+// ---------------------------------------------------------------- equipe: comissões e folha
+
+/**
+ * Comissão por serviço (Ajustes → Comissões; edição só do dono). Alvo: `etapaNome` (ex.: "Pintura" = R$ 40 por
+ * etapa concluída), `tipoReparoId` (toda etapa concluída de uma OS desse tipo) ou os dois (etapa daquele tipo).
+ * A mais específica vence: tipo+etapa > etapa > tipo (comissoesDoPeriodo). Valor 0 numa regra mais específica
+ * anula a geral. Sem alvo nenhum, a regra não vale (validarRegraComissao: alvo_obrigatorio).
+ */
+export interface RegraComissao {
+  id: Id;
+  etapaNome?: string;
+  tipoReparoId?: Id;
+  valor: Centavos;
+  ativa: boolean;
+  descricao?: string;
+}
+
+/** Pagamento da folha de um funcionário num mês ("AAAA-MM"). Ao pagar, vira despesa "Salários" (despesaId). */
+export interface PagamentoFolha {
+  id: Id;
+  perfilId: Id;
+  mes: string; // "AAAA-MM"
+  salario: Centavos;
+  comissoes: Centavos;
+  /** Vales, descontos (negativo) ou extras (positivo). */
+  ajustes?: Centavos;
+  total: Centavos; // salario + comissoes + (ajustes ?? 0)
+  pagoEm?: DataISO;
+  despesaId?: Id;
+  obs?: string;
 }
 
 // ---------------------------------------------------------------- proveniência
@@ -574,6 +626,8 @@ export interface ConfigOficina {
   alertaCarro?: AlertaCarroConfig;
   /** Itens do checklist de entrada; ausente = CHECKLIST_PADRAO (provisório). */
   checklist?: ChecklistItem[];
+  /** Regras de comissão por serviço (Equipe → Folha). Ausente ou vazio = ninguém tem comissão. */
+  comissoes?: RegraComissao[];
   /** Geral: true enquanto há valor não confirmado pelo dono. Por campo, veja `confirmado` (campoConfigProvisorio). */
   provisorio: boolean;
   /** Campos que o dono já confirmou em Ajustes (salvarConfig); ausente = segue o `provisorio` geral. */
