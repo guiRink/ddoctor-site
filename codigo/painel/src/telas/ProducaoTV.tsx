@@ -161,7 +161,7 @@ function TVMosaico() {
           >
             {naPagina.map((i) => (
               <li key={i.v.os.id} className="grid min-w-0">
-                <QuadradoTV item={i} densidade={grade.densidade} largo={largo} />
+                <QuadradoTV item={i} densidade={grade.densidade} largo={largo} largura={grade.largura} />
               </li>
             ))}
           </ul>
