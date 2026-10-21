@@ -249,6 +249,14 @@ export const ACAO_AUDITORIA: Record<string, string> = {
   tirar_login: "Tirou o login",
   ajuste_folha: "Ajuste na folha",
   pagar_folha: "Pagou a folha",
+  // sprint S1: nomes gravados pelas funções do banco (Supabase)
+  iniciar_etapa: "Iniciou etapa",
+  concluir_etapa: "Concluiu etapa",
+  bloquear_etapa: "Impedimento",
+  retomar_etapa: "Retomou etapa",
+  dispensar_etapa: "Dispensou etapa",
+  alerta: "Alerta do carro",
+  primeiro_dono: "Primeiro dono",
 };
 
 /** Rótulo da ação; ação desconhecida vira "Texto com espaços". */
@@ -356,6 +364,31 @@ export const ERRO: Record<string, string> = {
   total_invalido: "O desconto passa do valor a receber; o total do mês não pode ficar negativo.",
   ja_pago: "A folha dessa pessoa nesse mês já foi paga.",
   fora_da_folha: "Essa pessoa não entra na folha desse mês.",
+  // sprint S1: banco real (Supabase), login e Edge Function equipe-login
+  origem_invalida: "Escolha a origem do atendimento (Maxpar, seguradora direta, particular ou misto).",
+  pendencia_nao_encontrada: "Pendência não encontrada. Atualize a tela.",
+  saldo_so_por_movimento: "O saldo e o custo do material só mudam por movimentação de estoque.",
+  registro_imutavel: "Esse registro não pode ser alterado depois de gravado. Faça um lançamento de correção.",
+  registro_relacionado: "Um cadastro ligado a este não existe mais. Atualize a tela.",
+  erro_desconhecido: "Não foi possível concluir a ação. Tente de novo.",
+  sem_conexao: "Sem conexão com o servidor. Confira a internet e tente de novo.",
+  sem_sessao: "A sua sessão terminou. Entre de novo.",
+  config_nao_encontrada: "A configuração da oficina não foi encontrada no banco. Fale com quem cuida do sistema.",
+  falha_auth: "O servidor de login recusou a mudança. Tente de novo em instantes.",
+  falha_banco: "O banco recusou a mudança. Tente de novo em instantes.",
+  acao_invalida: "Ação de login desconhecida. Atualize a página.",
+  pedido_invalido: "Pedido inválido. Atualize a página e tente de novo.",
+  metodo_invalido: "Pedido inválido. Atualize a página e tente de novo.",
+  login_indisponivel: "O serviço que cria os logins da equipe ainda não está ativo no servidor. Fale com quem cuida do sistema.",
+  login_nao_sincronizado: "Cadastro salvo, mas o login não foi atualizado no servidor. Abra a pessoa e salve de novo.",
+  falha_envio_foto: "Não consegui enviar a foto. Confira a internet e tente de novo.",
+  so_na_demonstracao: "Restaurar só existe na demonstração; o banco da oficina não é apagado pelo painel.",
+  // tela de entrada (login)
+  login_invalido: "Usuário ou senha incorretos.",
+  login_bloqueado: "Esse login está desativado. Fale com o dono da oficina.",
+  muitas_tentativas: "Muitas tentativas seguidas. Espere um minuto e tente de novo.",
+  usuario_ou_email_invalido: "Digite o seu usuário (como diego) ou o seu e-mail.",
+  senha_obrigatoria: "Digite a senha.",
 };
 
 /** Mensagem do valor da comissão (0 é válido: zera a regra geral para um caso). */

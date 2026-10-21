@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { HashRouter, Navigate, Route, Routes, useSearchParams } from "react-router-dom";
 import { Layout } from "./componentes/Layout";
-import { PinGate } from "./componentes/PinGate";
+import { PortaoAcesso } from "./componentes/Login";
 import { Vazio } from "./componentes/ui/Basicos";
 import { ProvedorSessao, useSessao } from "./dados/sessao";
 import { podeVer, telaInicial, type Modulo } from "./dominio/permissoes";
@@ -56,7 +56,7 @@ function RelatoriosAntigo() {
 
 export default function App() {
   return (
-    <PinGate>
+    <PortaoAcesso>
       <ProvedorSessao>
         <HashRouter>
           <Routes>
@@ -86,6 +86,6 @@ export default function App() {
           </Routes>
         </HashRouter>
       </ProvedorSessao>
-    </PinGate>
+    </PortaoAcesso>
   );
 }

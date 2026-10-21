@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import type { Baixa, Centavos, ChecklistItem, DataISO, FormaPagamento, Id, Janela, RecepcaoVeiculo } from "@compartilhado/tipos";
 import { ERRO } from "../dominio/rotulos";
-import { repositorioMemoria } from "./repositorioMemoria";
+import { criarRepositorio } from "./fabrica";
 import type {
   CategoriaEntrada,
   ClienteEntrada,
@@ -29,9 +29,9 @@ import type {
 
 /**
  * Hooks de dados — a ÚNICA forma de uma tela ler ou mudar dados (CLAUDE.md).
- * Hoje sobre o repositório em memória; no S1 troca para o RepositorioSupabase escolhendo por VITE_DADOS.
+ * O repositório é o do modo da aba (modo.ts): Supabase com `VITE_DADOS=supabase`, memória na demonstração (`?demo=1`).
  */
-export const repositorio: Repositorio = repositorioMemoria;
+export const repositorio: Repositorio = criarRepositorio();
 
 const CHAVE = ["oficina"] as const;
 
@@ -41,7 +41,8 @@ export const useOS = (id: Id | undefined) =>
 export const useAgendamentos = () => useQuery({ queryKey: [...CHAVE, "agendamentos"], queryFn: () => repositorio.listarAgendamentos() });
 export const useCapacidade = (inicio: DataISO, fim: DataISO) =>
   useQuery({ queryKey: [...CHAVE, "capacidade", inicio, fim], queryFn: () => repositorio.listarCapacidade(inicio, fim) });
-export const usePerfis = () => useQuery({ queryKey: [...CHAVE, "perfis"], queryFn: () => repositorio.listarPerfis() });
+export const usePerfis = (habilitado = true) =>
+  useQuery({ queryKey: [...CHAVE, "perfis"], queryFn: () => repositorio.listarPerfis(), enabled: habilitado });
 export const useTiposReparo = () => useQuery({ queryKey: [...CHAVE, "tipos"], queryFn: () => repositorio.listarTiposReparo() });
 export const usePagadores = () => useQuery({ queryKey: [...CHAVE, "pagadores"], queryFn: () => repositorio.listarPagadores() });
 export const useTitulos = () => useQuery({ queryKey: [...CHAVE, "titulos"], queryFn: () => repositorio.listarTitulos() });
@@ -76,6 +77,26 @@ export function useAgora(ms = 30_000): string {
     return () => clearInterval(t);
   }, [ms]);
   return agora;
+}
+
+/**
+ * Tempo real: quando outra pessoa muda OS, etapas, agenda, fotos ou pagamentos, as consultas abertas recarregam
+ * (agrupado em 0,4 s). Só no Supabase; na demonstração não faz nada.
+ */
+export function useTempoReal(ligado = true) {
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!ligado || !repositorio.assinarMudancas) return;
+    let espera: ReturnType<typeof setTimeout> | undefined;
+    const parar = repositorio.assinarMudancas(() => {
+      clearTimeout(espera);
+      espera = setTimeout(() => qc.invalidateQueries({ queryKey: CHAVE }), 400);
+    });
+    return () => {
+      clearTimeout(espera);
+      parar();
+    };
+  }, [ligado, qc]);
 }
 
 /** Mensagem pt-BR para um código de erro do domínio/banco. */

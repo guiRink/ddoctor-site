@@ -223,8 +223,8 @@ export interface FechamentoEntrada {
 }
 
 /**
- * Única porta de entrada dos dados (CLAUDE.md). Implementações: RepositorioMemoria (demo, hoje)
- * e RepositorioSupabase (S1). Telas usam só os hooks de src/dados/hooks.ts.
+ * Única porta de entrada dos dados (CLAUDE.md). Implementações: RepositorioMemoria (demonstração) e
+ * RepositorioSupabase (banco real, S1); a escolha é de modo.ts. Telas usam só os hooks de src/dados/hooks.ts.
  */
 export interface Repositorio {
   // leitura
@@ -356,6 +356,12 @@ export interface Repositorio {
    */
   pagarFolha(perfilId: Id, mes: string, pagoEm: DataISO, ajustes?: Centavos): Promise<Resultado & { id?: Id; despesaId?: Id }>;
 
-  // demonstração (grava uma linha de auditoria "restaurar")
+  // demonstração (grava uma linha de auditoria "restaurar"); no Supabase recusa com `so_na_demonstracao`
   restaurarDemo(): Promise<void>;
+
+  /**
+   * Tempo real (opcional): chama `aoMudar` quando OS, etapas, agenda, fotos ou pagamentos mudam em outro aparelho.
+   * Devolve a função que cancela. Só o Supabase implementa (postgres_changes; a RLS filtra o que cada papel recebe).
+   */
+  assinarMudancas?(aoMudar: () => void): () => void;
 }

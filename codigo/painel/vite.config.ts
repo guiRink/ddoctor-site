@@ -20,6 +20,8 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test-setup.ts"],
+    // os testes usam sempre a demonstração (o .env.local pode apontar para o banco)
+    env: { VITE_DADOS: "memoria" },
     include: ["src/**/*.test.{ts,tsx}", "../compartilhado/src/**/*.test.ts"],
   },
 });

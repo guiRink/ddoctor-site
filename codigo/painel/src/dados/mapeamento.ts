@@ -1045,16 +1045,22 @@ const CONSTRAINT_PARA_CODIGO: Record<string, string> = {
   whatsapp_invalido: "telefone_invalido",
   sem_etapas: "sem_etapas",
   foto_caminho_unico: "arquivo_invalido",
+  foto_sem_arquivo: "arquivo_invalido",
   os_numero_unico: "transicao_invalida",
 };
 
 /**
  * Erro de escrita direta (insert/update) → código. 23505 (único) e 23514 (check) trazem o nome da constraint na
- * mensagem; 42501 = RLS/permissão → sem_permissao; DD001 = regra do banco (a mensagem é o código).
+ * mensagem; 42501 = RLS/permissão → sem_permissao; DD001 = regra do banco (a mensagem é o código); 23503 = chave
+ * estrangeira; PGRST301/303 = sessão expirada; falha de rede (sem `code`) → sem_conexao.
  */
 export function codigoDoErro(erro: { code?: string; message?: string; details?: string | null } | null | undefined): string {
   if (!erro) return "erro_desconhecido";
+  // sem resposta do servidor (fetch falhou: sem internet, DNS, servidor fora)
+  if (!erro.code && /failed to fetch|networkerror|load failed|fetch failed|network request failed/i.test(erro.message ?? "")) return "sem_conexao";
+  if (erro.code === "PGRST301" || erro.code === "PGRST303") return "sem_sessao"; // JWT expirado/inválido
   if (erro.code === "42501") return "sem_permissao";
+  if (erro.code === "23503") return "registro_relacionado"; // chave estrangeira (ligado a um cadastro que não existe)
   if (erro.code === "DD001" || erro.code === "DD002") return (erro.message ?? "").split(":")[0].trim() || "transicao_invalida";
   if (erro.code === "23505" || erro.code === "23514") {
     const nome = /constraint "([^"]+)"/.exec(erro.message ?? "")?.[1] ?? "";

@@ -7,7 +7,7 @@ import { podeConfirmar, reagendar as reagendarDominio } from "@compartilhado/dom
 import { aplicarBaixa as aplicarBaixaDominio, saldoTitulo, validarDataPrevista, validarDataRealizada } from "@compartilhado/dominio/financeiro";
 import { compararMarcos, dataISOValida, dataNoFuso, formatarMarco, paraMs, somarDias } from "@compartilhado/dominio/fuso";
 import { formatarReais } from "@compartilhado/dominio/dinheiro";
-import { normalizarCEP, normalizarDocumento, tipoPorDocumento, validarDocumento } from "@compartilhado/dominio/documento";
+import { normalizarDocumento, validarDocumento } from "@compartilhado/dominio/documento";
 import { carimbarRecepcao, recepcaoEditavel, validarAvaria } from "@compartilhado/dominio/recepcao";
 import { totalCusto, validarMaoDeObra } from "@compartilhado/dominio/custos";
 import { aplicarMovimento } from "@compartilhado/dominio/estoque";
@@ -24,6 +24,7 @@ import { historicoFuncionario, type OSHistorico } from "@compartilhado/dominio/h
 import { FASE_VISTORIA, PAPEL } from "../dominio/rotulos";
 import { podeEditarComissoes, podeEditarPapel, podeEditarSalario, podeGerenciarEquipe, podePagarFolha, podeVer, podeVerFolha } from "../dominio/permissoes";
 import { TIPOS_REPARO_PADRAO, gerarDemo, type EstadoDemo } from "./demo";
+import { EMAIL, normalizarCliente, normalizarTelefone } from "./normalizar";
 import { apagarBlobs, apagarOrfaos, guardarBlobs, lerBlobs, limparBlobs } from "./fotosLocais";
 import { LIMITE_AUDITORIA, LIMITES_SENHA, type ClienteFicha, type ClienteResumo, type FolhaDoMes, type NovoAtendimentoRapido, type OSVisao, type Repositorio, type Resultado } from "./repositorio";
 
@@ -264,43 +265,14 @@ const qtdTexto = (q: number) => q.toLocaleString("pt-BR", { maximumFractionDigit
 
 // ---------------------------------------------------------------- normalização de contato
 
-/** Telefone em E.164 sem formatação; 10–11 dígitos ganham +55. null = inválido. */
-function normalizarTelefone(texto: string | undefined): string | null | undefined {
-  if (!texto?.trim()) return undefined;
-  const digitos = texto.replace(/\D/g, "");
-  if (texto.trim().startsWith("+")) return digitos.length >= 12 && digitos.length <= 13 ? `+${digitos}` : null;
-  if (digitos.length === 10 || digitos.length === 11) return `+55${digitos}`;
-  if ((digitos.length === 12 || digitos.length === 13) && digitos.startsWith("55")) return `+${digitos}`;
-  return null;
-}
-
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-/** Valida e normaliza os dados de um cliente; recusa documento repetido em outro cadastro. */
+/** Valida e normaliza os dados de um cliente (normalizar.ts); recusa documento repetido em outro cadastro. */
 function prepararCliente(entrada: Omit<Cliente, "id">, id?: Id): { ok: true; cliente: Omit<Cliente, "id"> } | { ok: false; codigo: string } {
-  const nome = entrada.nome?.trim();
-  if (!nome) return { ok: false, codigo: "nome_obrigatorio" };
-  let documento: string | undefined;
-  let tipoPessoa = entrada.tipoPessoa;
-  if (entrada.documento?.trim()) {
-    documento = normalizarDocumento(entrada.documento);
-    if (!validarDocumento(documento, tipoPessoa ?? undefined)) return { ok: false, codigo: "documento_invalido" };
-    tipoPessoa = tipoPessoa ?? tipoPorDocumento(documento) ?? undefined;
-    if (estado.clientes.some((c) => c.id !== id && c.documento && normalizarDocumento(c.documento) === documento))
-      return { ok: false, codigo: "documento_duplicado" };
-  }
-  const telefone = normalizarTelefone(entrada.telefone);
-  const whatsapp = normalizarTelefone(entrada.whatsapp);
-  if (telefone === null || whatsapp === null) return { ok: false, codigo: "telefone_invalido" };
-  const email = entrada.email?.trim() || undefined;
-  if (email && !EMAIL.test(email)) return { ok: false, codigo: "email_invalido" };
-  let endereco = entrada.endereco;
-  if (endereco) {
-    const cep = normalizarCEP(endereco.cep ?? "");
-    if (!cep) return { ok: false, codigo: "cep_invalido" };
-    endereco = { ...endereco, cep, uf: endereco.uf?.toUpperCase() };
-  }
-  return { ok: true, cliente: { ...entrada, nome, documento, tipoPessoa, telefone, whatsapp, email, endereco } };
+  const r = normalizarCliente(entrada);
+  if (!r.ok) return r;
+  const documento = r.cliente.documento;
+  if (documento && estado.clientes.some((c) => c.id !== id && c.documento && normalizarDocumento(c.documento) === documento))
+    return { ok: false, codigo: "documento_duplicado" };
+  return r;
 }
 
 /** Valida a recepção e carimba: registradaEm/Por da primeira gravação ficam; regravação vira atualizadaEm/Por. */
