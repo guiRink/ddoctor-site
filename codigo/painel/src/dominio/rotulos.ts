@@ -242,6 +242,13 @@ export const ACAO_AUDITORIA: Record<string, string> = {
   ajuste: "Ajuste de estoque",
   adicionar_foto: "Adicionou foto",
   remover_foto: "Removeu foto",
+  // sprint S1: equipe e folha
+  remover: "Removeu",
+  criar_login: "Deu login",
+  trocar_senha: "Redefiniu a senha",
+  tirar_login: "Tirou o login",
+  ajuste_folha: "Ajuste na folha",
+  pagar_folha: "Pagou a folha",
 };
 
 /** Rótulo da ação; ação desconhecida vira "Texto com espaços". */
@@ -328,6 +335,42 @@ export const ERRO: Record<string, string> = {
   tipo_em_uso: "Há carro em aberto com essa categoria. Arquive depois que ele for entregue.",
   expediente_invalido: "Expediente inválido: marque ao menos um dia e use início antes do fim (HH:MM).",
   nada_a_salvar: "Nada mudou para salvar.",
+  // sprint S1: equipe, login, comissões e folha
+  sem_permissao: "O seu papel não pode fazer isso. Fale com o dono da oficina.",
+  perfil_inexistente: "Funcionário não encontrado. Atualize a tela.",
+  papel_invalido: "Escolha a permissão.",
+  salario_invalido: "Salário inválido. Use o valor do mês em reais, como 2.800,00.",
+  ultimo_dono: "A oficina precisa de ao menos um dono ativo. Dê a permissão de dono a outra pessoa antes.",
+  usuario_obrigatorio: "Informe o usuário.",
+  usuario_curto: "O usuário precisa de ao menos 3 letras ou números.",
+  usuario_longo: "O usuário pode ter no máximo 30 caracteres.",
+  usuario_invalido: "Use só letras sem acento, números, ponto, hífen ou sublinhado (começando e terminando com letra ou número).",
+  usuario_em_uso: "Esse usuário já é de outra pessoa da oficina. Escolha outro.",
+  senha_curta: "A senha precisa de ao menos 8 caracteres.",
+  senha_longa: "A senha pode ter no máximo 72 caracteres.",
+  proprio_login: "Você não pode tirar o seu próprio login.",
+  alvo_obrigatorio: "Escolha a etapa ou o tipo de serviço que paga a comissão.",
+  regra_duplicada: "Já existe uma comissão ligada para essa etapa e esse tipo de serviço. Edite a que existe.",
+  regra_nao_encontrada: "Comissão não encontrada. Atualize a tela.",
+  ajuste_invalido: "Ajuste inválido. Use reais, com sinal de menos para desconto, como -150,00.",
+  total_invalido: "O desconto passa do valor a receber; o total do mês não pode ficar negativo.",
+  ja_pago: "A folha dessa pessoa nesse mês já foi paga.",
+  fora_da_folha: "Essa pessoa não entra na folha desse mês.",
+};
+
+/** Mensagem do valor da comissão (0 é válido: zera a regra geral para um caso). */
+export const ERRO_VALOR_COMISSAO = "Valor da comissão: de R$ 0,00 a R$ 100.000,00 por etapa.";
+
+/**
+ * O que cada permissão vê no painel (Equipe → Editar), na voz do dono. Fonte: matriz de permissoes.ts (S1).
+ * A TV ("dispositivo") não aparece: é aparelho, não pessoa.
+ */
+export const PERMISSAO_RESUMO: Record<Exclude<Papel, "dispositivo">, string> = {
+  dono: "Tudo, inclusive o dinheiro, a folha e quem tem login.",
+  gestor: "Quase tudo: carros, agenda, produção, equipe e estoque. Não vê o dinheiro (A receber, Financeiro, folha, custos).",
+  recepcao: "Orçamentos, agenda, clientes e o quadro da produção.",
+  producao: "As próprias tarefas no celular e o quadro da produção, sem valores nem telefone.",
+  financeiro: "A receber, Financeiro, caixa, folha, relatórios e custos. Não mexe na produção.",
 };
 
 /**
@@ -375,7 +418,7 @@ export const MENU: { modulo: Modulo; rota: string; nome: string; nomePara?: Part
   { modulo: "clientes", rota: "/clientes", nome: "Clientes", icone: "pessoa", grupo: "operacao" },
   { modulo: "recebiveis", rota: "/recebiveis", nome: "A receber", icone: "recebiveis", grupo: "dinheiro" },
   { modulo: "financeiro", rota: "/financeiro", nome: "Financeiro", icone: "financeiro", grupo: "dinheiro" },
-  { modulo: "funcionarios", rota: "/funcionarios", nome: "Equipe", icone: "funcionarios", grupo: "gestao" },
+  { modulo: "equipe", rota: "/equipe", nome: "Equipe", icone: "funcionarios", grupo: "gestao" },
   { modulo: "estoque", rota: "/estoque", nome: "Estoque", icone: "estoque", grupo: "gestao" },
   { modulo: "ajustes", rota: "/ajustes", nome: "Ajustes", icone: "ajustes", grupo: "gestao" },
 ];

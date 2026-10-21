@@ -87,12 +87,13 @@ export const MODULOS_FINANCEIROS: readonly Modulo[] = ["recebiveis", "financeiro
 /**
  * Menu por papel, na ordem em que aparece (sprint SG, plano item 10). O menu é mais enxuto que o acesso:
  * "Minhas tarefas" só para a produção, "Quadro da TV" é botão na Produção e "Relatórios" é aba do Financeiro —
- * as rotas continuam abertas para quem a MATRIZ deixa. A Equipe ainda entra como "funcionarios" (item do MENU em
- * rotulos.ts); a folha do financeiro é o módulo "folha" (o frontend decide se é aba do Financeiro ou rota própria).
+ * as rotas continuam abertas para quem a MATRIZ deixa. A Equipe é o módulo "equipe" (rota /equipe; /funcionarios
+ * redireciona); a folha do financeiro é o módulo "folha", que aparece como aba "Folha" do Financeiro (não tem item
+ * próprio no MENU de rotulos.ts, então não vira link na barra).
  */
 const MENU_DO_PAPEL: Record<Papel, Modulo[]> = {
-  dono: ["geral", "orcamentos", "agenda", "producao", "vistorias", "clientes", "recebiveis", "financeiro", "funcionarios", "estoque", "ajustes"],
-  gestor: ["geral", "orcamentos", "agenda", "producao", "vistorias", "clientes", "funcionarios", "estoque", "ajustes"],
+  dono: ["geral", "orcamentos", "agenda", "producao", "vistorias", "clientes", "recebiveis", "financeiro", "equipe", "estoque", "ajustes"],
+  gestor: ["geral", "orcamentos", "agenda", "producao", "vistorias", "clientes", "equipe", "estoque", "ajustes"],
   recepcao: ["geral", "orcamentos", "agenda", "producao", "vistorias", "clientes"],
   financeiro: ["geral", "recebiveis", "financeiro", "folha", "clientes", "orcamentos"],
   producao: ["minhas_tarefas", "producao", "vistorias"],
@@ -136,6 +137,14 @@ export function veFinanceiro(papel: Papel): boolean {
  */
 export function veCustosOS(papel: Papel): boolean {
   return veFinanceiro(papel);
+}
+
+/**
+ * Aba Pagamentos da ficha da OS e recebíveis da OS (receber franquia/particular): dono, financeiro e a recepção,
+ * que cobra no balcão. O gerente não vê (S1: "quase tudo menos o financeiro"); produção e TV nunca.
+ */
+export function vePagamentosOS(papel: Papel): boolean {
+  return veFinanceiro(papel) || papel === "recepcao";
 }
 
 /** Folha de pagamento, salários e comissões em R$: dono e financeiro. */

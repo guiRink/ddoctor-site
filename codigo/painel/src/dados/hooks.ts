@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import type { Baixa, ChecklistItem, DataISO, FormaPagamento, Id, Janela, RecepcaoVeiculo } from "@compartilhado/tipos";
+import type { Baixa, Centavos, ChecklistItem, DataISO, FormaPagamento, Id, Janela, RecepcaoVeiculo } from "@compartilhado/tipos";
 import { ERRO } from "../dominio/rotulos";
 import { repositorioMemoria } from "./repositorioMemoria";
 import type {
@@ -8,16 +8,19 @@ import type {
   ClienteEntrada,
   ConfigParcial,
   DadosConclusaoEtapa,
+  DadosLogin,
   DespesaEntrada,
   EntradaAlertaOS,
   FechamentoEntrada,
   FornecedorEntrada,
+  FuncionarioEntrada,
   MaterialEntrada,
   MovimentoEntrada,
   NovoAtendimentoRapido,
   NovoCustoOS,
   NovaFoto,
   PagamentoOS,
+  RegraComissaoEntrada,
   Repositorio,
   Resultado,
   TipoReparoEntrada,
@@ -56,6 +59,14 @@ export const useFornecedores = () => useQuery({ queryKey: [...CHAVE, "fornecedor
 export const useCategorias = () => useQuery({ queryKey: [...CHAVE, "categorias"], queryFn: () => repositorio.listarCategorias() });
 export const useFechamentos = () => useQuery({ queryKey: [...CHAVE, "fechamentos"], queryFn: () => repositorio.listarFechamentos() });
 export const useAuditoria = () => useQuery({ queryKey: [...CHAVE, "auditoria"], queryFn: () => repositorio.listarAuditoria() });
+// equipe (sprint S1)
+export const useRegrasComissao = (habilitado = true) =>
+  useQuery({ queryKey: [...CHAVE, "comissoes"], queryFn: () => repositorio.listarRegrasComissao(), enabled: habilitado });
+/** Folha do mês: só para quem podeVerFolha (passe `habilitado` para não pedir o que a RLS recusa). */
+export const useFolha = (mes: string, habilitado = true) =>
+  useQuery({ queryKey: [...CHAVE, "folha", mes], queryFn: () => repositorio.listarFolha(mes), enabled: habilitado });
+export const useHistoricoFuncionario = (perfilId: Id | undefined) =>
+  useQuery({ queryKey: [...CHAVE, "historico", perfilId], queryFn: () => repositorio.historicoFuncionario(perfilId!), enabled: Boolean(perfilId) });
 
 /** Relógio da tela: re-renderiza a cada `ms` para tempos e semáforos andarem sozinhos. */
 export function useAgora(ms = 30_000): string {
@@ -133,6 +144,14 @@ export function useAcoes() {
     // fotos: comprima antes com comprimirFoto (dados/fotos.ts); ok com codigo "fotos_temporarias" = aviso
     adicionarFoto: mut((osId: Id, foto: NovaFoto) => repositorio.adicionarFoto(osId, foto)),
     removerFoto: mut((fotoId: Id) => repositorio.removerFoto(fotoId)),
+    // equipe, comissões e folha (sprint S1)
+    salvarFuncionario: mut((entrada: FuncionarioEntrada) => repositorio.salvarFuncionario(entrada)),
+    definirLogin: mut((perfilId: Id, dados: DadosLogin) => repositorio.definirLogin(perfilId, dados)),
+    removerLogin: mut((perfilId: Id) => repositorio.removerLogin(perfilId)),
+    salvarRegraComissao: mut((entrada: RegraComissaoEntrada) => repositorio.salvarRegraComissao(entrada)),
+    removerRegraComissao: mut((id: Id) => repositorio.removerRegraComissao(id)),
+    salvarAjusteFolha: mut((perfilId: Id, mes: string, ajustes: Centavos, obs?: string) => repositorio.salvarAjusteFolha(perfilId, mes, ajustes, obs)),
+    pagarFolha: mut((perfilId: Id, mes: string, pagoEm: DataISO, ajustes?: Centavos) => repositorio.pagarFolha(perfilId, mes, pagoEm, ajustes)),
     restaurarDemo: mut(async () => {
       await repositorio.restaurarDemo();
       return { ok: true };

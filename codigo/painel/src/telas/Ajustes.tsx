@@ -3,10 +3,10 @@ import { useNavigate } from "react-router-dom";
 import type { Pagador, Perfil } from "@compartilhado/tipos";
 import { useAcoes, usePagadores } from "../dados/hooks";
 import { useSessao } from "../dados/sessao";
-import { podeCriarTipoReparo, podeEditarConfig, podeEditar as podeEditarModulo } from "../dominio/permissoes";
+import { podeCriarTipoReparo, podeEditarComissoes, podeEditarConfig, podeVer, podeVerFolha, podeEditar as podeEditarModulo } from "../dominio/permissoes";
 import { PAPEL } from "../dominio/rotulos";
 import { definirPin, sairDaSessao } from "../componentes/PinGate";
-import { Botao, CabecalhoPagina, Responsavel, Vazio } from "../componentes/ui/Basicos";
+import { Botao, BotaoLink, CabecalhoPagina, Responsavel, Vazio } from "../componentes/ui/Basicos";
 import { Etiqueta, Provisorio } from "../componentes/ui/Estado";
 import { Retorno } from "../componentes/gestao/Comuns";
 import { CLASSE_CAMPO, TIPO_PAGADOR, descreverPrazo } from "../componentes/gestao/formato";
@@ -18,6 +18,7 @@ import { Checklist } from "../componentes/ajustes/Checklist";
 import { Auditoria } from "../componentes/ajustes/Auditoria";
 import { AConfirmar } from "../componentes/ajustes/AConfirmar";
 import { CoresCarros } from "../componentes/ajustes/CoresCarros";
+import { Comissoes } from "../componentes/ajustes/Comissoes";
 
 const SECOES: SecaoAjustes[] = [
   { id: "confirmar", nome: "A confirmar", grupo: "Oficina" },
@@ -28,6 +29,7 @@ const SECOES: SecaoAjustes[] = [
   { id: "checklist", nome: "Checklist de entrada", grupo: "Oficina" },
   { id: "pagadores", nome: "Pagadores e prazos", grupo: "Financeiro" },
   { id: "categorias", nome: "Categorias financeiras", grupo: "Financeiro" },
+  { id: "comissoes", nome: "Comissões", grupo: "Pessoas e acesso" },
   { id: "pessoas", nome: "Pessoas e papéis", grupo: "Pessoas e acesso" },
   { id: "acesso", nome: "Acesso", grupo: "Pessoas e acesso" },
   { id: "auditoria", nome: "Auditoria", grupo: "Sistema" },
@@ -36,7 +38,7 @@ const SECOES: SecaoAjustes[] = [
 
 /**
  * Ajustes (design §5): como o painel está configurado. Seções agrupadas com navegação lateral em 1366+
- * e lista no celular. Editáveis hoje: tipos de serviço, cores dos carros (pedido do dono, 2º áudio), semáforo, capacidade da agenda, checklist, categorias
+ * e lista no celular. Editáveis hoje: comissões (só o dono, S1), tipos de serviço, cores dos carros (pedido do dono, 2º áudio), semáforo, capacidade da agenda, checklist, categorias
  * financeiras, PIN e demonstração; expediente e pagadores são leitura. Todo valor provisório aparece marcado.
  * Módulo só de dono e gestor (arq. §9.1); a barreira real é a RLS.
  */
@@ -59,6 +61,7 @@ export function Ajustes() {
           <Checklist podeEditar={editar} />
           <Pagadores />
           <Categorias podeEditar={editar} />
+          <Comissoes podeEditar={podeEditarComissoes(perfil.papel)} veValores={podeVerFolha(perfil.papel)} />
           <Pessoas />
           <Acesso />
           <Auditoria perfis={perfis} />
@@ -106,7 +109,18 @@ function Pessoas() {
   const navegar = useNavigate();
   const ativos = perfis.filter((p) => p.ativo);
   return (
-    <Secao id="pessoas" titulo="Pessoas e papéis" descricao="Quem usa o painel e o que cada papel enxerga." nota="Cadastro e login individual chegam em breve">
+    <Secao
+      id="pessoas"
+      titulo="Pessoas e papéis"
+      descricao="Quem usa o painel e o que cada papel enxerga. Cadastro, permissão e login de cada pessoa ficam na Equipe."
+      acao={
+        podeVer(perfil.papel, "equipe") && (
+          <BotaoLink para="/equipe" tamanho="denso" variante="contorno">
+            Abrir a Equipe
+          </BotaoLink>
+        )
+      }
+    >
       <div className="px-5 py-4 border-b border-linha bg-cinza-50">
         <label htmlFor="ajustes-ver-como" className="block text-[13px] font-medium text-tinta-suave mb-1.5">
           Ver o painel como
@@ -128,12 +142,12 @@ function Pessoas() {
             ))}
           </select>
           <span className="text-[12px] text-tinta-suave max-w-[48ch]">
-            Só na demonstração: mostra o que cada pessoa enxerga. Com o login individual, cada um entra com a própria conta.
+            Só na demonstração: mostra o que cada pessoa enxerga. Com o login de cada um (Equipe → Dar login), cada pessoa entra com a própria conta.
           </span>
         </div>
       </div>
       {ativos.length === 0 ? (
-        <Vazio titulo="Nenhuma pessoa cadastrada" texto="O cadastro de pessoas chega com o login individual." />
+        <Vazio titulo="Nenhuma pessoa cadastrada" texto="Cadastre as pessoas na Equipe." />
       ) : (
         <ul>
           {ativos.map((p: Perfil) => (

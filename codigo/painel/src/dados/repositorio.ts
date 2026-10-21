@@ -29,6 +29,7 @@ import type {
   Perfil,
   RecepcaoVeiculo,
   RegistroAuditoria,
+  RegraComissao,
   Tecnica,
   TipoReparo,
   TituloReceber,
@@ -38,8 +39,30 @@ import type { ModoMaoDeObra } from "@compartilhado/dominio/custos";
 import type { ConfigParcial } from "@compartilhado/dominio/config";
 import type { TipoReparoEntrada } from "@compartilhado/dominio/tiposReparo";
 import type { EntradaAlertaOS } from "@compartilhado/dominio/corCarro";
+import type { FuncionarioEntrada } from "@compartilhado/dominio/equipe";
+import type { LinhaComissao, RegraComissaoEntrada } from "@compartilhado/dominio/comissoes";
+import type { LinhaFolha, TotaisFolha } from "@compartilhado/dominio/folha";
+import type { EventoFuncionario } from "@compartilhado/dominio/historicoFuncionario";
 
-export type { ConfigParcial, EntradaAlertaOS, TipoReparoEntrada };
+export type { ConfigParcial, EntradaAlertaOS, EventoFuncionario, FuncionarioEntrada, LinhaComissao, LinhaFolha, RegraComissaoEntrada, TipoReparoEntrada, TotaisFolha };
+
+/** Folha de um mês "AAAA-MM" (Equipe → Folha e Financeiro → Folha): linhas, comissões que as formam e totais. */
+export interface FolhaDoMes {
+  mes: string;
+  linhas: LinhaFolha[];
+  /** Uma por etapa concluída que paga comissão no mês (mais recente primeiro). */
+  comissoes: LinhaComissao[];
+  totais: TotaisFolha;
+}
+
+/** Login que o dono dá ao funcionário: usuário curto ("diego") e a senha que ele passa à pessoa. */
+export interface DadosLogin {
+  usuario: string;
+  senha: string;
+}
+
+/** Tamanho da senha do login do funcionário (provisório — a confirmar; o Supabase Auth pede 6+). */
+export const LIMITES_SENHA = { min: 8, max: 72 } as const;
 
 /**
  * Visão de leitura de uma OS com tudo o que as telas precisam (montada pelo repositório).
@@ -226,6 +249,14 @@ export interface Repositorio {
   listarFechamentos(): Promise<FechamentoCaixa[]>; // do mais recente para o mais antigo
   listarAuditoria(): Promise<RegistroAuditoria[]>; // do mais recente para o mais antigo
 
+  // equipe, comissões e folha (sprint S1)
+  /** Regras de comissão (config.comissoes). Valores em R$ só para quem podeVerFolha (o gerente vê só as etapas). */
+  listarRegrasComissao(): Promise<RegraComissao[]>;
+  /** Folha do mês: só dono e financeiro (podeVerFolha); outro papel recebe erro `sem_permissao`. */
+  listarFolha(mes: string): Promise<FolhaDoMes>;
+  /** Histórico do funcionário ("Concluiu Pintura · RKP1L34"), mais recente primeiro. Dono e gerente. */
+  historicoFuncionario(perfilId: Id): Promise<EventoFuncionario[]>;
+
   // clientes, veículos e recepção
   salvarCliente(cliente: ClienteEntrada): Promise<Resultado & { id?: Id }>;
   salvarVeiculo(veiculo: VeiculoEntrada): Promise<Resultado & { id?: Id }>;
@@ -294,6 +325,36 @@ export interface Repositorio {
   concluirPendencia(pendenciaId: Id): Promise<Resultado>;
   aplicarBaixa(tituloId: Id, baixa: Omit<Baixa, "id">): Promise<Resultado>;
   pagarDespesa(despesaId: Id, valor: number, pagoEm: DataISO, forma?: FormaPagamento): Promise<Resultado>;
+
+  // equipe, comissões e folha (sprint S1)
+  /**
+   * Cadastra (sem id) ou edita um funcionário (validarFuncionario). Quem gerencia a equipe (dono e gerente) muda
+   * nome, função, telefone, admissão e ativo; a permissão (`papel`) só o dono (podeEditarPapel) e o salário só o
+   * dono (podeEditarSalario) — senão `sem_permissao`. A oficina nunca fica sem dono ativo (`ultimo_dono`).
+   * Login e senha não passam por aqui: definirLogin.
+   */
+  salvarFuncionario(entrada: FuncionarioEntrada): Promise<Resultado & { id?: Id }>;
+  /**
+   * Cria ou troca o login do funcionário (só o dono). No Supabase chama a Edge Function `equipe-login`, que usa a
+   * service_role no servidor para criar/atualizar o usuário do Auth com o e-mail técnico emailDeLogin(usuario).
+   * A senha nunca é guardada no painel nem na auditoria. Devolve o usuário normalizado e o e-mail técnico.
+   */
+  definirLogin(perfilId: Id, dados: DadosLogin): Promise<Resultado & { usuario?: string; email?: string }>;
+  /** Tira o login (a pessoa deixa de entrar; o cadastro e o histórico ficam). Só o dono; não vale para si mesmo. */
+  removerLogin(perfilId: Id): Promise<Resultado>;
+  /** Cria ou edita uma regra de comissão (validarRegraComissao). Só o dono (podeEditarComissoes). */
+  salvarRegraComissao(entrada: RegraComissaoEntrada): Promise<Resultado & { id?: Id }>;
+  removerRegraComissao(id: Id): Promise<Resultado>;
+  /**
+   * Guarda o ajuste do mês (vale, desconto negativo, extra positivo) antes de pagar: rascunho de PagamentoFolha sem
+   * `pagoEm`. Só o dono (podeEditarSalario); o financeiro paga com o ajuste que o dono deixou.
+   */
+  salvarAjusteFolha(perfilId: Id, mes: string, ajustes: Centavos, obs?: string): Promise<Resultado>;
+  /**
+   * Marca a folha do funcionário no mês como paga (pagarLinhaFolha) e lança a despesa paga em "Salários"
+   * (despesaDaFolha). Dono e financeiro (podePagarFolha); `ajustes` diferente do salvo só o dono.
+   */
+  pagarFolha(perfilId: Id, mes: string, pagoEm: DataISO, ajustes?: Centavos): Promise<Resultado & { id?: Id; despesaId?: Id }>;
 
   // demonstração (grava uma linha de auditoria "restaurar")
   restaurarDemo(): Promise<void>;

@@ -18,6 +18,7 @@ import {
   veCustosOS,
   veDadosSensiveis,
   veFinanceiro,
+  vePagamentosOS,
   type Modulo,
 } from "./permissoes";
 
@@ -44,6 +45,10 @@ describe("matriz final (S1)", () => {
   it("custos, resultado e margem da OS e dinheiro do Geral: dono e financeiro", () => {
     expect(quem(veCustosOS)).toEqual(["dono", "financeiro"]);
     expect(quem(veFinanceiro)).toEqual(["dono", "financeiro"]);
+  });
+
+  it("pagamentos da OS: dono, financeiro e a recepção que cobra no balcão; o gerente não", () => {
+    expect(quem(vePagamentosOS)).toEqual(["dono", "recepcao", "financeiro"]);
   });
 
   it("dono vê todos os módulos", () => {
@@ -88,7 +93,7 @@ describe("matriz final (S1)", () => {
 
 describe("menu por papel", () => {
   it("gerente sem A receber e Financeiro", () => {
-    expect(modulosDoMenu("gestor")).toEqual(["geral", "orcamentos", "agenda", "producao", "vistorias", "clientes", "funcionarios", "estoque", "ajustes"]);
+    expect(modulosDoMenu("gestor")).toEqual(["geral", "orcamentos", "agenda", "producao", "vistorias", "clientes", "equipe", "estoque", "ajustes"]);
   });
   it("dono com tudo; financeiro com folha", () => {
     expect(modulosDoMenu("dono")).toContain("recebiveis");

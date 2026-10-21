@@ -15,7 +15,7 @@ import { mensagemErro, useAcoes, useAgora, useConfig, useOS, usePagadores, usePe
 import type { OSVisao } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
 import { rotuloPrazo } from "../dominio/horarios";
-import { podeEditar, podeEditarAlertaOS, podeVer, veCustosOS, veDadosSensiveis } from "../dominio/permissoes";
+import { podeEditar, podeEditarAlertaOS, podeVer, veCustosOS, veDadosSensiveis, vePagamentosOS } from "../dominio/permissoes";
 import { corDoCarro, type CorDoCarro } from "@compartilhado/dominio/corCarro";
 import {
   ESTADO_ETAPA,
@@ -58,7 +58,8 @@ import { BotaoEnviarOrcamento } from "../componentes/orcamento/BotaoEnviarOrcame
 /**
  * Ficha da OS (docs/painel-design.md §5, revisão SE): cabeçalho com Placa grande, carro, cliente,
  * estado e Próxima ação; abas Visão geral · Recepção · Custos · Resultado · Pagamentos.
- * Custos e Resultado só para dono, gestor e financeiro (veCustosOS); Pagamentos só para quem vê dinheiro.
+ * Custos e Resultado só para dono e financeiro (veCustosOS); Pagamentos para dono, financeiro e recepção
+ * (vePagamentosOS) — o gerente não vê dinheiro (S1).
  * A aba fica na URL (?aba=custos) para poder ser linkada.
  */
 type Aba = "geral" | "recepcao" | "custos" | "resultado" | "pagamentos";
@@ -145,6 +146,7 @@ export function FichaOS() {
   const papel = perfil.papel;
   const sensivel = veDadosSensiveis(papel);
   const custos = veCustosOS(papel);
+  const pagamentos = vePagamentosOS(papel);
   const podeAgir = podeEditar(papel, "orcamentos");
   const podeEnviar = podeAgir && sensivel;
   const emOrcamento = v.os.estado === "rascunho" || v.os.estado === "aguardando_aprovacao";
@@ -154,8 +156,9 @@ export function FichaOS() {
   const carro = nomeCarro(v.veiculo) || "Modelo não informado";
   // o que o cliente paga na oficina (franquia/complemento/particular): só para quem vê dinheiro
   const deve = sensivel && pagadores.data ? clienteDeve(v, pagadores.data) : null;
-  const primaria = podeAgir ? acaoPrimariaDoTopo(v.os.estado, deve?.falta ?? 0) : null;
-  const podePagar = (podeEditar(papel, "orcamentos") || podeEditar(papel, "recebiveis")) && v.os.estado !== "cancelada";
+  // quem não recebe pagamento (o gerente, S1) não ganha "Registrar pagamento" como ação do topo
+  const primaria = podeAgir ? acaoPrimariaDoTopo(v.os.estado, pagamentos ? (deve?.falta ?? 0) : 0) : null;
+  const podePagar = pagamentos && (podeEditar(papel, "orcamentos") || podeEditar(papel, "recebiveis")) && v.os.estado !== "cancelada";
   // cor do carro (pedido do dono, 2º áudio): só para o carro em serviço; "Parado" é um selo à parte
   const naOficina = v.os.estado === "na_oficina";
   const cor = naOficina ? corDoCarro(v.os, v.etapas, agora, config.data) : null;
@@ -164,7 +167,7 @@ export function FichaOS() {
 
   const abas: Aba[] = ["geral", "recepcao"];
   if (custos) abas.push("custos", "resultado");
-  if (sensivel) abas.push("pagamentos");
+  if (pagamentos) abas.push("pagamentos");
   const pedida = params.get("aba") as Aba | null;
   const aba: Aba = pedida && abas.includes(pedida) ? pedida : "geral";
   const irPara = (a: Aba) => {
@@ -309,7 +312,7 @@ export function FichaOS() {
           podeLancarServicos={custos && podeEditar(papel, "orcamentos")}
         />}
       {aba === "resultado" && custos && <AbaResultado v={v} onIrCustos={() => irPara("custos")} />}
-      {aba === "pagamentos" && sensivel && (
+      {aba === "pagamentos" && pagamentos && (
         <AbaPagamentos
           v={v}
           agora={agora}
@@ -353,7 +356,7 @@ export function FichaOS() {
               </Cartao>
             ))}
             {(v.atendimentos.length > 0 || v.pendencias.length > 0) && <SecaoPendencias v={v} agora={agora} perfis={perfis.data} podeAgir={podeAgir} />}
-            {sensivel && v.titulos.length > 0 && <SecaoRecebiveis v={v} agora={agora} pagadores={pagadores.data ?? []} onAbrir={() => irPara("pagamentos")} />}
+            {pagamentos && v.titulos.length > 0 && <SecaoRecebiveis v={v} agora={agora} pagadores={pagadores.data ?? []} onAbrir={() => irPara("pagamentos")} />}
             {v.os.observacoes && (
               <Cartao titulo="Observações">
                 <p className="px-4 py-3 text-[14px] whitespace-pre-line break-words">{v.os.observacoes}</p>

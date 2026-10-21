@@ -1,4 +1,4 @@
-import type { Agendamento, CampoConfig, Cliente, CustoOS, EstadoOS, EtapaOS, Foto, Id, Janela, Material, MovimentoEstoque, OS, RecepcaoVeiculo, RegistroAuditoria, TituloReceber } from "@compartilhado/tipos";
+import type { Agendamento, CampoConfig, Cliente, CustoOS, Despesa, EstadoOS, EtapaOS, Foto, Id, Janela, Material, MovimentoEstoque, OS, PagamentoFolha, Papel, Perfil, RecepcaoVeiculo, RegistroAuditoria, RegraComissao, TituloReceber } from "@compartilhado/tipos";
 import { FORMAS_PAGAMENTO } from "@compartilhado/tipos";
 import { normalizarPlaca, placaValida } from "@compartilhado/dominio/placa";
 import { bloquearEtapa, concluirEtapa, dispensarEtapa, gerarEtapas, iniciarEtapa, previsaoEntregaSugerida, retomarEtapa, transicaoOS, type ContextoTransicaoOS } from "@compartilhado/dominio/os";
@@ -17,10 +17,15 @@ import { alertaCarroBase, aplicarConfig, laranjaFracao } from "@compartilhado/do
 import { aplicarAlertaOS } from "@compartilhado/dominio/corCarro";
 import { chaveNome, tipoReparoAtivo, usoTipoReparo, validarTipoReparo } from "@compartilhado/dominio/tiposReparo";
 import { COMPRESSAO_FOTO, FASES_FOTO_ETAPA, FASES_FOTO_INTERNA, expiracaoFoto, fotosDaEtapa } from "@compartilhado/dominio/fotos";
-import { FASE_VISTORIA } from "../dominio/rotulos";
+import { emailDeLogin, SALARIO_MAXIMO, validarFuncionario, validarMudancaPapel, validarUsuario } from "@compartilhado/dominio/equipe";
+import { comissoesDoPeriodo, validarRegraComissao, type OSComissao } from "@compartilhado/dominio/comissoes";
+import { calcularFolha, despesaDaFolha, pagarLinhaFolha, totaisFolha } from "@compartilhado/dominio/folha";
+import { historicoFuncionario, type OSHistorico } from "@compartilhado/dominio/historicoFuncionario";
+import { FASE_VISTORIA, PAPEL } from "../dominio/rotulos";
+import { podeEditarComissoes, podeEditarPapel, podeEditarSalario, podeGerenciarEquipe, podePagarFolha, podeVer, podeVerFolha } from "../dominio/permissoes";
 import { TIPOS_REPARO_PADRAO, gerarDemo, type EstadoDemo } from "./demo";
 import { apagarBlobs, apagarOrfaos, guardarBlobs, lerBlobs, limparBlobs } from "./fotosLocais";
-import { LIMITE_AUDITORIA, type ClienteFicha, type ClienteResumo, type NovoAtendimentoRapido, type OSVisao, type Repositorio, type Resultado } from "./repositorio";
+import { LIMITE_AUDITORIA, LIMITES_SENHA, type ClienteFicha, type ClienteResumo, type FolhaDoMes, type NovoAtendimentoRapido, type OSVisao, type Repositorio, type Resultado } from "./repositorio";
 
 /**
  * Repositório de demonstração: guarda tudo na memória do navegador (com cópia em localStorage para
@@ -49,7 +54,8 @@ function carregar(): EstadoDemo {
     if (bruto) {
       const salvo = JSON.parse(bruto) as EstadoDemo;
       // demo de outro dia: regera para os prazos continuarem fazendo sentido
-      if (salvo.versao === 3 && dataNoFuso(salvo.geradoEm) === dataNoFuso(agora())) return completarTiposPadrao(salvo);
+      // demo salvo antes do S1 (sem folha nem salários) regera
+      if (salvo.versao === 3 && Array.isArray(salvo.pagamentosFolha) && dataNoFuso(salvo.geradoEm) === dataNoFuso(agora())) return completarTiposPadrao(salvo);
     }
   } catch {
     /* sem armazenamento ou dado corrompido: regera */
@@ -205,6 +211,49 @@ function perfilAtual(): Id | undefined {
 function auditar(acao: string, entidade: string, entidadeId: Id | undefined, resumo: string) {
   const linha: RegistroAuditoria = { id: novoId("au"), em: agora(), perfilId: perfilAtual(), acao, entidade, entidadeId, resumo };
   estado.auditoria = [linha, ...estado.auditoria].slice(0, LIMITE_AUDITORIA);
+}
+
+// ---------------------------------------------------------------- equipe e folha (sprint S1)
+
+/** Papel de quem está agindo (o "Ver como" da demonstração; no Supabase vem do login e a RLS decide). */
+function papelAtual(): Papel {
+  const id = perfilAtual();
+  return estado.perfis.find((p) => p.id === id)?.papel ?? "dono";
+}
+
+/** Visão mínima das OS para comissões e histórico (sem montar fotos com URL). */
+function ossParaEquipe(): (OSComissao & OSHistorico)[] {
+  return estado.oss.map((os) => ({
+    os,
+    veiculo: estado.veiculos.find((v) => v.id === os.veiculoId),
+    etapas: estado.etapas.filter((e) => e.osId === os.id),
+    fotos: estado.fotos.filter((f) => f.osId === os.id),
+  }));
+}
+
+const MES = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+function folhaDoMes(mes: string, ajustes?: Record<Id, number>): FolhaDoMes {
+  const comissoes = comissoesDoPeriodo(ossParaEquipe(), estado.config.comissoes, mes);
+  const linhas = calcularFolha(estado.perfis, comissoes, mes, ajustes, estado.pagamentosFolha);
+  return { mes, linhas, comissoes: comissoes.linhas, totais: totaisFolha(linhas) };
+}
+
+/** "2026-10" → "10/2026" (auditoria). */
+const mesTexto = (mes: string) => `${mes.slice(5, 7)}/${mes.slice(0, 4)}`;
+
+/** Ações de etapa como a auditoria da demo grava → nomes que o histórico do funcionário entende. */
+const ACAO_ETAPA_HISTORICO: Record<string, string> = {
+  iniciada: "iniciar_etapa",
+  "concluída": "concluir_etapa",
+  impedida: "bloquear_etapa",
+  retomada: "retomar_etapa",
+};
+
+function textoRegra(r: Pick<RegraComissao, "etapaNome" | "tipoReparoId">): string {
+  const tipo = r.tipoReparoId ? estado.tiposReparo.find((t) => t.id === r.tipoReparoId)?.nome : undefined;
+  if (r.etapaNome && tipo) return `${r.etapaNome} em ${tipo}`;
+  return r.etapaNome ?? `toda etapa de ${tipo ?? "um tipo de serviço"}`;
 }
 
 const numeroOS = (osId: Id) => {
@@ -383,7 +432,9 @@ export const repositorioMemoria: Repositorio = {
     return dias;
   },
   async listarPerfis() {
-    return estado.perfis;
+    // salário só chega a quem vê a folha (dono e financeiro); no Supabase a RLS faz o mesmo
+    if (podeVerFolha(papelAtual())) return estado.perfis;
+    return estado.perfis.map(({ salarioMensal: _salario, ...p }) => p as Perfil);
   },
   async listarTiposReparo() {
     return estado.tiposReparo;
@@ -445,6 +496,24 @@ export const repositorioMemoria: Repositorio = {
   async listarAuditoria() {
     await pausa();
     return [...estado.auditoria].sort((a, b) => compararMarcos(b.em, a.em));
+  },
+
+  // ------------------------------------------------------------ equipe, comissões e folha (leitura)
+  async listarRegrasComissao() {
+    await pausa();
+    return estado.config.comissoes ?? [];
+  },
+  async listarFolha(mes) {
+    await pausa();
+    if (!podeVerFolha(papelAtual())) throw new Error("sem_permissao");
+    if (!MES.test(mes)) throw new Error(`mes_invalido: ${mes}`);
+    return folhaDoMes(mes);
+  },
+  async historicoFuncionario(perfilId) {
+    await pausa();
+    if (!podeVer(papelAtual(), "equipe")) throw new Error("sem_permissao");
+    const auditoria = estado.auditoria.map((a) => (ACAO_ETAPA_HISTORICO[a.acao] ? { ...a, acao: ACAO_ETAPA_HISTORICO[a.acao] } : a));
+    return historicoFuncionario(perfilId, ossParaEquipe(), auditoria);
   },
 
   // ------------------------------------------------------------ produção
@@ -1347,6 +1416,178 @@ export const repositorioMemoria: Repositorio = {
     auditar("remover_foto", "foto", fotoId, `Foto (${FASE_VISTORIA[foto.fase].toLowerCase()}) removida da ${numeroOS(foto.osId)}`);
     salvar();
     return { ok: true };
+  },
+
+  // ------------------------------------------------------------ equipe, comissões e folha (escrita)
+  async salvarFuncionario(entrada) {
+    await pausa();
+    const ator = papelAtual();
+    if (!podeGerenciarEquipe(ator)) return { ok: false, codigo: "sem_permissao" };
+    const existente = entrada.id ? estado.perfis.find((p) => p.id === entrada.id) : undefined;
+    if (entrada.id && !existente) return { ok: false, codigo: "perfil_inexistente" };
+    // permissão: só o dono troca (o gerente cadastra sempre como Produção)
+    const papelAntes: Papel = existente?.papel ?? "producao";
+    if (entrada.papel !== papelAntes && !podeEditarPapel(ator)) return { ok: false, codigo: "sem_permissao", campo: "papel" };
+    // salário: só o dono; quem não pode nem recebe o salário (listarPerfis), então ausente = mantém
+    let salario = existente?.salarioMensal;
+    if (podeEditarSalario(ator)) salario = entrada.salarioMensal;
+    else if (entrada.salarioMensal !== undefined && entrada.salarioMensal !== existente?.salarioMensal) return { ok: false, codigo: "sem_permissao", campo: "salarioMensal" };
+    const telefone = normalizarTelefone(entrada.telefone);
+    if (telefone === null) return { ok: false, codigo: "telefone_invalido", campo: "telefone" };
+    // login não passa por aqui (definirLogin): o usuário atual fica como está
+    const v = validarFuncionario({ ...entrada, telefone, usuario: undefined, email: undefined, salarioMensal: salario }, estado.perfis);
+    if (!v.ok) return { ok: false, codigo: v.codigo, campo: v.campo };
+    const f = v.funcionario;
+    if (existente) {
+      const m = validarMudancaPapel(existente.id, { papel: f.papel, ativo: f.ativo }, estado.perfis);
+      if (!m.ok) return { ok: false, codigo: m.codigo, campo: m.codigo === "ultimo_dono" ? "papel" : undefined };
+    }
+    const id = existente?.id ?? novoId("p");
+    const perfil: Perfil = {
+      id,
+      nome: f.nome,
+      papel: f.papel,
+      funcao: f.funcao,
+      especialidade: existente?.especialidade,
+      ativo: f.ativo,
+      usaTerminal: f.usaTerminal,
+      usuario: existente?.usuario,
+      email: existente?.email,
+      telefone: f.telefone,
+      temLogin: existente?.temLogin,
+      salarioMensal: f.salarioMensal,
+      admitidoEm: f.admitidoEm,
+    };
+    if (existente) {
+      estado.perfis = estado.perfis.map((p) => (p.id === id ? perfil : p));
+      const mudancas = [
+        existente.papel !== perfil.papel && `permissão ${PAPEL[existente.papel]} → ${PAPEL[perfil.papel]}`,
+        existente.ativo !== perfil.ativo && (perfil.ativo ? "reativado" : "desligado"),
+        existente.salarioMensal !== perfil.salarioMensal && "salário alterado",
+      ].filter(Boolean);
+      auditar("editar", "perfil", id, `Cadastro de ${perfil.nome} atualizado${mudancas.length ? `: ${mudancas.join("; ")}` : ""}`);
+    } else {
+      estado.perfis = [...estado.perfis, perfil];
+      auditar("criar", "perfil", id, `Funcionário ${perfil.nome} cadastrado (${perfil.funcao ? `${perfil.funcao} · ` : ""}${PAPEL[perfil.papel]})`);
+    }
+    salvar();
+    return { ok: true, id };
+  },
+
+  async definirLogin(perfilId, dados) {
+    await pausa();
+    if (!podeEditarPapel(papelAtual())) return { ok: false, codigo: "sem_permissao" };
+    const alvo = estado.perfis.find((p) => p.id === perfilId);
+    if (!alvo) return { ok: false, codigo: "perfil_inexistente" };
+    const u = validarUsuario(dados.usuario, estado.perfis, perfilId);
+    if (!u.ok) return { ok: false, codigo: u.codigo, campo: "usuario" };
+    const senha = dados.senha ?? "";
+    if (senha.length < LIMITES_SENHA.min) return { ok: false, codigo: "senha_curta", campo: "senha" };
+    if (senha.length > LIMITES_SENHA.max) return { ok: false, codigo: "senha_longa", campo: "senha" };
+    // DEMONSTRAÇÃO: só marca que a pessoa tem login. A senha não é guardada em lugar nenhum (nem aqui, nem na
+    // auditoria). No Supabase isto chama a Edge Function `equipe-login` (service_role só no servidor), que cria ou
+    // atualiza o usuário do Auth com o e-mail técnico emailDeLogin(usuario) e essa senha.
+    const novo = !alvo.temLogin;
+    estado.perfis = estado.perfis.map((p) => (p.id === perfilId ? { ...p, usuario: u.usuario, temLogin: true } : p));
+    auditar(novo ? "criar_login" : "trocar_senha", "perfil", perfilId, novo ? `Login criado para ${alvo.nome} (usuário ${u.usuario})` : `Login de ${alvo.nome} redefinido (usuário ${u.usuario})`);
+    salvar();
+    return { ok: true, usuario: u.usuario, email: emailDeLogin(u.usuario) };
+  },
+
+  async removerLogin(perfilId) {
+    await pausa();
+    if (!podeEditarPapel(papelAtual())) return { ok: false, codigo: "sem_permissao" };
+    const alvo = estado.perfis.find((p) => p.id === perfilId);
+    if (!alvo) return { ok: false, codigo: "perfil_inexistente" };
+    if (perfilId === perfilAtual()) return { ok: false, codigo: "proprio_login" };
+    if (!alvo.temLogin) return { ok: true };
+    estado.perfis = estado.perfis.map((p) => (p.id === perfilId ? { ...p, temLogin: false } : p));
+    auditar("tirar_login", "perfil", perfilId, `Login de ${alvo.nome} retirado`);
+    salvar();
+    return { ok: true };
+  },
+
+  async salvarRegraComissao(entrada) {
+    await pausa();
+    if (!podeEditarComissoes(papelAtual())) return { ok: false, codigo: "sem_permissao" };
+    const regras = estado.config.comissoes ?? [];
+    if (entrada.id && !regras.some((r) => r.id === entrada.id)) return { ok: false, codigo: "regra_nao_encontrada" };
+    if (entrada.tipoReparoId && !estado.tiposReparo.some((t) => t.id === entrada.tipoReparoId)) return { ok: false, codigo: "tipo_nao_encontrado", campo: "tipoReparoId" };
+    const r = validarRegraComissao(entrada, regras);
+    if (!r.ok) return { ok: false, codigo: r.codigo, campo: r.campo };
+    const id = entrada.id ?? novoId("rc");
+    const regra: RegraComissao = { ...r.regra, id };
+    estado.config = { ...estado.config, comissoes: entrada.id ? regras.map((x) => (x.id === id ? regra : x)) : [...regras, regra] };
+    // sem valor na auditoria: o gerente lê a auditoria e não vê comissão em R$
+    auditar(entrada.id ? "editar" : "criar", "regra_comissao", id, `Comissão de ${textoRegra(regra)} ${entrada.id ? "atualizada" : "criada"}${regra.ativa ? "" : " (desligada)"}`);
+    salvar();
+    return { ok: true, id };
+  },
+
+  async removerRegraComissao(id) {
+    await pausa();
+    if (!podeEditarComissoes(papelAtual())) return { ok: false, codigo: "sem_permissao" };
+    const regra = (estado.config.comissoes ?? []).find((r) => r.id === id);
+    if (!regra) return { ok: false, codigo: "regra_nao_encontrada" };
+    estado.config = { ...estado.config, comissoes: (estado.config.comissoes ?? []).filter((r) => r.id !== id) };
+    auditar("remover", "regra_comissao", id, `Comissão de ${textoRegra(regra)} removida`);
+    salvar();
+    return { ok: true };
+  },
+
+  async salvarAjusteFolha(perfilId, mes, ajustes, obs) {
+    await pausa();
+    if (!podeEditarSalario(papelAtual())) return { ok: false, codigo: "sem_permissao" };
+    if (!MES.test(mes)) return { ok: false, codigo: "data_invalida" };
+    if (!Number.isInteger(ajustes) || Math.abs(ajustes) > SALARIO_MAXIMO) return { ok: false, codigo: "ajuste_invalido", campo: "ajustes" };
+    const linha = folhaDoMes(mes, { [perfilId]: ajustes }).linhas.find((l) => l.perfilId === perfilId);
+    if (!linha) return { ok: false, codigo: "fora_da_folha" };
+    if (linha.pago) return { ok: false, codigo: "ja_pago" };
+    if (linha.total < 0) return { ok: false, codigo: "total_invalido", campo: "ajustes" };
+    const anterior = estado.pagamentosFolha.find((g) => g.perfilId === perfilId && g.mes === mes);
+    const rascunho: PagamentoFolha = {
+      id: anterior?.id ?? novoId("pf"),
+      perfilId,
+      mes,
+      salario: linha.salario,
+      comissoes: linha.comissoes,
+      ...(ajustes ? { ajustes } : {}),
+      total: linha.total,
+      ...(obs?.trim() ? { obs: obs.trim() } : {}),
+    };
+    estado.pagamentosFolha = [...estado.pagamentosFolha.filter((g) => g.id !== rascunho.id), rascunho];
+    auditar("ajuste_folha", "pagamento_folha", rascunho.id, `Ajuste da folha de ${mesTexto(mes)} de ${linha.nome} ${ajustes ? "registrado" : "zerado"}`);
+    salvar();
+    return { ok: true };
+  },
+
+  async pagarFolha(perfilId, mes, pagoEm, ajustes) {
+    await pausa();
+    const ator = papelAtual();
+    if (!podePagarFolha(ator)) return { ok: false, codigo: "sem_permissao" };
+    if (!MES.test(mes)) return { ok: false, codigo: "data_invalida" };
+    const salvo = estado.pagamentosFolha.find((g) => g.perfilId === perfilId && g.mes === mes);
+    if (ajustes !== undefined && ajustes !== (salvo?.ajustes ?? 0) && !podeEditarSalario(ator)) return { ok: false, codigo: "sem_permissao", campo: "ajustes" };
+    if (ajustes !== undefined && (!Number.isInteger(ajustes) || Math.abs(ajustes) > SALARIO_MAXIMO)) return { ok: false, codigo: "ajuste_invalido", campo: "ajustes" };
+    const data = validarDataRealizada(pagoEm, hoje());
+    if (!data.ok) return data;
+    const linha = folhaDoMes(mes, ajustes !== undefined ? { [perfilId]: ajustes } : undefined).linhas.find((l) => l.perfilId === perfilId);
+    if (!linha) return { ok: false, codigo: "fora_da_folha" };
+    const id = salvo && !salvo.pagoEm ? salvo.id : novoId("pf");
+    const despesaId = linha.total > 0 ? novoId("d") : undefined;
+    const r = pagarLinhaFolha(linha, { id, pagoEm, despesaId, obs: salvo?.obs });
+    if (!r.ok) return { ok: false, codigo: r.codigo };
+    const categoria = estado.categorias.find((c) => c.id === "desp_salarios" && c.ativa);
+    const base = despesaDaFolha(r.pagamento, linha.nome, categoria?.id);
+    if (base && despesaId) {
+      const despesa: Despesa = { ...base, id: despesaId, categoria: categoria?.nome ?? base.categoria };
+      estado.despesas = [...estado.despesas, despesa];
+    }
+    estado.pagamentosFolha = [...estado.pagamentosFolha.filter((g) => !(g.perfilId === perfilId && g.mes === mes)), r.pagamento];
+    // sem valor na auditoria (o gerente lê a auditoria; a despesa no Financeiro tem o valor)
+    auditar("pagar_folha", "pagamento_folha", id, `Folha de ${mesTexto(mes)} paga a ${linha.nome}${despesaId ? " (despesa lançada em Salários)" : ""}`);
+    salvar();
+    return { ok: true, id, despesaId };
   },
 
   async restaurarDemo() {
