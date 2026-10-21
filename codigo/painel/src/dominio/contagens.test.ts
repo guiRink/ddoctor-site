@@ -18,6 +18,7 @@ import {
   naOficina,
   paraFazerHoje,
   parados,
+  porCor,
   prontosCobrarFranquia,
   saemHoje,
   textoFalta,
@@ -215,6 +216,61 @@ describe("atrasados e parados (revisão SH: duas situações diferentes)", () =>
   });
 });
 
+describe("parados: só o impedimento aberto", () => {
+  it("bloqueio já encerrado não dá data nem motivo; sem aberto, vale o início da etapa e 'Parado'", () => {
+    const oss = [
+      visao("1", {}, {
+        etapas: [etapa({ estado: "bloqueada", iniciadaEm: m("2026-10-12T08:00"), bloqueios: [{ inicioEm: m("2026-10-01T08:00"), fimEm: m("2026-10-01T12:00"), motivo: "Peça antiga" }] })],
+      }),
+      visao("2", {}, {
+        etapas: [etapa({ estado: "bloqueada", bloqueios: [{ inicioEm: m("2026-10-02T08:00"), fimEm: m("2026-10-02T09:00"), motivo: "Velho" }, { inicioEm: m("2026-10-12T09:00"), motivo: "Aguardando tinta" }] })],
+      }),
+      visao("3", { atualizadoEm: m("2026-10-12T09:30") }, { etapas: [etapa({ estado: "bloqueada" })] }),
+    ];
+    expect(parados(oss, agora, cfg).itens.map((i) => [i.v.os.id, i.motivo, i.desde])).toEqual([
+      ["1", "Parado", m("2026-10-12T08:00")],
+      ["2", "Aguardando tinta", m("2026-10-12T09:00")],
+      ["3", "Parado", m("2026-10-12T09:30")],
+    ]);
+  });
+});
+
+describe("porCor (pedido do dono, 2º áudio)", () => {
+  // seg 12/10: amanhã = 13/10
+  const feita = (p: Partial<EtapaOS> = {}) => etapa({ estado: "concluida", ordem: 1, ...p });
+  const atual = (p: Partial<EtapaOS> = {}) => etapa({ estado: "em_execucao", ordem: 2, ...p });
+  const oss = [
+    visao("1", { previsaoEntrega: "2026-10-09" }, { etapas: [feita(), atual()] }), // atrasado → piscando
+    visao("2", { previsaoEntrega: "2026-10-13" }, { etapas: [atual()] }), // amanhã sem etapa → vermelho
+    visao("3", { previsaoEntrega: "2026-10-13" }, { etapas: [feita(), atual()] }), // amanhã com etapa → laranja
+    visao("4", { previsaoEntrega: "2026-10-16", prioridade: 2 }, { etapas: [feita(), atual({ estado: "bloqueada" })] }), // verde, parado, urgente
+    visao("5", { estado: "pronta", previsaoEntrega: "2026-10-01" }),
+    visao("6", { estado: "agendada", previsaoEntrega: "2026-10-01" }),
+  ];
+  it("conta por cor; total = Na oficina (com prontos); o pior primeiro, prontos por último", () => {
+    const r = porCor(oss, agora, cfg);
+    expect(r.porCor).toEqual({ verde: 2, laranja: 1, vermelho: 1, vermelho_piscando: 1 });
+    expect(r.total).toBe(naOficina(oss, agora, cfg).total);
+    expect(r.itens.map((i) => [i.v.os.id, i.cor])).toEqual([
+      ["1", "vermelho_piscando"],
+      ["2", "vermelho"],
+      ["3", "laranja"],
+      ["4", "verde"],
+      ["5", "verde"],
+    ]);
+    expect(r.itens[3]).toMatchObject({ parado: true, urgente: true, motivo: "Entrega em 4 dias úteis · 1 de 2 etapas" });
+    expect(r.itens[4]).toMatchObject({ pronto: true, motivo: "Pronto", etapa: undefined });
+  });
+  it("sem prontos: só os em serviço", () => {
+    const r = porCor(oss, agora, cfg, { incluirProntos: false });
+    expect([r.total, r.porCor.verde]).toEqual([4, 1]);
+  });
+  it("coerente com Atrasados: todo vermelho piscando está em atrasados", () => {
+    const at = new Set(atrasados(oss, agora, cfg).itens.map((i) => i.v.os.id));
+    expect(porCor(oss, agora, cfg).itens.filter((i) => i.cor === "vermelho_piscando").every((i) => at.has(i.v.os.id))).toBe(true);
+  });
+});
+
 describe("aguardandoAprovacao e aguardandoSeguradora", () => {
   const oss = [
     visao("1", { estado: "aguardando_aprovacao" }, { versoes: [versao({ estado: "enviado", aprovacao: undefined, criadoEm: m("2026-10-07T09:00") })] }),
@@ -375,12 +431,12 @@ const DEMO_ESPERADO = { atrasados: ["RKP1L34"], parados: ["RTB2E90"] };
 
 describe("demonstração (quarta 21/10/2026)", () => {
   for (const hora of ["08:30", "10:00", "14:00", "16:30"]) {
-    it(`às ${hora}: 8 na oficina, 1 entra, 3 saem, 1 atrasado, 1 parado, 2 com a seguradora, 2 vencidos, 7 a fazer; no máximo 2 laranja`, () => {
+    it(`às ${hora}: 11 na oficina, 1 entra, 3 saem, 1 atrasado, 1 parado, 2 com a seguradora, 2 vencidos, 7 a fazer; no máximo 2 laranja`, () => {
       const agoraDemo = `2026-10-21T${hora}:00-03:00`;
       const e = gerarDemo(paraMs(agoraDemo));
       const oss = visoes(e);
       const na = naOficina(oss, agoraDemo, e.config);
-      expect([na.total, na.emServico, na.prontos]).toEqual([8, 6, 2]);
+      expect([na.total, na.emServico, na.prontos]).toEqual([11, 9, 2]);
       expect(entramHoje(oss, e.agendamentos, agoraDemo).total).toBe(1);
       expect(saemHoje(oss, agoraDemo, e.config, e.pagadores).total).toBe(3);
       const at = atrasados(oss, agoraDemo, e.config);
@@ -402,6 +458,18 @@ describe("demonstração (quarta 21/10/2026)", () => {
       const contagem = (s: string) => na.itens.filter((i) => i.situacao === s).length;
       expect(contagem("atencao")).toBeLessThanOrEqual(2);
       expect([contagem("atrasado"), contagem("impedido")]).toEqual([1, 1]);
+      // cor do carro (2º áudio): os casos do dono na demonstração
+      const pc = porCor(oss, agoraDemo, e.config);
+      expect(pc.total).toBe(na.total);
+      expect(pc.porCor).toEqual({ vermelho_piscando: 1, vermelho: 2, laranja: 2, verde: 6 });
+      const cor = (placa: string) => pc.itens.find((i) => i.v.veiculo.placa === placa)!;
+      expect(cor("RKP1L34")).toMatchObject({ cor: "vermelho_piscando" }); // passou da entrega
+      expect(cor("SCH4A22")).toMatchObject({ cor: "vermelho", motivo: "Entrega hoje e nenhuma etapa concluída" });
+      expect(cor("SFL2D63")).toMatchObject({ cor: "vermelho", motivo: "Entrega amanhã e nenhuma etapa concluída" });
+      expect(cor("RAV3K61")).toMatchObject({ cor: "laranja", motivo: "Entrega amanhã · 1 de 4 etapas" });
+      expect(cor("RMB5H29")).toMatchObject({ cor: "verde", personalizado: true }); // 10 dias úteis, laranja a 3
+      expect(cor("RMB5H29").v.os.previsaoEntrega).toBe("2026-10-28");
+      expect(cor("RTB2E90")).toMatchObject({ cor: "verde", parado: true }); // parado é selo, não cor
     });
   }
 });

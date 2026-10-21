@@ -32,6 +32,7 @@ describe("aplicarConfig", () => {
       capacidadePadrao: { vagasEntrada: 4, carrosSimultaneos: 12, pecasDia: 10 },
       expediente: { diasSemana: [6, 1, 2, 3, 4, 5], inicio: "08:00", fim: "18:00", sabadoFim: "12:00" },
       semaforo: { laranjaAntesHoras: 8, vermelhoBloqueioHoras: 4 },
+      alertaCarro: { laranjaDiasAntes: 1 },
     });
     expect(r.ok && r.config.provisorio).toBe(false);
     expect(r.ok && r.config.expediente.diasSemana).toEqual([1, 2, 3, 4, 5, 6]);

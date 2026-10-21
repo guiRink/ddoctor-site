@@ -152,10 +152,29 @@ export interface OS {
   observacoes?: string;
   /** Recepção do veículo na entrada (km, combustível, checklist, mapa de avarias). */
   recepcao?: RecepcaoVeiculo;
+  /**
+   * Alerta próprio deste carro (pedido do dono, 2º áudio, revisão SH): ausente = base de config.alertaCarro.
+   * prazoDiasUteis só registra o prazo combinado; a entrega prometida (previsaoEntrega) é recalculada ao salvar.
+   */
+  alerta?: AlertaOS;
   criadoEm: MarcoISO;
   atualizadoEm: MarcoISO;
   demo?: boolean;
 }
+
+/** Ajuste do alerta por carro (corDoCarro): cada campo presente vence a base da configuração. */
+export interface AlertaOS {
+  /** Prazo combinado em dias úteis, contado da entrada (ex.: 10). */
+  prazoDiasUteis?: number;
+  /** Fica laranja a partir de N dias úteis antes da entrega (com etapa concluída). */
+  laranjaDiasAntes?: number;
+  /** Fica vermelho a partir de N dias úteis antes da entrega se nenhuma etapa foi concluída. */
+  vermelhoSemEtapaDiasAntes?: number;
+}
+
+/** Cor do carro no painel e na TV (pedido do dono, 2º áudio). Ordem de gravidade: verde < laranja < vermelho < vermelho_piscando. */
+export const CORES_CARRO = ["verde", "laranja", "vermelho", "vermelho_piscando"] as const;
+export type CorCarro = (typeof CORES_CARRO)[number];
 
 // ---------------------------------------------------------------- recepção do veículo
 
@@ -546,6 +565,11 @@ export interface ConfigOficina {
     laranjaFracao?: number;
   };
   capacidadePadrao: { vagasEntrada: number; carrosSimultaneos: number; pecasDia?: number };
+  /**
+   * Base da cor do carro (corDoCarro, pedido do dono, 2º áudio). Ausente = ALERTA_CARRO_PADRAO (provisório).
+   * Cada carro pode ter o seu (OS.alerta).
+   */
+  alertaCarro?: AlertaCarroConfig;
   /** Itens do checklist de entrada; ausente = CHECKLIST_PADRAO (provisório). */
   checklist?: ChecklistItem[];
   /** Geral: true enquanto há valor não confirmado pelo dono. Por campo, veja `confirmado` (campoConfigProvisorio). */
@@ -554,8 +578,19 @@ export interface ConfigOficina {
   confirmado?: Partial<Record<CampoConfig, boolean>>;
 }
 
+export interface AlertaCarroConfig {
+  /** Laranja a partir de N dias úteis antes da entrega (0 = só no dia). */
+  laranjaDiasAntes: number;
+  /** Vermelho a partir de N dias úteis antes da entrega quando nenhuma etapa foi concluída. */
+  vermelhoSemEtapaDiasAntes: number;
+  /** Atrasado (passou da entrega) pisca no painel e na TV. */
+  piscarAtrasado: boolean;
+  /** Prazo sugerido em dias úteis ao ajustar um carro (só sugestão de formulário; não inventa entrega). */
+  prazoPadraoDiasUteis?: number;
+}
+
 /** Campos da configuração que o dono confirma um a um (cada um sai do "provisório — a confirmar" ao salvar). */
-export const CAMPOS_CONFIG = ["vagasEntrada", "carrosSimultaneos", "pecasDia", "expediente", "semaforo"] as const;
+export const CAMPOS_CONFIG = ["vagasEntrada", "carrosSimultaneos", "pecasDia", "expediente", "semaforo", "alertaCarro"] as const;
 export type CampoConfig = (typeof CAMPOS_CONFIG)[number];
 
 export type Semaforo = "verde" | "laranja" | "vermelho" | "neutro";

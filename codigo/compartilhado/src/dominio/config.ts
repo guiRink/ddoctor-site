@@ -1,4 +1,4 @@
-import type { CampoConfig, CategoriaFinanceira, ChecklistItem, ConfigOficina } from "../tipos";
+import type { AlertaCarroConfig, CampoConfig, CategoriaFinanceira, ChecklistItem, ConfigOficina } from "../tipos";
 import { CAMPOS_CONFIG } from "../tipos";
 import { minutosDeHora } from "./fuso";
 import { falha } from "./resultado";
@@ -16,6 +16,39 @@ export const CONFIG_PADRAO: ConfigOficina = {
   capacidadePadrao: { vagasEntrada: 4, carrosSimultaneos: 12, pecasDia: 10 },
   provisorio: true,
 };
+
+/**
+ * Base da cor do carro (pedido do dono, 2º áudio; docs/revisao-sh/pedido-dono-2.md). Provisório até o dono salvar
+ * em Ajustes: laranja e vermelho-sem-etapa a 1 dia útil da entrega (hoje ou amanhã), atrasado pisca, prazo sugerido
+ * de 10 dias úteis (o exemplo do áudio).
+ */
+export const ALERTA_CARRO_PADRAO: Readonly<AlertaCarroConfig> = {
+  laranjaDiasAntes: 1,
+  vermelhoSemEtapaDiasAntes: 1,
+  piscarAtrasado: true,
+  prazoPadraoDiasUteis: 10,
+};
+
+/** Limites (inteiros) do alerta do carro, na configuração e no ajuste por carro. Fora disso: valor_invalido. */
+export const LIMITES_ALERTA = {
+  laranjaDiasAntes: { min: 0, max: 60 },
+  vermelhoSemEtapaDiasAntes: { min: 0, max: 60 },
+  prazoDiasUteis: { min: 0, max: 60 },
+  prazoPadraoDiasUteis: { min: 1, max: 60 },
+} as const;
+
+/** Base do alerta da configuração, completando o que faltar com ALERTA_CARRO_PADRAO (provisório). */
+export function alertaCarroBase(config: Pick<ConfigOficina, "alertaCarro">): Required<AlertaCarroConfig> {
+  const a = config.alertaCarro;
+  const inteiro = (v: unknown, lim: { min: number; max: number }, padrao: number) =>
+    typeof v === "number" && Number.isInteger(v) && v >= lim.min && v <= lim.max ? v : padrao;
+  return {
+    laranjaDiasAntes: inteiro(a?.laranjaDiasAntes, LIMITES_ALERTA.laranjaDiasAntes, ALERTA_CARRO_PADRAO.laranjaDiasAntes),
+    vermelhoSemEtapaDiasAntes: inteiro(a?.vermelhoSemEtapaDiasAntes, LIMITES_ALERTA.vermelhoSemEtapaDiasAntes, ALERTA_CARRO_PADRAO.vermelhoSemEtapaDiasAntes),
+    piscarAtrasado: typeof a?.piscarAtrasado === "boolean" ? a.piscarAtrasado : ALERTA_CARRO_PADRAO.piscarAtrasado,
+    prazoPadraoDiasUteis: inteiro(a?.prazoPadraoDiasUteis, LIMITES_ALERTA.prazoPadraoDiasUteis, ALERTA_CARRO_PADRAO.prazoPadraoDiasUteis!),
+  };
+}
 
 /** Laranja quando já passou esta fração do prazo da etapa (provisório: 0,8; revisão SG, a confirmar com o dono). */
 export const LARANJA_FRACAO_PADRAO = 0.8;
@@ -123,6 +156,8 @@ export interface ConfigParcial {
   capacidadePadrao?: { vagasEntrada?: number; carrosSimultaneos?: number; pecasDia?: number };
   expediente?: ConfigOficina["expediente"];
   semaforo?: Partial<ConfigOficina["semaforo"]>;
+  /** Base da cor do carro; os campos ausentes mantêm o valor atual (ou o padrão provisório). */
+  alertaCarro?: Partial<AlertaCarroConfig>;
 }
 
 export type CodigoConfig = "valor_invalido" | "expediente_invalido" | "nada_a_salvar";
@@ -153,6 +188,7 @@ export function aplicarConfig(config: ConfigOficina, parcial: ConfigParcial): Re
   let capacidadePadrao = config.capacidadePadrao;
   let semaforo = config.semaforo;
   let expediente = config.expediente;
+  let alertaCarro = config.alertaCarro;
 
   const cap = parcial.capacidadePadrao;
   if (cap) {
@@ -193,10 +229,30 @@ export function aplicarConfig(config: ConfigOficina, parcial: ConfigParcial): Re
     expediente = { diasSemana: [...dias].sort((a, b) => a - b), inicio: exp.inicio, fim: exp.fim, ...(exp.sabadoFim ? { sabadoFim: exp.sabadoFim } : {}) };
     campos.push("expediente");
   }
+  const al = parcial.alertaCarro;
+  if (al) {
+    let novo: AlertaCarroConfig = { ...alertaCarroBase(config) };
+    let mudou = false;
+    for (const campo of ["laranjaDiasAntes", "vermelhoSemEtapaDiasAntes", "prazoPadraoDiasUteis"] as const) {
+      if (al[campo] === undefined) continue;
+      if (!inteiroEntre(al[campo], LIMITES_ALERTA[campo])) return { ok: false, codigo: "valor_invalido", campo };
+      novo = { ...novo, [campo]: al[campo] };
+      mudou = true;
+    }
+    if (al.piscarAtrasado !== undefined) {
+      if (typeof al.piscarAtrasado !== "boolean") return { ok: false, codigo: "valor_invalido", campo: "piscarAtrasado" };
+      novo = { ...novo, piscarAtrasado: al.piscarAtrasado };
+      mudou = true;
+    }
+    if (mudou) {
+      alertaCarro = novo;
+      campos.push("alertaCarro");
+    }
+  }
   if (campos.length === 0) return falha("nada_a_salvar");
 
   const confirmado = { ...config.confirmado };
   for (const c of campos) confirmado[c] = true;
   const todos = CAMPOS_CONFIG.every((c) => confirmado[c]);
-  return { ok: true, campos, config: { ...config, capacidadePadrao, semaforo, expediente, confirmado, provisorio: config.provisorio && !todos } };
+  return { ok: true, campos, config: { ...config, capacidadePadrao, semaforo, expediente, ...(alertaCarro ? { alertaCarro } : {}), confirmado, provisorio: config.provisorio && !todos } };
 }

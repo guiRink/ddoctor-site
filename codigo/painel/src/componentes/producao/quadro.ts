@@ -31,7 +31,7 @@ export function lerFiltro(valor: string | null): FiltroQuadro {
 
 /** Uma pílula por carro (situacaoCartao): texto, tom e a cor do segmento atual no progresso. */
 export const SITUACAO: Record<SituacaoCartao, { texto: string; tom: Tom; cor: Semaforo }> = {
-  impedido: { texto: "Impedido", tom: "alerta", cor: "vermelho" },
+  impedido: { texto: "Parado", tom: "alerta", cor: "vermelho" },
   atrasado: { texto: "Atrasado", tom: "alerta", cor: "vermelho" },
   atencao: { texto: "Atenção", tom: "atencao", cor: "laranja" },
   no_prazo: { texto: "No prazo", tom: "ok", cor: "verde" },

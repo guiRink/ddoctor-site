@@ -1,13 +1,15 @@
 // Contagens únicas do painel (revisão SG, item 2): um número e um nome para cada coisa, em todas as telas.
 // Geral, Produção, TV e Orçamentos leem daqui; cada função devolve { total, itens } com o que a lista precisa,
 // e total === itens.length (todo número abre a própria lista). Funções puras: `agora` e config por parâmetro.
-import type { Agendamento, Centavos, ConfigOficina, DataISO, EstadoOS, EtapaOS, Id, Janela, MarcoISO, OrcamentoVersao, Pagador, Papel, PendenciaExterna, TituloReceber } from "@compartilhado/tipos";
+import type { Agendamento, Centavos, ConfigOficina, CorCarro, DataISO, EstadoOS, EtapaOS, Id, Janela, MarcoISO, OrcamentoVersao, Pagador, Papel, PendenciaExterna, TituloReceber } from "@compartilhado/tipos";
 import { DIAS_PRONTO_NAO_BUSCOU_PADRAO, DIAS_VISTORIA_VENCENDO_PADRAO } from "@compartilhado/dominio/config";
 import { somaCentavos } from "@compartilhado/dominio/dinheiro";
 import { estadoTitulo, saldoTitulo } from "@compartilhado/dominio/financeiro";
 import { compararMarcos, dataNoFuso, diferencaDias, paraMs } from "@compartilhado/dominio/fuso";
 import { clienteDeveOS } from "@compartilhado/dominio/pagamentos";
 import { etapaAtual, situacaoCartao, type SituacaoCartao } from "@compartilhado/dominio/semaforo";
+import { PESO_COR_CARRO, corDoCarro } from "@compartilhado/dominio/corCarro";
+import { CORES_CARRO } from "@compartilhado/tipos";
 import type { OSVisao } from "../dados/repositorio";
 import { rotuloHaQuanto, rotuloPrazo, rotuloHorario } from "./horarios";
 import { TIPO_PENDENCIA } from "./rotulos";
@@ -260,7 +262,8 @@ export interface ItemParado {
 
 /**
  * "Parados" = travado: carro em serviço com etapa impedida (bloqueada — aguardando peça, material, autorização),
- * exatamente situacaoCartao "impedido". Motivo e início do impedimento aberto. O parado há mais tempo primeiro.
+ * exatamente situacaoCartao "impedido". Motivo e início do impedimento aberto (sem bloqueio aberto: início da etapa ou
+ * última atualização da OS, motivo "Parado"; bloqueio já encerrado não conta). O parado há mais tempo primeiro.
  */
 export function parados(oss: readonly OSVisao[], agora: MarcoISO, config: ConfigOficina): Contagem<ItemParado> {
   const noAtraso = new Set(atrasados(oss, agora, config).itens.map((i) => i.v.os.id));
@@ -269,11 +272,12 @@ export function parados(oss: readonly OSVisao[], agora: MarcoISO, config: Config
     if (!ehEmServico(v)) continue;
     const etapa = restantes(v).find((e) => e.estado === "bloqueada");
     if (!etapa) continue;
-    const bloqueio = etapa.bloqueios.find((b) => !b.fimEm) ?? etapa.bloqueios.at(-1);
+    // só o impedimento ABERTO: um bloqueio já encerrado traria data e motivo antigos
+    const bloqueio = etapa.bloqueios.find((b) => !b.fimEm);
     const desde = bloqueio?.inicioEm ?? etapa.iniciadaEm ?? v.os.atualizadoEm;
     itens.push({
       v,
-      motivo: bloqueio?.motivo?.trim() || "Impedido",
+      motivo: bloqueio?.motivo?.trim() || "Parado",
       desde,
       haQuanto: rotuloHaQuanto(desde, agora),
       etapa,
@@ -284,6 +288,67 @@ export function parados(oss: readonly OSVisao[], agora: MarcoISO, config: Config
   }
   itens.sort((a, b) => paraMs(a.desde) - paraMs(b.desde) || placa(a.v).localeCompare(placa(b.v)));
   return lista(itens);
+}
+
+// ---------------------------------------------------------------- Cor do carro (pedido do dono, 2º áudio)
+
+export interface ItemCor {
+  v: OSVisao;
+  cor: CorCarro;
+  /** "Entrega amanhã · 2 de 4 etapas", "Atrasado 2 dias", "Pronto". */
+  motivo: string;
+  diasUteisParaEntrega: number | null;
+  /** Etapa atual (placa + etapa no mosaico da TV); ausente se pronto. */
+  etapa?: EtapaOS;
+  /** Selo à parte: etapa impedida (a cor não muda por isso). */
+  parado: boolean;
+  /** prioridade 2 (o dono marcou "urgente"). */
+  urgente: boolean;
+  /** O carro tem prazo/alerta próprio (OS.alerta). */
+  personalizado: boolean;
+  pronto: boolean;
+}
+
+/**
+ * Carros "Na oficina" pintados pela cor (corDoCarro) e a contagem por cor, para o mosaico da TV e o Geral.
+ * Por padrão inclui os prontos (verdes, "Pronto"), então total = naOficina().total; `incluirProntos: false` deixa só
+ * os em serviço. Coerente com Atrasados: todo vermelho piscando (entrega vencida) está em atrasados().
+ * Ordem: pior cor primeiro; depois menos dias úteis para a entrega, urgente, placa; prontos por último.
+ */
+export function porCor(
+  oss: readonly OSVisao[],
+  agora: MarcoISO,
+  config: ConfigOficina,
+  opcoes: { incluirProntos?: boolean } = {},
+): Contagem<ItemCor> & { porCor: Record<CorCarro, number> } {
+  const incluirProntos = opcoes.incluirProntos ?? true;
+  const itens: ItemCor[] = [];
+  for (const v of oss) {
+    const pronto = v.os.estado === "pronta";
+    if (!ehEmServico(v) && !(pronto && incluirProntos)) continue;
+    const c = corDoCarro(v.os, v.etapas, agora, config);
+    itens.push({
+      v,
+      cor: c.cor,
+      motivo: c.motivo,
+      diasUteisParaEntrega: c.diasUteisParaEntrega,
+      etapa: pronto ? undefined : (etapaAtual(v.etapas) ?? undefined),
+      parado: !pronto && v.etapas.some((e) => e.estado === "bloqueada"),
+      urgente: v.os.prioridade === 2,
+      personalizado: c.personalizado,
+      pronto,
+    });
+  }
+  itens.sort(
+    (a, b) =>
+      Number(a.pronto) - Number(b.pronto) ||
+      PESO_COR_CARRO[b.cor] - PESO_COR_CARRO[a.cor] ||
+      (a.diasUteisParaEntrega ?? Infinity) - (b.diasUteisParaEntrega ?? Infinity) ||
+      Number(b.urgente) - Number(a.urgente) ||
+      placa(a.v).localeCompare(placa(b.v)),
+  );
+  const contagem = Object.fromEntries(CORES_CARRO.map((cor) => [cor, itens.filter((i) => i.cor === cor).length])) as Record<CorCarro, number>;
+  return { ...lista(itens), porCor: contagem };
 }
 
 // ---------------------------------------------------------------- Aguardando aprovação e Aguardando seguradora

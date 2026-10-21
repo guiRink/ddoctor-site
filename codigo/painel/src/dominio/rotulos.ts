@@ -1,4 +1,5 @@
 import type {
+  CorCarro,
   FormaPagamento,
   NivelCombustivel,
   TamanhoAvaria,
@@ -23,6 +24,7 @@ import type {
 import type { Tom } from "../componentes/ui/Estado";
 import type { NomeIcone } from "../componentes/Icone";
 import type { Modulo } from "./permissoes";
+import type { SituacaoCartao } from "@compartilhado/dominio/semaforo";
 
 // Rótulos pt-BR centralizados (CLAUDE.md). Cada estado tem texto e tom de cor (docs/painel-design.md §2).
 
@@ -58,6 +60,26 @@ export const STATUS_EXTERNO: Record<StatusExterno, { texto: string; tom: Tom }> 
   pago: { texto: "Pago", tom: "ok" },
   cancelado: { texto: "Cancelado", tom: "neutro" },
   desconhecido: { texto: "Status não reconhecido", tom: "atencao" },
+};
+
+/**
+ * Pílula única do carro (situacaoCartao). "impedido" aparece como "Parado" — é como o dono chama (revisão SH).
+ * O código continua "impedido"; só o rótulo de exibição mudou.
+ */
+export const SITUACAO_CARTAO: Record<SituacaoCartao, { texto: string; tom: Tom }> = {
+  impedido: { texto: "Parado", tom: "alerta" },
+  atrasado: { texto: "Atrasado", tom: "alerta" },
+  atencao: { texto: "Atenção", tom: "atencao" },
+  no_prazo: { texto: "No prazo", tom: "ok" },
+  pronto: { texto: "Pronto", tom: "ok" },
+};
+
+/** Cor do carro (corDoCarro, pedido do dono, 2º áudio): nome para legenda, contagem e leitor de tela. */
+export const COR_CARRO: Record<CorCarro, { texto: string; tom: Tom }> = {
+  verde: { texto: "No prazo", tom: "ok" },
+  laranja: { texto: "Atenção", tom: "atencao" },
+  vermelho: { texto: "Sem etapa concluída", tom: "alerta" },
+  vermelho_piscando: { texto: "Atrasado", tom: "alerta" },
 };
 
 export const STATUS_ITEM: Record<StatusItem, { texto: string; tom: Tom }> = {
@@ -320,6 +342,12 @@ export const ERRO_CAMPO_CONFIG: Record<string, string> = {
   laranjaFracao: "Laranja: de 50 % a 95 % do prazo da etapa.",
   vermelhoBloqueioHoras: "Vermelho por impedimento: um número inteiro de horas úteis, de 1 a 80.",
   sabadoFim: "Fim do sábado: use HH:MM, depois do início do expediente.",
+  // alerta do carro (Ajustes e ajuste por carro, salvarAlertaOS)
+  laranjaDiasAntes: "Laranja: um número inteiro de dias úteis antes da entrega, de 0 a 60.",
+  vermelhoSemEtapaDiasAntes: "Vermelho sem etapa concluída: um número inteiro de dias úteis antes da entrega, de 0 a 60.",
+  prazoDiasUteis: "Prazo: um número inteiro de dias úteis, de 0 a 60.",
+  prazoPadraoDiasUteis: "Prazo padrão: um número inteiro de dias úteis, de 1 a 60.",
+  piscarAtrasado: "Piscar atrasado: ligado ou desligado.",
 };
 
 export type GrupoMenu = "operacao" | "dinheiro" | "gestao";

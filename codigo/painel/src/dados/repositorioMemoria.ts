@@ -13,7 +13,8 @@ import { totalCusto, validarMaoDeObra } from "@compartilhado/dominio/custos";
 import { aplicarMovimento } from "@compartilhado/dominio/estoque";
 import { calcularFechamento, checarCaixaAberto } from "@compartilhado/dominio/caixa";
 import { resumoPagamentosCliente, saldoACobrarCliente } from "@compartilhado/dominio/pagamentos";
-import { aplicarConfig, laranjaFracao } from "@compartilhado/dominio/config";
+import { alertaCarroBase, aplicarConfig, laranjaFracao } from "@compartilhado/dominio/config";
+import { aplicarAlertaOS } from "@compartilhado/dominio/corCarro";
 import { validarTipoReparo } from "@compartilhado/dominio/tiposReparo";
 import { COMPRESSAO_FOTO, FASES_FOTO_ETAPA, FASES_FOTO_INTERNA, expiracaoFoto, fotosDaEtapa } from "@compartilhado/dominio/fotos";
 import { FASE_VISTORIA } from "../dominio/rotulos";
@@ -634,6 +635,18 @@ export const repositorioMemoria: Repositorio = {
     return { ok: true };
   },
 
+  async salvarAlertaOS(osId, entrada) {
+    await pausa();
+    const os = estado.oss.find((o) => o.id === osId);
+    if (!os) return { ok: false, codigo: "os_nao_encontrada" };
+    const r = aplicarAlertaOS(os, entrada, agora(), estado.config);
+    if (!r.ok) return { ok: false, codigo: r.codigo, campo: r.campo };
+    atualizarOS(osId, r.mudanca);
+    auditar("alerta", "os", osId, `Alerta do carro ajustado na OS #${os.numero}: ${r.resumo}`);
+    salvar();
+    return { ok: true };
+  },
+
   async registrarEntrega(osId) {
     await pausa();
     const os = estado.oss.find((o) => o.id === osId);
@@ -1212,6 +1225,10 @@ export const repositorioMemoria: Repositorio = {
       pecasDia: `peças por dia ${antes.capacidadePadrao.pecasDia ?? "—"} → ${r.config.capacidadePadrao.pecasDia}`,
       expediente: `expediente ${r.config.expediente.inicio}–${r.config.expediente.fim}`,
       semaforo: `semáforo laranja com ${Math.round(laranjaFracao(r.config) * 100)} % do prazo, vermelho ${r.config.semaforo.vermelhoBloqueioHoras} h de impedimento`,
+      alertaCarro: (() => {
+        const a = alertaCarroBase(r.config);
+        return `cor do carro laranja a ${a.laranjaDiasAntes} e vermelho sem etapa a ${a.vermelhoSemEtapaDiasAntes} dia(s) útil(eis) da entrega, atrasado ${a.piscarAtrasado ? "pisca" : "não pisca"}, prazo padrão ${a.prazoPadraoDiasUteis} dias úteis`;
+      })(),
     };
     auditar("editar", "config_oficina", undefined, `Configuração confirmada: ${r.campos.map((c) => nomes[c]).join("; ")}`);
     salvar();

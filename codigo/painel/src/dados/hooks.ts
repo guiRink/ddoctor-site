@@ -9,6 +9,7 @@ import type {
   ConfigParcial,
   DadosConclusaoEtapa,
   DespesaEntrada,
+  EntradaAlertaOS,
   FechamentoEntrada,
   FornecedorEntrada,
   MaterialEntrada,
@@ -97,6 +98,7 @@ export function useAcoes() {
     registrarAprovacao: mut((osId: Id, evidencia: string) => repositorio.registrarAprovacao(osId, evidencia)),
     registrarEntrada: mut((osId: Id, tipoReparoId: Id, recepcao?: RecepcaoVeiculo) => repositorio.registrarEntrada(osId, tipoReparoId, recepcao)),
     registrarEntrega: mut((osId: Id) => repositorio.registrarEntrega(osId)),
+    salvarAlertaOS: mut((osId: Id, alerta: EntradaAlertaOS) => repositorio.salvarAlertaOS(osId, alerta)),
     agendar: mut((osId: Id, data: DataISO, janela: Janela, encaixe?: boolean) => repositorio.agendar(osId, data, janela, encaixe)),
     reagendar: mut((agendamentoId: Id, data: DataISO, janela: Janela, encaixe?: boolean) =>
       repositorio.reagendar(agendamentoId, data, janela, encaixe),

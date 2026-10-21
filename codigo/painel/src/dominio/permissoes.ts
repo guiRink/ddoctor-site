@@ -102,6 +102,14 @@ export function podeCriarTipoReparo(papel: Papel): boolean {
   return papel === "dono" || papel === "gestor" || papel === "recepcao";
 }
 
+/**
+ * Ajustar o alerta de um carro (salvarAlertaOS: prazo em dias úteis, "fica laranja/vermelho a partir de", urgente):
+ * dono, gestor e recepção (pedido do dono, 2º áudio). A base em Ajustes (alertaCarro) segue podeEditarConfig.
+ */
+export function podeEditarAlertaOS(papel: Papel): boolean {
+  return papel === "dono" || papel === "gestor" || papel === "recepcao";
+}
+
 /** Tirar foto da OS: quem edita vistorias (dono, gestor, recepção) e a produção (fotos das próprias etapas). */
 export function podeAdicionarFoto(papel: Papel): boolean {
   return podeEditar(papel, "vistorias");
