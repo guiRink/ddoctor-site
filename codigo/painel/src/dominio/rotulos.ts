@@ -26,15 +26,17 @@ import type { Modulo } from "./permissoes";
 
 // Rótulos pt-BR centralizados (CLAUDE.md). Cada estado tem texto e tom de cor (docs/painel-design.md §2).
 
+// Nomes da oficina (sprint SG), os mesmos das situações da tela Atendimentos (orcamentos/lista.ts).
 export const ESTADO_OS: Record<EstadoOS, { texto: string; tom: Tom }> = {
-  rascunho: { texto: "Rascunho", tom: "neutro" },
-  aguardando_aprovacao: { texto: "Aguardando aprovação", tom: "neutro" },
-  aguardando_agendamento: { texto: "Aguardando agendamento", tom: "amarelo" },
+  rascunho: { texto: "Em orçamento", tom: "neutro" },
+  // espera de terceiro / falta da oficina: atenção suave (pílula clara com ponto); amarelo fica só para ação
+  aguardando_aprovacao: { texto: "Esperando aprovação", tom: "atencao" },
+  aguardando_agendamento: { texto: "Falta agendar", tom: "atencao" },
   agendada: { texto: "Agendado", tom: "escuro" },
   na_oficina: { texto: "Na oficina", tom: "escuro" },
-  pronta: { texto: "Pronto para entrega", tom: "ok" },
+  pronta: { texto: "Pronto", tom: "ok" },
   entregue: { texto: "Entregue", tom: "neutro" },
-  encerrada: { texto: "Encerrado", tom: "ok" },
+  encerrada: { texto: "Fechado", tom: "ok" },
   cancelada: { texto: "Cancelado", tom: "neutro" },
 };
 
@@ -314,23 +316,37 @@ export const ERRO_CAMPO_CONFIG: Record<string, string> = {
   carrosSimultaneos: "Carros ao mesmo tempo: um número inteiro de 1 a 60.",
   pecasDia: "Peças por dia: um número inteiro de 1 a 200.",
   laranjaAntesHoras: "Laranja: um número inteiro de horas úteis, de 1 a 80.",
+  laranjaPct: "Laranja: de 50 % a 95 % do prazo da etapa.",
+  laranjaFracao: "Laranja: de 50 % a 95 % do prazo da etapa.",
   vermelhoBloqueioHoras: "Vermelho por impedimento: um número inteiro de horas úteis, de 1 a 80.",
   sabadoFim: "Fim do sábado: use HH:MM, depois do início do expediente.",
 };
 
-export const MENU: { modulo: Modulo; rota: string; nome: string; icone: NomeIcone; grupo: "operacao" | "gestao" | "sistema" }[] = [
-  { modulo: "geral", rota: "/geral", nome: "Geral", icone: "geral", grupo: "operacao" },
-  { modulo: "orcamentos", rota: "/orcamentos", nome: "Orçamentos", icone: "orcamentos", grupo: "operacao" },
-  { modulo: "clientes", rota: "/clientes", nome: "Clientes", icone: "pessoa", grupo: "operacao" },
-  { modulo: "agenda", rota: "/agenda", nome: "Agenda", icone: "agenda", grupo: "operacao" },
-  { modulo: "producao", rota: "/producao", nome: "Produção", icone: "producao", grupo: "operacao" },
+export type GrupoMenu = "operacao" | "dinheiro" | "gestao";
+
+/** Grupos da barra lateral, na ordem (sprint SG: Operação · Dinheiro · Gestão). */
+export const GRUPOS_MENU: { id: GrupoMenu; nome: string }[] = [
+  { id: "operacao", nome: "Operação" },
+  { id: "dinheiro", nome: "Dinheiro" },
+  { id: "gestao", nome: "Gestão" },
+];
+
+/**
+ * Itens do menu. Quais aparecem e em que ordem vem de `modulosDoMenu` (permissoes.ts); `nomePara` troca o nome
+ * para um papel (a produção chama o quadro de "Quadro" e as vistorias de "Fotos"). Quadro da TV e Relatórios não
+ * entram no menu (botão na Produção; aba do Financeiro).
+ */
+export const MENU: { modulo: Modulo; rota: string; nome: string; nomePara?: Partial<Record<Papel, string>>; icone: NomeIcone; grupo: GrupoMenu }[] = [
   { modulo: "minhas_tarefas", rota: "/producao/eu", nome: "Minhas tarefas", icone: "celular", grupo: "operacao" },
-  { modulo: "vistorias", rota: "/vistorias", nome: "Vistorias", icone: "vistorias", grupo: "operacao" },
-  { modulo: "funcionarios", rota: "/funcionarios", nome: "Funcionários", icone: "funcionarios", grupo: "gestao" },
+  { modulo: "geral", rota: "/geral", nome: "Geral", icone: "geral", grupo: "operacao" },
+  { modulo: "orcamentos", rota: "/orcamentos", nome: "Atendimentos", icone: "orcamentos", grupo: "operacao" },
+  { modulo: "agenda", rota: "/agenda", nome: "Agenda", icone: "agenda", grupo: "operacao" },
+  { modulo: "producao", rota: "/producao", nome: "Produção", nomePara: { producao: "Quadro" }, icone: "producao", grupo: "operacao" },
+  { modulo: "vistorias", rota: "/vistorias", nome: "Vistorias", nomePara: { producao: "Fotos" }, icone: "vistorias", grupo: "operacao" },
+  { modulo: "clientes", rota: "/clientes", nome: "Clientes", icone: "pessoa", grupo: "operacao" },
+  { modulo: "recebiveis", rota: "/recebiveis", nome: "A receber", icone: "recebiveis", grupo: "dinheiro" },
+  { modulo: "financeiro", rota: "/financeiro", nome: "Financeiro", icone: "financeiro", grupo: "dinheiro" },
+  { modulo: "funcionarios", rota: "/funcionarios", nome: "Equipe", icone: "funcionarios", grupo: "gestao" },
   { modulo: "estoque", rota: "/estoque", nome: "Estoque", icone: "estoque", grupo: "gestao" },
-  { modulo: "recebiveis", rota: "/recebiveis", nome: "Recebíveis", icone: "recebiveis", grupo: "gestao" },
-  { modulo: "financeiro", rota: "/financeiro", nome: "Financeiro", icone: "financeiro", grupo: "gestao" },
-  { modulo: "relatorios", rota: "/relatorios", nome: "Relatórios", icone: "documento", grupo: "gestao" },
-  { modulo: "tv", rota: "/producao/tv", nome: "Quadro da TV", icone: "tv", grupo: "sistema" },
-  { modulo: "ajustes", rota: "/ajustes", nome: "Ajustes", icone: "ajustes", grupo: "sistema" },
+  { modulo: "ajustes", rota: "/ajustes", nome: "Ajustes", icone: "ajustes", grupo: "gestao" },
 ];

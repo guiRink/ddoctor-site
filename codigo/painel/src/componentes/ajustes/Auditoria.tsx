@@ -24,7 +24,7 @@ export function Auditoria({ perfis }: { perfis: Perfil[] }) {
   const nome = (id?: string) => perfis.find((p) => p.id === id)?.nome;
 
   return (
-    <Secao id="auditoria" titulo="Auditoria" descricao={`Cada alteração feita pelo painel deixa uma linha aqui: quem fez, quando e o quê. Esta tela só consulta; não há como editar nem apagar uma linha por ela. Na demonstração, guarda as últimas ${LIMITE_AUDITORIA} ações (as mais antigas saem).`}>
+    <Secao id="auditoria" titulo="Auditoria" descricao={`Quem mudou o quê, e quando. Na demonstração, as últimas ${LIMITE_AUDITORIA} ações.`}>
       <Consulta q={q}>
         {(linhas: RegistroAuditoria[]) => {
           const filtradas = termo

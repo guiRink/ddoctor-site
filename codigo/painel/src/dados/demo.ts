@@ -33,7 +33,8 @@ import { CATEGORIAS_PADRAO, CHECKLIST_PADRAO } from "@compartilhado/dominio/conf
 import { custoMaoDeObra, totalCusto } from "@compartilhado/dominio/custos";
 import { aplicarMovimento } from "@compartilhado/dominio/estoque";
 import { calcularFechamento } from "@compartilhado/dominio/caixa";
-import { compararMarcos, dataNoFuso, diaSemana, formatarMarco } from "@compartilhado/dominio/fuso";
+import { compararMarcos, dataNoFuso, diaSemana, formatarMarco, msDeLocal, somarDias } from "@compartilhado/dominio/fuso";
+import { janelaDoDia, somarHorasUteis } from "@compartilhado/dominio/expediente";
 
 /**
  * Oficina de DEMONSTRAÇÃO. Tudo aqui é fictício: nomes, placas, telefones, protocolos e valores.
@@ -229,6 +230,50 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
     semaforo: { laranjaAntesHoras: 8, vermelhoBloqueioHoras: 4 },
     capacidadePadrao: { vagasEntrada: 4, carrosSimultaneos: 12, pecasDia: 10 },
     provisorio: true,
+  };
+
+  // prazos da produção em horas e dias ÚTEIS pelo expediente (revisão SG, item 3): com horas de relógio, à noite
+  // e no sábado quase todo carro ficava laranja (o prazo "daqui a 2 h" caía fora do expediente).
+  const agoraISO = iso(agora);
+  /** Marco a `horas` úteis de agora; negativo = `horas` úteis atrás (prazo já vencido). */
+  const horasUteisDeAgora = (horas: number): string => {
+    if (horas >= 0) return somarHorasUteis(agoraISO, horas, config);
+    let resta = -horas * HORA;
+    let cursor = agoraMs;
+    for (let dia = dataNoFuso(agoraMs), n = 0; n < 60; dia = somarDias(dia, -1), n++) {
+      const j = janelaDoDia(dia, config);
+      if (!j) continue;
+      const fim = Math.min(cursor, msDeLocal(dia, j.fim));
+      const ini = msDeLocal(dia, j.inicio);
+      if (fim > ini) {
+        if (resta <= fim - ini) return iso(new Date(fim - resta));
+        resta -= fim - ini;
+      }
+      cursor = Infinity;
+    }
+    return iso(new Date(agoraMs + horas * HORA));
+  };
+  /** Data a `dias` dias úteis de hoje (0 = hoje, mesmo fora do expediente; negativo = para trás). */
+  const diasUteisDeHoje = (dias: number): string => {
+    let dia = dataNoFuso(agoraMs);
+    const passo = dias < 0 ? -1 : 1;
+    for (let falta = Math.abs(dias), n = 0; falta > 0 && n < 60; n++) {
+      dia = somarDias(dia, passo);
+      if (janelaDoDia(dia, config)) falta--;
+    }
+    return dia;
+  };
+  /**
+   * Entrega prometida da demo: `dias` dias úteis de hoje, mas um prazo futuro que cairia no sábado (meio
+   * expediente) passa para o dia útil seguinte. Escolha só da demonstração: sem isso, na sexta à tarde todo
+   * carro "para amanhã" ficava laranja (o trabalho que falta não cabe nas 4 h do sábado).
+   */
+  const previsaoDaDemo = (dias: number): string => {
+    const dia = diasUteisDeHoje(dias);
+    if (dias <= 0 || new Date(`${dia}T12:00:00Z`).getUTCDay() !== 6) return dia;
+    let seguinte = somarDias(dia, 1);
+    for (let n = 0; !janelaDoDia(seguinte, config) && n < 7; n++) seguinte = somarDias(seguinte, 1);
+    return seguinte;
   };
 
   const pagadores: Pagador[] = [
@@ -589,7 +634,8 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
             estado: c.estadoAtual ?? "na_fila",
             entrouFilaEm: iso(new Date(Math.min(cursor, iniciada ?? agoraMs - HORA))),
             iniciadaEm: iniciada ? iso(new Date(iniciada)) : undefined,
-            prazoEm: h(c.atualPrazoEmHoras ?? m.prazoPadraoHoras),
+            // em horas ÚTEIS (revisão SG): à noite e no sábado o prazo cai no próximo expediente, como na oficina
+            prazoEm: horasUteisDeAgora(c.atualPrazoEmHoras ?? m.prazoPadraoHoras),
             bloqueios: c.bloqueio ? [{ inicioEm: h(-c.bloqueio.haHoras), motivo: c.bloqueio.motivo }] : [],
           });
         } else {
@@ -693,7 +739,7 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
       estado: c.estado,
       prioridade: c.prioridade ?? 0,
       atendimentosExternos: atIds,
-      previsaoEntrega: c.previsaoDias !== undefined ? d(c.previsaoDias) : entregueMs ? dataISO(new Date(entregueMs)) : undefined,
+      previsaoEntrega: c.previsaoDias !== undefined ? previsaoDaDemo(c.previsaoDias) : entregueMs ? dataISO(new Date(entregueMs)) : undefined,
       entradaRealEm: naOficina ? iso(new Date(agoraMs - Math.max(1, c.abertoHaDias - 1) * DIA)) : undefined,
       prontaEm: ["pronta", "entregue", "encerrada"].includes(c.estado) ? iso(new Date((entregueMs ?? agoraMs) - 5 * HORA)) : undefined,
       entregueEm: entregueMs ? iso(new Date(entregueMs)) : undefined,

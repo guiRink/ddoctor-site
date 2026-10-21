@@ -10,6 +10,7 @@ import { ReceberCarro } from "../recepcao/ReceberCarro";
 import { diaCurto, plural, telefoneBR } from "./formato";
 import { EstadoAgendamento } from "./Grade";
 import type { Vaga } from "./modelo";
+import { Proveniencia } from "./Proveniencia";
 
 // Painel lateral da Agenda (sem modal): ações sobre o carro selecionado ou escolha de horário.
 
@@ -22,7 +23,7 @@ const MOTIVOS_SUGERIDOS = [
   "Carro levado a outra oficina",
 ];
 
-function Moldura({ titulo, onFechar, children }: { titulo: string; onFechar: () => void; children: ReactNode }) {
+export function Moldura({ titulo, onFechar, children }: { titulo: string; onFechar: () => void; children: ReactNode }) {
   const ref = useRef<HTMLHeadingElement>(null);
   // Leva o foco ao painel ao abrir (no celular o painel fica acima da lista).
   useEffect(() => {
@@ -48,7 +49,8 @@ function Moldura({ titulo, onFechar, children }: { titulo: string; onFechar: () 
   );
 }
 
-function CabecalhoCarro({ v, veSensiveis }: { v: OSVisao; veSensiveis: boolean }) {
+/** Cabeçalho do carro no painel. Com `agora`, mostra de onde veio o telefone (a fila não mostra: é ruído lá). */
+export function CabecalhoCarro({ v, veSensiveis, agora }: { v: OSVisao; veSensiveis: boolean; agora?: MarcoISO }) {
   return (
     <div className="flex items-start gap-3">
       <Placa placa={v.veiculo.placa} tamanho="m" />
@@ -59,8 +61,9 @@ function CabecalhoCarro({ v, veSensiveis }: { v: OSVisao; veSensiveis: boolean }
         </p>
         <p className="text-[13px] text-tinta-suave break-words">{v.cliente.nome}</p>
         {veSensiveis && (
-          <p className="text-[13px] numero">
-            {v.cliente.telefone ? telefoneBR(v.cliente.telefone) : <span className="text-atencao font-medium">Sem telefone — pedir à Maxpar</span>}
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] numero">
+            {v.cliente.telefone ? telefoneBR(v.cliente.telefone) : <span className="text-atencao font-medium">Sem telefone · pedir à seguradora</span>}
+            {v.cliente.telefone && agora && <Proveniencia prov={v.cliente.proveniencia?.telefone} agora={agora} />}
           </p>
         )}
       </div>
@@ -196,7 +199,7 @@ export function PainelAgendamento({
 
   return (
     <Moldura titulo={confirmado ? "Carro agendado" : "Horário proposto"} onFechar={onFechar}>
-      <CabecalhoCarro v={v} veSensiveis={veSensiveis} />
+      <CabecalhoCarro v={v} veSensiveis={veSensiveis} agora={agora} />
 
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[13px]">
         <dt className="text-[13px] font-medium text-tinta-suave self-center">Quando</dt>

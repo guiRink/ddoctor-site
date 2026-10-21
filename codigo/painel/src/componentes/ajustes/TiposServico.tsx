@@ -26,7 +26,7 @@ export function TiposServico({ podeEditar }: { podeEditar: boolean }) {
       titulo="Tipos de serviço"
       descricao={
         <>
-          Cada categoria gera as etapas da OS quando o carro entra, com o prazo padrão de cada uma em horas úteis.
+          Cada tipo gera as etapas da OS, com o prazo de cada uma em horas úteis.
           {algumProvisorio && (
             <span className="block mt-2">
               <NotaProvisoria texto="modelos do questionário, a confirmar" />

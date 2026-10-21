@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Agendamento, ConfigOficina, EstadoOS, OS, TituloReceber } from "@compartilhado/tipos";
 import type { OSVisao } from "../../dados/repositorio";
-import { combinaBusca, contagemPecas, estadosDoFiltro, painelDoDia, valorDaLista } from "./selecoes";
+import { contagemPecas, painelDoDia, valorDaLista } from "./selecoes";
 
 const AGORA = "2026-10-12T10:00:00-03:00";
 const CONFIG: ConfigOficina = {
@@ -84,24 +84,6 @@ describe("painelDoDia", () => {
 });
 
 describe("lista de orçamentos", () => {
-  it("busca por placa sem traço, cliente sem acento, protocolo e número da OS", () => {
-    const v = os("a", "agendada", {
-      atendimentos: [{ id: "at", fonte: "manual", seguradora: "MAPFRE", idExterno: "18389907", statusNormalizado: "autorizado", estadoConciliacao: "ok" }],
-    });
-    expect(combinaBusca(v, "rjc-8t")).toBe(true);
-    expect(combinaBusca(v, "albuquerque")).toBe(true);
-    expect(combinaBusca(v, "MARINA")).toBe(true);
-    expect(combinaBusca(v, "18389907")).toBe(true);
-    expect(combinaBusca(v, "1000")).toBe(true);
-    expect(combinaBusca(v, "volvo")).toBe(false);
-  });
-
-  it("aceita aba conhecida ou lista de estados no filtro", () => {
-    expect(estadosDoFiltro(null)).toEqual({ chave: "todos", estados: [] });
-    expect(estadosDoFiltro("entregue").estados).toEqual(["entregue", "encerrada"]);
-    expect(estadosDoFiltro("na_oficina,pronta").estados).toEqual(["na_oficina", "pronta"]);
-  });
-
   it("conta peças e escolhe o valor da lista pela situação da versão", () => {
     const versao = {
       id: "v1",

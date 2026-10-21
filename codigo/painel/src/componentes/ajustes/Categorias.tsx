@@ -19,7 +19,7 @@ export function Categorias({ podeEditar }: { podeEditar: boolean }) {
     <Secao
       id="categorias"
       titulo="Categorias financeiras"
-      descricao="Organizam despesas e receitas no Financeiro e nos Relatórios. Desativar esconde a categoria dos lançamentos novos; o que já foi lançado continua com ela."
+      descricao="Organizam despesas e receitas no Financeiro."
       nota={<NotaProvisoria texto="lista inicial sugerida" />}
     >
       <Consulta q={q}>

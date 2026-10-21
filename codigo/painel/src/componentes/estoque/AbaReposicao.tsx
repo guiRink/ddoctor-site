@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Fornecedor, Id, Material, MovimentoEstoque } from "@compartilhado/tipos";
 import { listaReposicao } from "@compartilhado/dominio/estoque";
 import { formatarReais, somaCentavos } from "@compartilhado/dominio/dinheiro";
@@ -10,7 +10,7 @@ import { telefoneBR } from "../agenda/formato";
 import { formatarQtd } from "../financeiro/formato";
 import { SITUACAO, ultimoCustoCompra } from "./modelo";
 
-/** Materiais ativos abaixo do mínimo: quanto falta, último custo de compra e fornecedor. */
+/** Lista de compra (sprint SG): o que comprar, quanto e de quem — materiais ativos abaixo do mínimo, por fornecedor. */
 export function AbaReposicao({
   materiais,
   movimentos,
@@ -33,14 +33,26 @@ export function AbaReposicao({
   const forn = useMemo(() => new Map(fornecedores.map((f) => [f.id, f])), [fornecedores]);
   const total = somaCentavos(itens.map((i) => i.custoEstimado));
   const ano = hoje.slice(0, 4);
+  const [copiado, setCopiado] = useState<string | null>(null);
+
+  async function copiar(chave: string, lista: typeof itens) {
+    const texto = lista.map((i) => `- ${i.material.nome}: ${formatarQtd(i.faltam)} ${i.material.unidade}`).join("\n");
+    try {
+      await navigator.clipboard.writeText(texto);
+      setCopiado(chave);
+      setTimeout(() => setCopiado((c) => (c === chave ? null : c)), 3000);
+    } catch {
+      setCopiado(null);
+    }
+  }
 
   if (itens.length === 0) {
     return (
       <div className={SUPERFICIE}>
         <Vazio
           icone="ok"
-          titulo="Nada para repor"
-          texto="Todos os materiais ativos estão no mínimo ou acima. Materiais sem estoque mínimo definido não entram nesta lista."
+          titulo="Nada para comprar"
+          texto="Todos os materiais estão no mínimo ou acima."
         />
       </div>
     );
@@ -57,13 +69,12 @@ export function AbaReposicao({
   return (
     <>
       <p className="mb-4 text-[14px] text-tinta-suave">
-        <span className="numero font-semibold text-tinta">{itens.length}</span> {itens.length === 1 ? "material" : "materiais"} abaixo do mínimo
+        <span className="numero font-semibold text-tinta">{itens.length}</span> {itens.length === 1 ? "material para comprar" : "materiais para comprar"}
         {veDinheiro && (
           <>
-            {" · "}reposição estimada em <span className="numero font-semibold text-tinta">{formatarReais(total)}</span> pelo custo médio
+            {" · "}≈ <span className="numero font-semibold text-tinta">{formatarReais(total)}</span>
           </>
         )}
-        . Agrupado por fornecedor.
       </p>
 
       <div className="flex flex-col gap-5">
@@ -76,11 +87,22 @@ export function AbaReposicao({
                 <h3 className="text-[14px] font-semibold">
                   {f?.nome ?? "Sem fornecedor definido"} <span className="numero text-[13px] font-medium text-tinta-fraca ml-1">{lista.length}</span>
                 </h3>
-                {f && (
-                  <span className="text-[13px] text-tinta-suave numero">
-                    {[f.telefone && telefoneBR(f.telefone), f.email].filter(Boolean).join(" · ")}
-                  </span>
-                )}
+                <span className="flex items-center gap-3">
+                  {f && (
+                    <span className="text-[13px] text-tinta-suave numero">
+                      {[f.telefone && telefoneBR(f.telefone), f.email].filter(Boolean).join(" · ")}
+                    </span>
+                  )}
+                  <Botao
+                    tamanho="denso"
+                    variante="fantasma"
+                    icone={copiado === (chave || "sem") ? "ok" : "copiar"}
+                    onClick={() => copiar(chave || "sem", lista)}
+                    aria-label={`Copiar a lista de compra${f ? ` de ${f.nome}` : ""}`}
+                  >
+                    {copiado === (chave || "sem") ? "Copiada" : "Copiar lista"}
+                  </Botao>
+                </span>
               </header>
 
               <Tabela legenda={f ? `Repor com ${f.nome}` : "Repor — sem fornecedor"} fixa className="hidden md:block">
@@ -98,7 +120,7 @@ export function AbaReposicao({
                     <Th>Material</Th>
                     <Th>Situação</Th>
                     <Th direita>Saldo / mín.</Th>
-                    <Th direita>Faltam</Th>
+                    <Th direita>Comprar</Th>
                     {veDinheiro && <Th direita>Último custo</Th>}
                     {veDinheiro && <Th direita>Estimado</Th>}
                     {podeLancar && (
@@ -166,7 +188,7 @@ export function AbaReposicao({
                     </div>
                     <div className="mt-3 flex items-baseline justify-between gap-3 numero">
                       <span>
-                        Faltam <strong className="text-[18px] font-semibold">{formatarQtd(i.faltam)}</strong> <span className="text-tinta-suave">{i.material.unidade}</span>
+                        Comprar <strong className="text-[18px] font-semibold">{formatarQtd(i.faltam)}</strong> <span className="text-tinta-suave">{i.material.unidade}</span>
                       </span>
                       {veDinheiro && <span className="text-[13px] text-tinta-suave">≈ {formatarReais(i.custoEstimado)}</span>}
                     </div>

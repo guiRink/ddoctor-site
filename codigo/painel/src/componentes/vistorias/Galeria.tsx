@@ -255,7 +255,7 @@ function FotoAmpliada({
               <span className="block text-[12px] text-papel-suave numero">
                 {autorDe(f, perfis)} · {dataHora(f.tiradaEm)}
                 {f.origem === "interna" && textoExpiracao(f) && (
-                  <span title={DICA_EXPIRACAO}> · {textoExpiracao(f)!.replace("Apagada", "apagada")}</span>
+                  <span title={DICA_EXPIRACAO}> · {textoExpiracao(f)!.replace("Guardada", "guardada")}</span>
                 )}
               </span>
             </p>

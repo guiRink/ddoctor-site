@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Icone } from "../Icone";
 import { Erro, Esqueleto, SUPERFICIE } from "../ui/Basicos";
-import { Etiqueta } from "../ui/Estado";
+import { Provisorio } from "../ui/Estado";
 
 // Estrutura da tela de Ajustes (revisão SE): seções em superfície branca raio 8, navegação lateral
 // com o item visível marcado (1366+) e lista de seções no celular.
@@ -50,9 +50,8 @@ export function Secao({
 
 export function NotaProvisoria({ texto = "a confirmar" }: { texto?: string }) {
   return (
-    <span className="inline-flex items-center gap-2">
-      <Etiqueta tom="atencao">Provisório</Etiqueta>
-      <span>{texto}</span>
+    <span className="text-[12px] text-tinta-suave">
+      <Provisorio>{texto}</Provisorio>
     </span>
   );
 }

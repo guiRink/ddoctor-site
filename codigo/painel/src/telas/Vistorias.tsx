@@ -59,6 +59,8 @@ export function Vistorias() {
   const podeFotografar = podeAdicionarFoto(perfil.papel);
 
   const soProprias = acesso(perfil.papel, "vistorias") === "proprio";
+  // no menu da produção a tela se chama "Fotos" (revisão SG); para os demais, "Vistorias"
+  const tituloTela = perfil.papel === "producao" ? "Fotos" : "Vistorias";
 
   /** OS que o papel pode ver (produção: só onde tem etapa). */
   const visiveis = useMemo(
@@ -92,8 +94,12 @@ export function Vistorias() {
   const selecionado: OSVisao | undefined = osParam ? permitido : largo ? comFotos[0]?.v : undefined;
 
   const totalFotos = comFotos.reduce((s, x) => s + x.v.fotos.length, 0);
+  // o mesmo número da lista "Carros" (inclui os que ainda vão receber a primeira foto), e quantos faltam
+  const semFoto = comFotos.length - carrosComFoto;
   const resumo = oss.data
-    ? `${plural(carrosComFoto, "carro com fotos", "carros com fotos")} · ${plural(totalFotos, "foto", "fotos")}${soProprias ? " · só os carros em que você tem etapa" : ""}`
+    ? [plural(comFotos.length, "carro", "carros"), plural(totalFotos, "foto", "fotos"), semFoto > 0 ? `${semFoto} sem foto ainda` : ""]
+        .filter(Boolean)
+        .join(" · ")
     : undefined;
 
   const capturaAberta = captura && selecionado && captura.osId === selecionado.os.id ? captura : null;
@@ -108,7 +114,7 @@ export function Vistorias() {
   if (oss.isError || perfis.isError) {
     return (
       <>
-        <CabecalhoPagina titulo="Vistorias" />
+        <CabecalhoPagina titulo={tituloTela} />
         <Erro
           mensagem="Não consegui carregar as fotos."
           onTentar={() => {
@@ -135,7 +141,7 @@ export function Vistorias() {
             id="filtro-vistorias"
             value={filtro}
             onChange={(e) => setFiltro(e.target.value)}
-            placeholder="Placa, modelo ou cliente"
+            placeholder={soProprias ? "Placa ou modelo" : "Placa, modelo ou cliente"}
             autoComplete="off"
             className="flex-1 min-w-0 h-full px-2.5 bg-transparent outline-none placeholder:text-tinta-fraca focus-visible:outline-none"
           />
@@ -149,14 +155,10 @@ export function Vistorias() {
         <Vazio
           icone="camera"
           titulo={soProprias ? "Nenhuma foto nos seus carros" : "Nenhuma foto ainda"}
-          texto={
-            podeFotografar
-              ? "Quando um carro for agendado ou entrar na oficina, ele aparece aqui para a vistoria de entrada."
-              : "As fotos aparecem aqui quando a vistoria de entrada é feita ou a Maxpar traz as do segurado."
-          }
+          texto={podeFotografar ? "Os carros agendados e os da oficina aparecem aqui para fotografar." : undefined}
         />
       ) : filtrados.length === 0 ? (
-        <Vazio icone="busca" titulo="Nada encontrado" texto={`Nenhum carro com “${filtro.trim()}”. Confira a placa ou limpe o filtro.`} />
+        <Vazio icone="busca" titulo={`Nenhum carro com “${filtro.trim()}”`} acao={<Botao variante="contorno" onClick={() => setFiltro("")}>Limpar busca</Botao>} />
       ) : (
         <ul className="lg:max-h-[calc(100svh-280px)] lg:overflow-y-auto">
           {filtrados.map(({ v, ultima: u }) => {
@@ -196,19 +198,19 @@ export function Vistorias() {
   } else if (osParam && !existe) {
     detalhe = (
       <Cartao>
-        <Vazio icone="busca" titulo="Carro não encontrado" texto="Esse link aponta para uma OS que não existe mais. Escolha um carro na lista." />
+        <Vazio icone="busca" titulo="Carro não encontrado" texto="Escolha um carro na lista." />
       </Cartao>
     );
   } else if (osParam && !permitido) {
     detalhe = (
       <Cartao>
-        <Vazio icone="bloqueio" titulo="Sem acesso às fotos deste carro" texto="Você vê as fotos dos carros em que tem etapa. Fale com o gestor se precisar." />
+        <Vazio icone="bloqueio" titulo="Sem acesso às fotos deste carro" texto="Você vê só os carros em que tem etapa." />
       </Cartao>
     );
   } else if (!selecionado) {
     detalhe = (
       <Cartao>
-        <Vazio icone="camera" titulo="Escolha um carro" texto="Toque num carro da lista para ver as fotos de entrada, durante, final e as da Maxpar." />
+        <Vazio icone="camera" titulo="Escolha um carro na lista" />
       </Cartao>
     );
   } else {
@@ -256,8 +258,8 @@ export function Vistorias() {
                 <h3 id="titulo-captura" className="text-[15px] font-semibold">
                   Adicionar fotos
                 </h3>
-                <p className="text-[13px] text-tinta-suave" aria-live="polite">
-                  {enviandoFoto ? "Enviando foto… espere terminar para trocar a fase ou fechar." : "Escolha a fase e tire ou escolha as fotos. Pode mandar várias."}
+                <p className="text-[13px] text-tinta-suave empty:hidden" aria-live="polite">
+                  {enviandoFoto ? "Enviando foto… espere terminar." : ""}
                 </p>
               </div>
               <Botao variante="fantasma" tamanho="denso" onClick={fecharCaptura} disabled={enviandoFoto}>
@@ -301,7 +303,7 @@ export function Vistorias() {
   if (!largo) {
     return (
       <>
-        <CabecalhoPagina titulo="Vistorias" resumo={osParam ? undefined : resumo} />
+        <CabecalhoPagina titulo={tituloTela} resumo={osParam ? undefined : resumo} />
         {osParam ? (
           <div className="flex flex-col gap-3">
             <Link to="/vistorias" className="inline-flex items-center gap-2 h-11 self-start font-medium no-underline text-tinta-suave hover:text-tinta">
@@ -318,7 +320,7 @@ export function Vistorias() {
 
   return (
     <>
-      <CabecalhoPagina titulo="Vistorias" resumo={resumo} />
+      <CabecalhoPagina titulo={tituloTela} resumo={resumo} />
       <div className="grid gap-4 grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)] items-start">
         <aside aria-label="Carros com fotos" className="min-w-0">
           {lista}

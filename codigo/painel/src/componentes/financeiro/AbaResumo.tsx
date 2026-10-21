@@ -46,7 +46,7 @@ export function AbaResumo({
       <div className="grid gap-6 lg:grid-cols-2 items-start">
         <Cartao titulo="Entradas por forma de pagamento" contagem={formas.length || undefined}>
           {formas.length === 0 ? (
-            <Vazio icone="recebiveis" titulo={`Nada recebido em ${nomeMes}`} texto="Os recebimentos registrados em Recebíveis e na ficha da OS aparecem aqui, por forma." />
+            <Vazio icone="recebiveis" titulo={`Nada recebido em ${nomeMes}`} texto="Recebimentos de A receber e da ficha da OS." />
           ) : (
             <>
               <BarrasLista

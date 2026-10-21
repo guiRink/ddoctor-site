@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import type { Fornecedor, Id, Material, MovimentoEstoque, Perfil } from "@compartilhado/tipos";
 import { listaReposicao } from "@compartilhado/dominio/estoque";
 import { formatarReais, somaCentavos } from "@compartilhado/dominio/dinheiro";
-import { DIAS_ESTOQUE_PARADO_PADRAO } from "@compartilhado/dominio/config";
 import { dataNoFuso } from "@compartilhado/dominio/fuso";
 import { useAgora, useFornecedores, useMateriais, useMovimentos, useOSs, usePerfis } from "../dados/hooks";
 import type { OSVisao } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
 import { podeEditar, veCustosOS } from "../dominio/permissoes";
 import { Botao, CabecalhoPagina, Esqueleto, FaixaIndicadores, Indicador } from "../componentes/ui/Basicos";
-import { Provisorio } from "../componentes/ui/Estado";
 import { EstadoConsultas } from "../componentes/gestao/Consultas";
 import { Retorno } from "../componentes/gestao/Comuns";
 import { Abas, PainelAba } from "../componentes/ui/Abas";
@@ -26,8 +25,11 @@ import { FormFornecedor } from "../componentes/estoque/FormFornecedor";
 import { baixarCsv, nomeArquivoCsv } from "../componentes/estoque/csv";
 import { csvMateriais, csvMovimentos, linhasMateriais } from "../componentes/estoque/modelo";
 
-const ABAS = ["materiais", "movimentacoes", "reposicao", "fornecedores", "consumo"] as const;
+// Sprint SG: abre em "Acabando"; "Lista de compra" é a antiga Reposição; o resto fica em abas secundárias.
+const ABAS = ["acabando", "compra", "materiais", "movimentacoes", "fornecedores", "consumo"] as const;
 type AbaEstoque = (typeof ABAS)[number];
+const FILTROS_ACABANDO = ["todos", "sem_estoque"] as const;
+type FiltroAcabando = (typeof FILTROS_ACABANDO)[number];
 
 type Gaveta =
   | { tipo: "entrada"; materialId?: Id }
@@ -83,7 +85,8 @@ function Conteudo({
   const { perfil } = useSessao();
   const podeLancar = podeEditar(perfil.papel, "estoque");
   const veDinheiro = veCustosOS(perfil.papel);
-  const [aba, setAba] = useParametro<AbaEstoque>("aba", ABAS, "materiais");
+  const [aba, setAba] = useParametro<AbaEstoque>("aba", ABAS, "acabando");
+  const [filtro] = useParametro<FiltroAcabando>("filtro", FILTROS_ACABANDO, "todos");
   const [gaveta, setGaveta] = useState<Gaveta | null>(null);
   const [aviso, setAviso] = useState<string>();
 
@@ -95,13 +98,11 @@ function Conteudo({
 
   const linhas = useMemo(() => linhasMateriais(materiais, movimentos, agora), [materiais, movimentos, agora]);
   const ativos = linhas.filter((l) => l.ativo);
-  const criticos = ativos.filter((l) => l.situacao === "critico").length;
   const semEstoque = ativos.filter((l) => l.situacao === "sem_estoque").length;
-  const parados = ativos.filter((l) => l.parado);
+  const acabando = ativos.filter((l) => l.situacao !== "normal");
   const reposicao = useMemo(() => listaReposicao(materiais), [materiais]);
-  const valorEstoque = somaCentavos(ativos.map((l) => Math.round(Math.max(0, l.m.saldoEstimado) * l.m.custoMedio)));
-  const valorParado = somaCentavos(parados.map((l) => Math.round(l.m.saldoEstimado * l.m.custoMedio)));
-  const categorias = new Set(ativos.map((l) => l.m.categoria)).size;
+  const filtroSemEstoque = aba === "acabando" && filtro === "sem_estoque";
+  const naLista = filtroSemEstoque ? acabando.filter((l) => l.situacao === "sem_estoque") : acabando;
   const numeroOS = useMemo(() => new Map(oss.map((v) => [v.os.id, `#${v.os.numero} ${v.veiculo.placa}`])), [oss]);
 
   const fechar = () => setGaveta(null);
@@ -115,17 +116,11 @@ function Conteudo({
     else setGaveta({ tipo: acao, materialId: id });
   }
 
-  const para = (a: AbaEstoque) => `/estoque?aba=${a}`;
 
   return (
     <>
       <CabecalhoPagina
         titulo="Estoque"
-        resumo={
-          <>
-            Saldo estimado dos materiais da oficina, compras, retiradas e reposição.
-          </>
-        }
         acoes={
           podeLancar ? (
             <>
@@ -143,26 +138,28 @@ function Conteudo({
         }
       />
 
-      <FaixaIndicadores colunas={veDinheiro ? 5 : 4} className="mb-6 max-md:[&>*:last-child:nth-child(odd)]:col-span-2 max-md:[&>*:last-child:nth-child(odd)]:border-r-0">
-        <Indicador rotulo="Materiais ativos" valor={ativos.length} detalhe={`em ${categorias} ${categorias === 1 ? "categoria" : "categorias"}`} />
+      {/* os dois números são o filtro da vista "Acabando" */}
+      <FaixaIndicadores colunas={2} className="mb-6 md:max-w-[560px]">
         <Indicador
-          rotulo="Abaixo do mínimo"
-          valor={criticos}
-          alerta={criticos > 0}
-          detalhe={veDinheiro && reposicao.length > 0 ? `repor ≈ ${formatarReais(somaCentavos(reposicao.map((r) => r.custoEstimado)))}` : "ver reposição"}
-          para={para("reposicao")}
-        />
-        <Indicador rotulo="Sem estoque" valor={semEstoque} alerta={semEstoque > 0} detalhe={semEstoque > 0 ? "saldo zerado" : "nenhum zerado"} para={para("reposicao")} />
-        <Indicador
-          rotulo={
-            <>
-              Parado há <Provisorio>{DIAS_ESTOQUE_PARADO_PADRAO} dias</Provisorio>
-            </>
+          rotulo="Acabando"
+          valor={acabando.length}
+          alerta={acabando.length > 0}
+          detalhe={
+            acabando.length === 0
+              ? "tudo no mínimo ou acima"
+              : veDinheiro && reposicao.length > 0
+                ? `comprar ≈ ${formatarReais(somaCentavos(reposicao.map((r) => r.custoEstimado)))}`
+                : "abaixo do mínimo"
           }
-          valor={parados.length}
-          detalhe={veDinheiro && parados.length > 0 ? `${formatarReais(valorParado)} sem giro` : "sem saída no período"}
+          para="/estoque"
         />
-        {veDinheiro && <Indicador rotulo="Valor em estoque" valor={<span className="whitespace-nowrap">{formatarReais(valorEstoque)}</span>} detalhe="saldo × custo médio" />}
+        <Indicador
+          rotulo="Sem estoque"
+          valor={semEstoque}
+          alerta={semEstoque > 0}
+          detalhe={semEstoque > 0 ? "saldo zerado" : "nenhum zerado"}
+          para="/estoque?filtro=sem_estoque"
+        />
       </FaixaIndicadores>
 
       {aviso && (
@@ -177,17 +174,42 @@ function Conteudo({
         valor={aba}
         onMudar={setAba}
         abas={[
-          { valor: "materiais", texto: "Materiais", contagem: ativos.length },
+          { valor: "acabando", texto: "Acabando", contagem: acabando.length, critico: true },
+          { valor: "compra", texto: "Lista de compra", contagem: reposicao.length },
+          { valor: "materiais", texto: "Todos os materiais", contagem: ativos.length },
           { valor: "movimentacoes", texto: "Movimentações" },
-          { valor: "reposicao", texto: "Reposição", contagem: reposicao.length, critico: true },
           { valor: "fornecedores", texto: "Fornecedores", contagem: fornecedores.length },
-          { valor: "consumo", texto: "Consumo por funcionário" },
+          { valor: "consumo", texto: "Consumo por pessoa" },
         ]}
       />
 
       <PainelAba idBase="estoque" valor={aba}>
+        {aba === "acabando" && (
+          <>
+            {filtroSemEstoque && (
+              <p className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-tinta-suave">
+                Só os sem estoque
+                <Link to="/estoque" className="font-medium text-tinta underline underline-offset-4 decoration-linha-forte hover:decoration-tinta">
+                  Ver todos acabando
+                </Link>
+              </p>
+            )}
+            <AbaMateriais
+              key={filtro}
+              modo="acabando"
+              linhas={naLista}
+              fornecedores={fornecedores}
+              veDinheiro={veDinheiro}
+              podeLancar={podeLancar}
+              onAcao={acaoMaterial}
+              onNovo={() => setGaveta({ tipo: "material" })}
+              onExportar={(l) => baixarCsv(nomeArquivoCsv("estoque-acabando", hoje), csvMateriais(l, fornecedores, veDinheiro))}
+            />
+          </>
+        )}
         {aba === "materiais" && (
           <AbaMateriais
+            modo="todos"
             linhas={linhas}
             fornecedores={fornecedores}
             veDinheiro={veDinheiro}
@@ -211,7 +233,7 @@ function Conteudo({
             }
           />
         )}
-        {aba === "reposicao" && (
+        {aba === "compra" && (
           <AbaReposicao
             materiais={materiais}
             movimentos={movimentos}

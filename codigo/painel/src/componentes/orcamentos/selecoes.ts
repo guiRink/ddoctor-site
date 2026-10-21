@@ -12,7 +12,6 @@ import type {
 import { dataNoFuso, diferencaDias, somarDias } from "@compartilhado/dominio/fuso";
 import { etapaAtual, semaforoOS } from "@compartilhado/dominio/semaforo";
 import { estadoTitulo, saldoTitulo, valorAprovado } from "@compartilhado/dominio/financeiro";
-import { normalizarPlaca } from "@compartilhado/dominio/placa";
 import { somaCentavos } from "@compartilhado/dominio/dinheiro";
 import type { OSVisao } from "../../dados/repositorio";
 
@@ -168,46 +167,7 @@ export const somaSaldos = (itens: readonly ItemTitulo[]) => somaCentavos(itens.m
 
 // ------------------------------------------------------------------ lista de orçamentos
 
-/** Abas da lista (docs/painel-design.md §5): chave da URL → estados da OS. */
-export const ABAS_ORCAMENTOS: { chave: string; nome: string; estados: EstadoOS[] }[] = [
-  { chave: "todos", nome: "Todos", estados: [] },
-  { chave: "rascunho", nome: "Rascunho", estados: ["rascunho"] },
-  { chave: "aguardando_aprovacao", nome: "Aguardando aprovação", estados: ["aguardando_aprovacao"] },
-  { chave: "aguardando_agendamento", nome: "Aguardando agendamento", estados: ["aguardando_agendamento"] },
-  { chave: "agendada", nome: "Agendados", estados: ["agendada"] },
-  { chave: "na_oficina", nome: "Na oficina", estados: ["na_oficina"] },
-  { chave: "pronta", nome: "Prontos", estados: ["pronta"] },
-  { chave: "entregue", nome: "Entregues", estados: ["entregue", "encerrada"] },
-];
-
-/** `?estado=` aceita uma chave de aba ou estados separados por vírgula (ex.: "na_oficina,pronta"). */
-export function estadosDoFiltro(param: string | null): { chave: string; estados: EstadoOS[] } {
-  if (!param || param === "todos") return { chave: "todos", estados: [] };
-  const aba = ABAS_ORCAMENTOS.find((a) => a.chave === param);
-  if (aba) return { chave: aba.chave, estados: aba.estados };
-  return { chave: param, estados: param.split(",").map((s) => s.trim()) as EstadoOS[] };
-}
-
-const semAcento = (s: string) =>
-  s
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase();
-
-/** Busca do topo: placa (sem traço), protocolo, cliente, modelo, seguradora ou nº da OS. */
-export function combinaBusca(v: OSVisao, termo: string): boolean {
-  const t = semAcento(termo.trim());
-  if (!t) return true;
-  const placa = normalizarPlaca(termo);
-  if (placa.length >= 3 && v.veiculo.placa.includes(placa)) return true;
-  const campos = [
-    v.cliente.nome,
-    v.veiculo.modelo ?? "",
-    String(v.os.numero),
-    ...v.atendimentos.flatMap((a) => [a.idExterno ?? "", a.seguradora, a.numeroSinistro ?? ""]),
-  ];
-  return campos.some((c) => semAcento(c).includes(t));
-}
+// Abas, busca, filtros e ordenação da lista: lista.ts (sprint SG).
 
 /** Versão vigente (a mais nova). */
 export const versaoAtual = (v: OSVisao): OrcamentoVersao | undefined => v.versoes[0];

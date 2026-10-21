@@ -269,8 +269,12 @@ export interface Repositorio {
   registrarEntrega(osId: Id): Promise<Resultado>;
 
   // agenda
-  agendar(osId: Id, data: DataISO, janela: Janela): Promise<Resultado>;
-  reagendar(agendamentoId: Id, data: DataISO, janela: Janela): Promise<Resultado>;
+  /**
+   * `encaixe` = a recepção confirmou passar da capacidade do dia (encaixe, sprint SG): só a falta de
+   * vaga deixa de barrar; data passada, dia fechado e dia bloqueado continuam recusados.
+   */
+  agendar(osId: Id, data: DataISO, janela: Janela, encaixe?: boolean): Promise<Resultado>;
+  reagendar(agendamentoId: Id, data: DataISO, janela: Janela, encaixe?: boolean): Promise<Resultado>;
   cancelarAgendamento(agendamentoId: Id, motivo: string): Promise<Resultado>;
   marcarNaoCompareceu(agendamentoId: Id): Promise<Resultado>;
 

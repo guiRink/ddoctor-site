@@ -85,7 +85,7 @@ function EditorChecklist({ itens, padrao, podeEditar }: { itens: readonly Checkl
     <Secao
       id="checklist"
       titulo="Checklist de entrada"
-      descricao="O que a recepção confere quando o carro chega. Desativar tira o item das próximas entradas; o que já foi marcado nas OS antigas continua lá."
+      descricao="O que a recepção confere quando o carro chega."
       nota={padrao ? <NotaProvisoria texto="lista genérica, a confirmar com a oficina" /> : <span className="numero">{ativos} itens ativos</span>}
     >
       {grupos.map((g) => {

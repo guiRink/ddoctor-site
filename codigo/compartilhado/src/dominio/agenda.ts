@@ -42,7 +42,7 @@ export interface OpcoesReagendar {
   novoId?: Id;
   /** Capacidade da nova data; se vier, a vaga é conferida (o anterior já não conta). */
   capacidade?: CapacidadeDia;
-  /** Validade da nova proposta (quando o anterior era "proposto"). */
+  /** Validade da nova proposta (quando o anterior era "proposto"); sem ela, vale a do anterior. */
   expiraEm?: MarcoISO;
   motivo?: string;
 }
@@ -51,7 +51,7 @@ export type CodigoReagendar = CodigoAgenda | "agendamento_nao_encontrado" | "tra
 
 /**
  * Reagendar = novo registro com substituiId e o anterior "cancelado" na mesma operação (libera a vaga).
- * Só de "proposto" ou "confirmado"; o novo herda o estado do anterior.
+ * Só de "proposto" ou "confirmado"; o novo herda o estado do anterior (e, se proposto, o expiraEm).
  */
 export function reagendar(
   agendamentos: readonly Agendamento[],
@@ -78,7 +78,11 @@ export function reagendar(
     origem: anterior.origem,
     substituiId: anterior.id,
   };
-  if (anterior.estado === "proposto" && opcoes.expiraEm) novo.expiraEm = opcoes.expiraEm;
+  // proposta arrastada (ou desfeita) continua com o prazo de resposta que tinha, salvo nova validade explícita
+  if (anterior.estado === "proposto") {
+    const expiraEm = opcoes.expiraEm ?? anterior.expiraEm;
+    if (expiraEm) novo.expiraEm = expiraEm;
+  }
   const lista = agendamentos.map((a) =>
     a.id === id ? { ...a, estado: "cancelado" as const, motivoCancelamento: opcoes.motivo?.trim() || "reagendado" } : { ...a },
   );

@@ -1,5 +1,7 @@
 // Montagem das listas da tela Financeiro sobre @compartilhado/dominio (caixa, financeiro). Sem regra nova de dinheiro.
-import { FORMAS_PAGAMENTO, type Baixa, type DataISO, type Despesa, type FormaPagamento, type TituloReceber } from "@compartilhado/tipos";
+import { FORMAS_PAGAMENTO, type Baixa, type DataISO, type Despesa, type FormaPagamento, type Pagador, type TituloReceber } from "@compartilhado/tipos";
+import type { OSVisao } from "../../dados/repositorio";
+import { seguradoraDaOS } from "../../dominio/seguradora";
 import { diferencaDias, mesDe } from "@compartilhado/dominio/fuso";
 import type { Tom } from "../ui/Estado";
 
@@ -56,3 +58,14 @@ export function entradasDoMes(titulos: readonly TituloReceber[], mes: string): E
 
 /** Formas oferecidas ao pagar uma despesa (seguradora não paga despesa da oficina). */
 export const FORMAS_DESPESA: readonly FormaPagamento[] = FORMAS_PAGAMENTO.filter((f) => f !== "seguradora");
+
+/**
+ * Quem paga o título, com o nome que a oficina usa (sprint SG): a seguradora do atendimento (HDI, Liberty…) ou
+ * "Cliente". A Maxpar é o portal, não paga nada: título de pagador Maxpar mostra a seguradora da OS.
+ */
+export function quemPaga(tipo: Pagador["tipo"] | undefined, v?: Pick<OSVisao, "os" | "atendimentos">): string {
+  if (tipo === "cliente") return "Cliente";
+  if (tipo === "outro") return "Outro";
+  const nome = v ? seguradoraDaOS(v) : "";
+  return nome && nome !== "Particular" && nome !== "Seguradora não informada" ? nome : "Seguradora";
+}

@@ -3,11 +3,13 @@ import { formatarDuracao } from "@compartilhado/dominio/tempos";
 import { progressoEtapas } from "@compartilhado/dominio/semaforo";
 import { Responsavel } from "../ui/Basicos";
 import { nomePerfil } from "../ui/Carro";
-import { Etiqueta, Semaforo } from "../ui/Estado";
+import { Etiqueta } from "../ui/Estado";
 import { Placa } from "../ui/Placa";
 import { Tabela, Td, Th } from "../ui/Tabela";
 import { Icone } from "../Icone";
-import { formatarDia, formatarPrazo, type ItemQuadro } from "./quadro";
+import { ValorEntrega } from "./CartaoQuadro";
+import { PilulaSituacao } from "./Situacao";
+import type { ItemQuadro } from "./quadro";
 
 /**
  * Visão Lista da Produção (docs/painel-design.md §5.1): todos os carros numa tabela, do mais urgente
@@ -15,13 +17,13 @@ import { formatarDia, formatarPrazo, type ItemQuadro } from "./quadro";
  */
 export function ListaProducao({
   itens,
-  agora,
   perfis,
   selecionadoId,
   onAbrir,
 }: {
   itens: ItemQuadro[];
-  agora: MarcoISO;
+  /** Mantido por compatibilidade: os horários já vêm legíveis no item. */
+  agora?: MarcoISO;
   perfis: Perfil[];
   selecionadoId: string | null;
   onAbrir: (osId: string, origem: HTMLButtonElement) => void;
@@ -35,14 +37,14 @@ export function ListaProducao({
           <Th>Etapa</Th>
           <Th>Responsável</Th>
           <Th direita>Na etapa</Th>
-          <Th direita>Etapa até</Th>
+          <Th direita>Prazo da etapa</Th>
           <Th direita>Entrega</Th>
           <Th className="w-[120px]">Situação</Th>
         </tr>
       </thead>
       <tbody>
         {itens.map((i) => (
-          <LinhaProducao key={i.v.os.id} item={i} agora={agora} perfis={perfis} selecionado={i.v.os.id === selecionadoId} onAbrir={onAbrir} />
+          <LinhaProducao key={i.v.os.id} item={i} perfis={perfis} selecionado={i.v.os.id === selecionadoId} onAbrir={onAbrir} />
         ))}
       </tbody>
     </Tabela>
@@ -51,13 +53,11 @@ export function ListaProducao({
 
 function LinhaProducao({
   item,
-  agora,
   perfis,
   selecionado,
   onAbrir,
 }: {
   item: ItemQuadro;
-  agora: MarcoISO;
   perfis: Perfil[];
   selecionado: boolean;
   onAbrir: (osId: string, origem: HTMLButtonElement) => void;
@@ -65,7 +65,7 @@ function LinhaProducao({
   const { v, resumo: r } = item;
   const etapa = r.atual;
   const { total, atualIndex } = progressoEtapas(v.etapas);
-  const critico = item.atrasado || item.impedido;
+  const critico = item.parado;
   const bloqueio = item.impedido ? etapa?.bloqueios.find((b) => !b.fimEm) : undefined;
   const tempo = item.pronto
     ? "—"
@@ -139,21 +139,14 @@ function LinhaProducao({
       <Td numero className="text-tinta-suave">
         {tempo}
       </Td>
-      <Td numero className={item.atrasado ? "text-alerta font-medium" : ""}>
-        {item.pronto ? (v.os.prontaEm ? <span className="text-tinta-suave">pronto {formatarPrazo(v.os.prontaEm, agora)}</span> : "—") : etapa?.prazoEm ? formatarPrazo(etapa.prazoEm, agora) : "—"}
+      <Td numero className={item.etapaVencida ? "text-alerta font-semibold" : ""}>
+        {item.pronto ? <span className="text-tinta-suave">pronto {item.prontoHa}</span> : (item.prazoEtapa ?? "—")}
       </Td>
-      <Td numero className={item.entregaHoje ? "font-semibold" : ""}>
-        {v.os.previsaoEntrega ? formatarDia(v.os.previsaoEntrega, agora) : "—"}
+      <Td numero>
+        <ValorEntrega item={item} />
       </Td>
       <Td>
-        {item.pronto ? (
-          <Etiqueta tom="ok" ponto={false}>
-            <Icone nome="ok" tamanho={12} />
-            Pronto
-          </Etiqueta>
-        ) : (
-          <Semaforo valor={item.semaforo} texto={item.impedido ? "Impedido" : undefined} />
-        )}
+        <PilulaSituacao situacao={item.situacao} />
       </Td>
     </tr>
   );

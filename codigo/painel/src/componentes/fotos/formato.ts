@@ -8,10 +8,13 @@ export function dataCompleta(data: DataISO): string {
   return `${d}/${m}/${a}`;
 }
 
-/** "Apagada em 20/10/2027" — retenção de 12 meses após a entrega (L28); antes da entrega é estimativa. */
+/**
+ * "Guardada até 20/10/2027" — retenção de 12 meses após a entrega (L28); antes da entrega é estimativa.
+ * (Revisão SG: "Apagada em…" assustava, parecia que a foto já tinha sido apagada.)
+ */
 export function textoExpiracao(f: Pick<Foto, "expiraEm" | "expiraProvisorio">): string | undefined {
   if (!f.expiraEm) return undefined;
-  return `Apagada em ${dataCompleta(f.expiraEm)}${f.expiraProvisorio ? " (estimativa)" : ""}`;
+  return `Guardada até ${dataCompleta(f.expiraEm)}${f.expiraProvisorio ? " (estimativa)" : ""}`;
 }
 
 export const DICA_EXPIRACAO = "As fotos ficam guardadas por 12 meses depois da entrega do carro e depois são apagadas. Antes da entrega, a data é uma estimativa.";

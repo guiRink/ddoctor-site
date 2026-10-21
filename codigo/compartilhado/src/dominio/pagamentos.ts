@@ -75,3 +75,36 @@ export function saldoACobrarCliente(entrada: {
   const jaCobrado = somaCentavos(entrada.titulosCliente.filter((t) => t.estado !== "cancelado").map((t) => t.valor));
   return valorEsperadoCliente(entrada.origem, entrada.versao) - jaCobrado;
 }
+
+export interface ClienteDeveOS {
+  /** Versão aprovada vigente (a de maior número entre as aprovadas); ausente se nada foi aprovado. */
+  versao: OrcamentoVersao | undefined;
+  /** O que o cliente paga na oficina: max(valor esperado da versão vigente, Σ títulos do cliente não cancelados). */
+  esperado: Centavos;
+  /** Σ baixas dos títulos do cliente não cancelados. */
+  pago: Centavos;
+  /** max(0, esperado − pago). */
+  falta: Centavos;
+  /** Σ valor dos títulos do cliente não cancelados (já cobrado). */
+  cobrado: Centavos;
+}
+
+/**
+ * Regra ÚNICA de "quanto o cliente deve" (ficha, Geral, Produção, Atendimentos): parte da versão APROVADA
+ * vigente (nunca de um orçamento enviado ou em rascunho); particular = valor aprovado; seguradora/Maxpar =
+ * franquia + complemento particular. Se a recepção já lançou títulos do cliente acima disso, vale o lançado
+ * (max). Pago = baixas de títulos do cliente não cancelados; falta nunca é negativa.
+ */
+export function clienteDeveOS(entrada: {
+  origem: OrigemOS;
+  versoes: readonly OrcamentoVersao[];
+  titulos: readonly TituloReceber[];
+  pagadores: readonly Pagador[];
+}): ClienteDeveOS {
+  const versao = entrada.versoes.filter((v) => v.estado === "aprovado").sort((a, b) => b.numeroVersao - a.numeroVersao)[0];
+  const doCliente = titulosDoCliente(entrada.titulos, entrada.pagadores).filter((t) => t.estado !== "cancelado");
+  const cobrado = somaCentavos(doCliente.map((t) => t.valor));
+  const esperado = Math.max(valorEsperadoCliente(entrada.origem, versao), cobrado);
+  const pago = somaCentavos(doCliente.flatMap((t) => t.baixas.map((b) => b.valor)));
+  return { versao, esperado, pago, falta: Math.max(0, esperado - pago), cobrado };
+}

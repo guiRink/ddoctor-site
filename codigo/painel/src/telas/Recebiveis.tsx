@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useState, type FormEvent } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { Id, Pagador, TituloReceber } from "@compartilhado/tipos";
 import { estadoTitulo, faixaAging, saldoTitulo, type FaixaAging } from "@compartilhado/dominio/financeiro";
 import { formatarReais, reaisParaCentavos, somaCentavos } from "@compartilhado/dominio/dinheiro";
@@ -9,25 +10,20 @@ import { useSessao } from "../dados/sessao";
 import { podeEditar } from "../dominio/permissoes";
 import { ESTADO_TITULO } from "../dominio/rotulos";
 import { rotuloForma } from "../componentes/financeiro/formato";
+import { quemPaga } from "../componentes/financeiro/modelo";
 import { Botao, CabecalhoPagina, SUPERFICIE, Vazio } from "../componentes/ui/Basicos";
-import { Etiqueta, Provisorio } from "../componentes/ui/Estado";
+import { Etiqueta } from "../componentes/ui/Estado";
 import { EstadoConsultas } from "../componentes/gestao/Consultas";
 import { PlacaOS, Retorno } from "../componentes/gestao/Comuns";
 import { GrupoFiltros } from "../componentes/ui/Filtros";
+import { FiltroSelecao } from "../componentes/ui/Campos";
 import { Linha, Tabela, Td, Th } from "../componentes/gestao/Tabela";
 import { FAIXAS, resumoAging } from "../componentes/gestao/resumos";
-import {
-  CLASSE_CAMPO,
-  FAIXA_AGING,
-  FORMAS_RECEBIMENTO,
-  TIPO_PAGADOR,
-  centavosParaCampo,
-  dataCurta,
-  descreverPrazo,
-} from "../componentes/gestao/formato";
+import { CLASSE_CAMPO, FAIXA_AGING, FORMAS_RECEBIMENTO, centavosParaCampo, dataCurta } from "../componentes/gestao/formato";
 
 type FiltroEstado = "abertos" | "vencidos" | "recebidos" | "todos";
-type FiltroPagador = "todos" | Pagador["tipo"];
+const ESTADOS_FILTRO: readonly FiltroEstado[] = ["abertos", "vencidos", "recebidos", "todos"];
+const FAIXAS_URL: readonly FaixaAging[] = ["a_vencer", "0_30", "31_60", "61_mais"];
 
 const FECHADO = new Set(["recebido", "cancelado"]);
 
@@ -58,10 +54,34 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
   const { perfil } = useSessao();
   const podeReceber = podeEditar(perfil.papel, "recebiveis");
 
-  const [faixa, setFaixa] = useState<FaixaAging | null>(null);
-  const [filtroPagador, setFiltroPagador] = useState<FiltroPagador>("todos");
-  const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>("abertos");
+  // Filtros na URL (?faixa=0_30&estado=vencidos&quem=HDI): o número do Geral abre a lista certa.
+  // ?faixa=vencido (link do Geral) = estado "Vencidos".
+  const [params, setParams] = useSearchParams();
+  const faixaUrl = params.get("faixa");
+  const faixa = FAIXAS_URL.includes(faixaUrl as FaixaAging) ? (faixaUrl as FaixaAging) : null;
+  const estadoUrl = faixaUrl === "vencido" ? "vencidos" : params.get("estado");
+  const filtroEstado: FiltroEstado = ESTADOS_FILTRO.includes(estadoUrl as FiltroEstado) ? (estadoUrl as FiltroEstado) : "abertos";
+  const filtroQuem = params.get("quem") ?? "";
   const [aberto, setAberto] = useState<Id | null>(null);
+  function mudar(novos: { faixa?: FaixaAging | null; estado?: FiltroEstado; quem?: string }) {
+    setParams(
+      (p) => {
+        const n = new URLSearchParams(p);
+        if ("faixa" in novos || "estado" in novos) n.delete("faixa");
+        if (novos.faixa) n.set("faixa", novos.faixa);
+        if (novos.estado !== undefined) {
+          if (novos.estado === "abertos") n.delete("estado");
+          else n.set("estado", novos.estado);
+        }
+        if (novos.quem !== undefined) {
+          if (novos.quem) n.set("quem", novos.quem);
+          else n.delete("quem");
+        }
+        return n;
+      },
+      { replace: true },
+    );
+  }
 
   const porOS = useMemo(() => new Map(oss.map((v) => [v.os.id, v])), [oss]);
   const porPagador = useMemo(() => new Map(pagadores.map((p) => [p.id, p])), [pagadores]);
@@ -78,32 +98,30 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
     if (filtroEstado === "recebidos") return t.estado === "recebido";
     return true;
   };
-  const tipoDe = (t: TituloReceber) => porPagador.get(t.pagadorId)?.tipo;
+  const pagadorDe = (t: TituloReceber) => quemPaga(porPagador.get(t.pagadorId)?.tipo, porOS.get(t.osId));
   const noEstado = titulos.filter(passaEstado);
+  // quem paga: as seguradoras em ordem alfabética, "Cliente" e "Outro" no fim
+  const quemPresente = [...new Set(titulos.map(pagadorDe))].sort(
+    (a, b) => Number(a === "Cliente" || a === "Outro") - Number(b === "Cliente" || b === "Outro") || a.localeCompare(b, "pt-BR"),
+  );
   const lista = noEstado
-    .filter((t) => filtroPagador === "todos" || tipoDe(t) === filtroPagador)
+    .filter((t) => !filtroQuem || pagadorDe(t) === filtroQuem)
     .sort((a, b) =>
       filtroEstado === "recebidos" && !faixa ? b.vencimento.localeCompare(a.vencimento) : a.vencimento.localeCompare(b.vencimento),
     );
 
-  const tiposPresentes = (["maxpar", "cliente", "seguradora", "outro"] as const).filter((tp) => pagadores.some((p) => p.tipo === tp));
-  const maxpar = pagadores.find((p) => p.tipo === "maxpar");
-
   function escolherFaixa(f: FaixaAging) {
-    setFaixa((atual) => (atual === f ? null : f));
-    setFiltroEstado("abertos");
+    mudar({ faixa: faixa === f ? null : f, estado: "abertos" });
     setAberto(null);
   }
   function limpar() {
-    setFaixa(null);
-    setFiltroPagador("todos");
-    setFiltroEstado("abertos");
+    mudar({ faixa: null, estado: "abertos", quem: "" });
   }
 
   return (
     <>
       <CabecalhoPagina
-        titulo="Recebíveis"
+        titulo="A receber"
         resumo={
           abertos.length ? (
             <>
@@ -153,38 +171,13 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
           );
         })}
       </section>
-      <p className="mt-2.5 text-[13px] text-tinta-suave max-w-[90ch]">
-        Atraso contado da data de vencimento. O vencimento segue a regra do pagador
-        {maxpar && (
-          <>
-            {" "}— Maxpar: <Provisorio>{descreverPrazo(maxpar)}</Provisorio>
-          </>
-        )}
-        . Prazos provisórios — a confirmar com a oficina (Ajustes → Pagadores e prazos).
-      </p>
 
       {/* ---------------- filtros */}
       <div className="mt-6 mb-3 flex flex-wrap items-center gap-x-6 gap-y-3">
-        <GrupoFiltros<FiltroPagador>
-          rotulo="Pagador"
-          valor={filtroPagador}
-          onMudar={setFiltroPagador}
-          opcoes={[
-            { valor: "todos", texto: "Todos", contagem: noEstado.length },
-            ...tiposPresentes.map((tp) => ({
-              valor: tp,
-              texto: TIPO_PAGADOR[tp],
-              contagem: noEstado.filter((t) => tipoDe(t) === tp).length,
-            })),
-          ]}
-        />
         <GrupoFiltros<FiltroEstado>
-          rotulo="Estado"
+          rotulo="Situação"
           valor={faixa ? "abertos" : filtroEstado}
-          onMudar={(v) => {
-            setFaixa(null);
-            setFiltroEstado(v);
-          }}
+          onMudar={(v) => mudar({ faixa: null, estado: v })}
           opcoes={[
             { valor: "abertos", texto: "Em aberto" },
             { valor: "vencidos", texto: "Vencidos" },
@@ -192,8 +185,16 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
             { valor: "todos", texto: "Todos" },
           ]}
         />
+        <FiltroSelecao rotulo="Quem paga" valor={filtroQuem} onMudar={(q) => mudar({ quem: q })}>
+          <option value="">Todos ({noEstado.length})</option>
+          {(filtroQuem && !quemPresente.includes(filtroQuem) ? [...quemPresente, filtroQuem] : quemPresente).map((q) => (
+            <option key={q} value={q}>
+              {q} ({noEstado.filter((t) => pagadorDe(t) === q).length})
+            </option>
+          ))}
+        </FiltroSelecao>
         {faixa && (
-          <Botao tamanho="denso" variante="fantasma" icone="fechar" onClick={() => setFaixa(null)}>
+          <Botao tamanho="denso" variante="fantasma" icone="fechar" onClick={() => mudar({ faixa: null })}>
             Tirar filtro “{FAIXA_AGING[faixa].curto}”
           </Botao>
         )}
@@ -204,7 +205,7 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
           <Vazio
             icone="recebiveis"
             titulo="Nenhum título ainda"
-            texto="Os títulos nascem na entrega do carro: franquia e complemento do cliente, mão de obra da Maxpar ou da seguradora. O lançamento manual chega na etapa do financeiro."
+            texto="Os títulos nascem na entrega do carro: franquia e complemento do cliente, mão de obra da seguradora."
           />
         </div>
       ) : lista.length === 0 ? (
@@ -212,7 +213,7 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
           <Vazio
             icone="filtro"
             titulo="Nenhum título com esses filtros"
-            texto="Troque o pagador ou o estado, ou volte para todos os títulos em aberto."
+            texto="Troque quem paga ou a situação, ou volte para todos os títulos em aberto."
             acao={
               <Botao tamanho="denso" onClick={limpar}>
                 Limpar filtros
@@ -228,7 +229,7 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
               <tr>
                 <Th>Placa</Th>
                 <Th>Descrição</Th>
-                <Th>Pagador</Th>
+                <Th>Quem paga</Th>
                 <Th>NF</Th>
                 <Th>Vencimento</Th>
                 <Th direita>Valor</Th>
@@ -246,7 +247,6 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
                 const saldo = saldoTitulo(t);
                 const recebido = t.valor - saldo;
                 const estaAberto = aberto === t.id;
-                const pagador = porPagador.get(t.pagadorId);
                 return (
                   <Fragment key={t.id}>
                     <Linha destaque={estaAberto}>
@@ -262,7 +262,7 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
                           </span>
                         )}
                       </Td>
-                      <Td className="whitespace-nowrap">{pagador ? TIPO_PAGADOR[pagador.tipo] : "—"}</Td>
+                      <Td className="whitespace-nowrap font-medium">{pagadorDe(t)}</Td>
                       <Td className="whitespace-nowrap numero">
                         {t.nfNumero ? (
                           <>
@@ -307,7 +307,6 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
               const v = porOS.get(t.osId);
               const est = estadoTitulo(t, hoje);
               const saldo = saldoTitulo(t);
-              const pagador = porPagador.get(t.pagadorId);
               const estaAberto = aberto === t.id;
               return (
                 <li key={t.id} className={`${SUPERFICIE} p-4`}>
@@ -317,7 +316,7 @@ function Conteudo({ titulos, oss, pagadores }: { titulos: TituloReceber[]; oss: 
                   </div>
                   <p className="mt-2.5 font-medium leading-snug">{t.descricao}</p>
                   <p className="text-[13px] text-tinta-suave">
-                    {pagador ? TIPO_PAGADOR[pagador.tipo] : "—"}
+                    <span className="font-medium text-tinta">{pagadorDe(t)}</span>
                     {t.nfNumero ? ` · NF ${t.nfNumero}` : " · sem NF"}
                   </p>
                   <dl className="mt-3 grid grid-cols-2 gap-3">

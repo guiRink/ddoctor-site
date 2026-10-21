@@ -16,7 +16,8 @@
 ✅ SE Visual clean e o que faltava frente ao concorrente (clientes, recepção com checklist e avarias, custos e resultado da OS, pagamentos, estoque completo, caixa do dia, relatórios, produção prevista; 295 testes, demo v3) — pronto na branch `sprint/se-clean-concorrente`
 ✅ SE merge, tag `sprint-SE` e publicação (13/10/2026, com aval do Guilherme) · ✅ SF merge, tag `sprint-SF` e publicação (20/10/2026)
 ✅ SF Pedidos do dono (modo escuro, orçamento em PDF/WhatsApp, foto real ao concluir etapa, nova categoria de serviço, Agenda e capacidade editável, Produção e TV refeitas; QA com 4 importantes corrigidos; 329 testes) — branch `sprint/sf-pedidos-dono`, merge e publicação em 20/10/2026
-🔧 Checkpoint do dono sobre as telas (SD + SE + SF) — falta mandar o link ao irmão e ouvir; decidir se a produção pode "pegar" etapas livres; decisões novas L30–L36 e L39–L44 (CPF/CNPJ, capacidade, caixa, hora de mão de obra, validade do orçamento, permissões)
+✅ SG Revisão de produto (mecânico + especialista em sistemas, `docs/revisao-sg/`): Geral em 6 quadrados com gaveta, contagens únicas, semáforo a 80 % do prazo, Atendimentos com filtros, Agenda de arrastar e soltar, A receber por seguradora, menu por papel, Estoque enxuto; 12 de 12 itens, QA com 5 importantes corrigidos; 436 testes no painel e 225 no compartilhado — branch `sprint/sg-revisao-produto`, merge, tag `sprint-SG` e publicação em 21/10/2026
+🔧 Checkpoint do dono sobre as telas (SD + SE + SF + SG) — o Guilherme manda o link ao irmão em 22/10; decidir se a produção pode "pegar" etapas livres; decisões novas L30–L36, L39–L44 e L45–L55 (CPF/CNPJ, capacidade, caixa, hora de mão de obra, validade do orçamento, permissões, nome Atendimentos, laranja a 80 %, travar entrega sem foto)
 ❌ Domínio do dono (hospedagem Cloudflare Pages) e conta Supabase do dono — aguardando
 ❌ G1 Inspeção Maxpar → `docs/maxpar-g1.md` (necessário antes do S5/S6)
 ❌ G2 Supabase produção · ❌ G3 Calia · ❌ G4a endereço do painel · ❌ G4b host do worker
@@ -26,8 +27,9 @@
 ❌ Banco núcleo (migrations, RLS, auditoria, funções), RepositorioSupabase, login por papel, `listarProducao` sem dados pessoais e custos fora da `OSVisao` — S1 (próximo)
 ❌ Permissões no banco para fotos, configuração e tipos de serviço (RLS + pgTAP) e fotos no Cloudflare R2 (telas prontas no SF, no aparelho) — S1/S3
 ❌ Tabelas novas do SE no banco (`custo_os`, `fornecedor`, `categoria_financeira`, `fechamento_caixa`, recepção/avarias, `baixa.parcelas`; `movimento_estoque.tipo` mudou) — S1
+❌ Itens do SG que precisam de banco: complemento por dano oculto, peça encomendada, glosa, mudança de prazo com motivo, decisão sobre item negado, retrabalho/garantia, carro reserva, vagas por turno, "Avisar cliente" no banco, `encaixe` na função do Supabase — S1/S2
 ❌ Clientes, veículos, OS e ficha; entrada rápida — S2 (telas prontas em memória no SD/SE, incluindo Clientes com CPF/CNPJ e Receber o carro em 4 passos; falta o banco real)
-❌ Agenda com capacidade e reserva atômica; pendências externas — S2 (grade e fila prontas em memória no SD; falta reserva atômica no banco)
+❌ Agenda com capacidade e reserva atômica; pendências externas — S2 (grade, fila e arrastar e soltar prontos em memória no SD/SG; falta reserva atômica no banco)
 ❌ Tipos de reparo, etapas e semáforo configuráveis — S3 (semáforo e etapas fixos no domínio do SD; configuração trava em L09)
 ❌ Produção: kanban, TV, celular, terminal com PIN — S3 (quadro, TV e Minhas tarefas prontos em memória no SD; falta terminal com PIN)
 ❌ Vistorias e fotos privadas — S3 (galeria por fase no SD; no SF foto real comprimida no aparelho ao concluir etapa e nas Vistorias, no demo; faltam armazenamento privado e RLS)

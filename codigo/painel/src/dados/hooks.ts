@@ -97,8 +97,10 @@ export function useAcoes() {
     registrarAprovacao: mut((osId: Id, evidencia: string) => repositorio.registrarAprovacao(osId, evidencia)),
     registrarEntrada: mut((osId: Id, tipoReparoId: Id, recepcao?: RecepcaoVeiculo) => repositorio.registrarEntrada(osId, tipoReparoId, recepcao)),
     registrarEntrega: mut((osId: Id) => repositorio.registrarEntrega(osId)),
-    agendar: mut((osId: Id, data: DataISO, janela: Janela) => repositorio.agendar(osId, data, janela)),
-    reagendar: mut((agendamentoId: Id, data: DataISO, janela: Janela) => repositorio.reagendar(agendamentoId, data, janela)),
+    agendar: mut((osId: Id, data: DataISO, janela: Janela, encaixe?: boolean) => repositorio.agendar(osId, data, janela, encaixe)),
+    reagendar: mut((agendamentoId: Id, data: DataISO, janela: Janela, encaixe?: boolean) =>
+      repositorio.reagendar(agendamentoId, data, janela, encaixe),
+    ),
     cancelarAgendamento: mut((agendamentoId: Id, motivo: string) => repositorio.cancelarAgendamento(agendamentoId, motivo)),
     marcarNaoCompareceu: mut((agendamentoId: Id) => repositorio.marcarNaoCompareceu(agendamentoId)),
     concluirPendencia: mut((pendenciaId: Id) => repositorio.concluirPendencia(pendenciaId)),

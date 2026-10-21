@@ -6,15 +6,31 @@ import { falha } from "./resultado";
 /**
  * Configuração padrão enquanto o dono não confirma (docs/painel-informacoes.md §4–5).
  * Todos os valores são provisórios: expediente seg–sex 8h–18h e sáb 8h–12h sem almoço,
- * laranja a 8 h úteis do prazo, vermelho com impedimento há mais de 4 h úteis,
+ * laranja com 80 % do prazo da etapa consumido (laranjaAntesHoras = 8 só para etapa sem prazoHoras),
+ * vermelho com impedimento há mais de 4 h úteis,
  * 4 entradas/dia, 12 carros simultâneos (só aviso) e 10 peças/dia na produção prevista.
  */
 export const CONFIG_PADRAO: ConfigOficina = {
   expediente: { diasSemana: [1, 2, 3, 4, 5, 6], inicio: "08:00", fim: "18:00", sabadoFim: "12:00" },
-  semaforo: { laranjaAntesHoras: 8, vermelhoBloqueioHoras: 4 },
+  semaforo: { laranjaAntesHoras: 8, vermelhoBloqueioHoras: 4, laranjaFracao: 0.8 },
   capacidadePadrao: { vagasEntrada: 4, carrosSimultaneos: 12, pecasDia: 10 },
   provisorio: true,
 };
+
+/** Laranja quando já passou esta fração do prazo da etapa (provisório: 0,8; revisão SG, a confirmar com o dono). */
+export const LARANJA_FRACAO_PADRAO = 0.8;
+
+/** Pronto há esta quantidade de dias ou mais sem o cliente buscar: "cliente não buscou" (provisório: 2). */
+export const DIAS_PRONTO_NAO_BUSCOU_PADRAO = 2;
+
+/** Vistoria com limite a até esta quantidade de dias entra em "Para fazer hoje" (provisório: 2, painel-informacoes §5). */
+export const DIAS_VISTORIA_VENCENDO_PADRAO = 2;
+
+/** Fração do prazo da configuração (0 < f ≤ 1); fora disso ou ausente, o padrão provisório. */
+export function laranjaFracao(config: Pick<ConfigOficina, "semaforo">): number {
+  const f = config.semaforo.laranjaFracao;
+  return typeof f === "number" && f > 0 && f <= 1 ? f : LARANJA_FRACAO_PADRAO;
+}
 
 /** Folga somada aos prazos das etapas para sugerir a previsão de entrega (provisório: 20 %). */
 export const FOLGA_PREVISAO_PADRAO = 0.2;
@@ -100,6 +116,9 @@ export const LIMITES_CONFIG = {
   vermelhoBloqueioHoras: { min: 1, max: 80 },
 } as const;
 
+/** Fração do prazo da etapa em que o cartão fica laranja, ao editar em Ajustes: 50 % a 95 % (revisão SG). */
+export const LIMITES_LARANJA_FRACAO = { min: 0.5, max: 0.95 } as const;
+
 export interface ConfigParcial {
   capacidadePadrao?: { vagasEntrada?: number; carrosSimultaneos?: number; pecasDia?: number };
   expediente?: ConfigOficina["expediente"];
@@ -151,6 +170,13 @@ export function aplicarConfig(config: ConfigOficina, parcial: ConfigParcial): Re
       if (sem[campo] === undefined) continue;
       if (!inteiroEntre(sem[campo], LIMITES_CONFIG[campo])) return { ok: false, codigo: "valor_invalido", campo };
       semaforo = { ...semaforo, [campo]: sem[campo] };
+      mudou = true;
+    }
+    if (sem.laranjaFracao !== undefined) {
+      const f = sem.laranjaFracao;
+      if (typeof f !== "number" || !Number.isFinite(f) || f < LIMITES_LARANJA_FRACAO.min || f > LIMITES_LARANJA_FRACAO.max)
+        return { ok: false, codigo: "valor_invalido", campo: "laranjaFracao" };
+      semaforo = { ...semaforo, laranjaFracao: Math.round(f * 100) / 100 };
       mudou = true;
     }
     if (mudou) campos.push("semaforo");

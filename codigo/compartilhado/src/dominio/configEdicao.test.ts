@@ -36,4 +36,15 @@ describe("aplicarConfig", () => {
     expect(r.ok && r.config.provisorio).toBe(false);
     expect(r.ok && r.config.expediente.diasSemana).toEqual([1, 2, 3, 4, 5, 6]);
   });
+
+  it("laranja por fração do prazo: 50 % a 95 %, marca o semáforo como confirmado", () => {
+    const r = aplicarConfig(CONFIG_PADRAO, { semaforo: { laranjaFracao: 0.75 } });
+    expect(r.ok && r.config.semaforo.laranjaFracao).toBe(0.75);
+    expect(r.ok && r.campos).toEqual(["semaforo"]);
+    expect(r.ok && campoConfigProvisorio(r.config, "semaforo")).toBe(false);
+    expect(r.ok && r.config.semaforo.vermelhoBloqueioHoras).toBe(CONFIG_PADRAO.semaforo.vermelhoBloqueioHoras);
+    expect(aplicarConfig(CONFIG_PADRAO, { semaforo: { laranjaFracao: 0.4 } })).toEqual({ ok: false, codigo: "valor_invalido", campo: "laranjaFracao" });
+    expect(aplicarConfig(CONFIG_PADRAO, { semaforo: { laranjaFracao: 1 } })).toEqual({ ok: false, codigo: "valor_invalido", campo: "laranjaFracao" });
+    expect(aplicarConfig(CONFIG_PADRAO, { semaforo: { laranjaFracao: Number.NaN } }).ok).toBe(false);
+  });
 });

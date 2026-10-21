@@ -4,7 +4,7 @@ import { mensagemErro, useAcoes } from "../../dados/hooks";
 import { ERRO_CAMPO_CONFIG } from "../../dominio/rotulos";
 import { Botao } from "../ui/Basicos";
 import { AcaoTexto, Aviso, MensagemErro } from "../ui/Campos";
-import { Etiqueta } from "../ui/Estado";
+import { Etiqueta, Provisorio } from "../ui/Estado";
 import { Icone } from "../Icone";
 
 // Números editáveis da configuração (capacidade e semáforo) em Ajustes: um campo com stepper (− / +) por
@@ -20,6 +20,8 @@ export interface CampoNumero<K extends string> {
   adorno?: ReactNode;
   unidade: (n: number) => string;
   limites: { min: number; max: number };
+  /** Quanto o − / + e as setas andam (padrão 1). */
+  passo?: number;
   valor: number;
   provisorio: boolean;
 }
@@ -177,7 +179,9 @@ function LinhaNumero<K extends string>({
     <Etiqueta tom="neutro">Alterado</Etiqueta>
   ) : campo.provisorio ? (
     <span className="inline-flex items-center gap-1">
-      <Etiqueta tom="atencao">Provisório — a confirmar</Etiqueta>
+      <span className="text-[12px] text-tinta-suave">
+        <Provisorio>a confirmar</Provisorio>
+      </span>
       {podeEditar && (
         <AcaoTexto onClick={onConfirmar} rotulo={`Confirmar ${campo.nome.toLowerCase()}: ${campo.valor} ${campo.unidade(campo.valor)}`} desabilitado={ocupado}>
           Confirmar
@@ -211,6 +215,7 @@ function LinhaNumero<K extends string>({
               rotulo={campo.nome}
               texto={texto}
               limites={campo.limites}
+              passo={campo.passo ?? 1}
               invalido={Boolean(erro)}
               descricao={erro ? `${id}-erro` : `${id}-dica`}
               desabilitado={ocupado}
@@ -243,6 +248,7 @@ function Passo({
   rotulo,
   texto,
   limites,
+  passo,
   invalido,
   descricao,
   desabilitado,
@@ -252,6 +258,7 @@ function Passo({
   rotulo: string;
   texto: string;
   limites: { min: number; max: number };
+  passo: number;
   invalido: boolean;
   descricao: string;
   desabilitado: boolean;
@@ -262,7 +269,7 @@ function Passo({
   const ir = (v: number) => onMudar(String(Math.min(limites.max, Math.max(limites.min, v))));
 
   function teclas(e: KeyboardEvent<HTMLInputElement>) {
-    const passos: Record<string, number> = { ArrowUp: 1, ArrowDown: -1, PageUp: 5, PageDown: -5 };
+    const passos: Record<string, number> = { ArrowUp: passo, ArrowDown: -passo, PageUp: 5 * passo, PageDown: -5 * passo };
     if (e.key in passos) {
       e.preventDefault();
       ir(base + passos[e.key]);
@@ -283,7 +290,7 @@ function Passo({
         invalido ? "border-alerta focus-within:ring-alerta/15" : "border-linha-forte hover:border-tinta-fraca focus-within:border-tinta-fraca focus-within:ring-amarelo/30"
       }`}
     >
-      <button type="button" aria-label={`Diminuir ${rotulo.toLowerCase()}`} disabled={desabilitado || base <= limites.min} onClick={() => ir(base - 1)} className={botao}>
+      <button type="button" aria-label={`Diminuir ${rotulo.toLowerCase()}`} disabled={desabilitado || base <= limites.min} onClick={() => ir(base - passo)} className={botao}>
         <SinalMenos />
       </button>
       <input
@@ -305,7 +312,7 @@ function Passo({
         onFocus={(e) => e.target.select()}
         className="w-14 h-full px-1 border-x border-y-0 border-linha rounded-none bg-transparent text-center text-[15px] font-semibold numero text-tinta outline-none shadow-none"
       />
-      <button type="button" aria-label={`Aumentar ${rotulo.toLowerCase()}`} disabled={desabilitado || base >= limites.max} onClick={() => ir(base + 1)} className={botao}>
+      <button type="button" aria-label={`Aumentar ${rotulo.toLowerCase()}`} disabled={desabilitado || base >= limites.max} onClick={() => ir(base + passo)} className={botao}>
         <Icone nome="mais" tamanho={16} traco={2} />
       </button>
     </span>
