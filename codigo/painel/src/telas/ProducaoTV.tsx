@@ -48,8 +48,8 @@ function useTamanhoTela() {
  * Quadro da TV da oficina (docs/painel-design.md §4): fundo preto, sem menu, sem cursor, sem foco e
  * sem rolagem. Atualiza a cada 15 s. Todas as etapas com carro numa tela, em colunas fluidas; cada coluna
  * encolhe os cartões (cheio → médio → compacto) antes de paginar sozinha a cada 20 s (§5.1).
- * Filtro fixo pela URL: #/producao/tv?filtro=parados|hoje (atrasados/impedidos antigos caem em parados).
- * Os contadores são as contagens do Geral (src/dominio/contagens.ts): Na oficina, Parados e atrasados, Saem hoje.
+ * Filtro fixo pela URL: #/producao/tv?filtro=atrasados|parados|hoje (impedidos, link antigo, cai em parados).
+ * Os contadores são as contagens do Geral (src/dominio/contagens.ts): Na oficina, Atrasados, Parados, Saem hoje.
  */
 export function ProducaoTV() {
   const consulta = useOSs();
@@ -113,7 +113,8 @@ export function ProducaoTV() {
 
         <dl className="flex-1 flex justify-end items-center gap-3 m-0">
           <Contador nome="Na oficina" valor={totais.naOficina} detalhe={`${totais.emServico} em serviço · ${totais.prontos} ${totais.prontos === 1 ? "pronto" : "prontos"}`} />
-          <Contador nome="Parados e atrasados" valor={totais.parados} alerta />
+          <Contador nome="Atrasados" valor={totais.atrasados} tom="alerta" />
+          <Contador nome="Parados" valor={totais.parados} tom="atencao" />
           <Contador nome="Saem hoje" valor={totais.hoje} />
         </dl>
 
@@ -211,11 +212,12 @@ export function ProducaoTV() {
   );
 }
 
-function Contador({ nome, valor, detalhe, alerta = false }: { nome: string; valor: number; detalhe?: string; alerta?: boolean }) {
-  const vermelho = alerta && valor > 0;
+/** Contador do cabeçalho. `tom`: quando > 0, o fundo vira o estado (atrasado em alerta, parado em atenção). */
+function Contador({ nome, valor, detalhe, tom }: { nome: string; valor: number; detalhe?: string; tom?: "alerta" | "atencao" }) {
+  const aceso = tom && valor > 0;
   return (
-    <div className={`flex items-center gap-4 h-16 pl-6 pr-7 rounded-full ${vermelho ? "bg-alerta text-cartao" : "bg-grafite-2"}`}>
-      <dt className={`leading-none whitespace-nowrap ${vermelho ? "text-cartao" : "text-papel-suave"}`}>
+    <div className={`flex items-center gap-4 h-16 pl-6 pr-7 rounded-full ${aceso ? (tom === "alerta" ? "bg-alerta text-cartao" : "bg-atencao text-cartao") : "bg-grafite-2"}`}>
+      <dt className={`leading-none whitespace-nowrap ${aceso ? "text-cartao" : "text-papel-suave"}`}>
         <span className="block text-[20px] font-medium">{nome}</span>
         {detalhe && <span className="block mt-1 text-[16px] numero">{detalhe}</span>}
       </dt>

@@ -69,9 +69,10 @@ describe("montarItens e colunas", () => {
     expect(itens.map((i) => i.v.os.id).sort()).toEqual(["1", "2", "3"]);
   });
 
-  it("conta como o Geral: na oficina = em serviço + prontos; parados = atrasados + impedidos; saem hoje", () => {
-    expect(contarItens(itens)).toEqual({ naOficina: 3, emServico: 2, prontos: 1, atrasados: 1, impedidos: 1, parados: 2, hoje: 2 });
-    expect(filtrarItens(itens, "parados").map((i) => i.v.os.id).sort()).toEqual(["1", "2"]);
+  it("conta como o Geral: na oficina = em serviço + prontos; atrasados e parados separados; saem hoje", () => {
+    expect(contarItens(itens)).toEqual({ naOficina: 3, emServico: 2, prontos: 1, atrasados: 1, parados: 1, hoje: 2 });
+    expect(filtrarItens(itens, "atrasados").map((i) => i.v.os.id)).toEqual(["1"]);
+    expect(filtrarItens(itens, "parados").map((i) => i.v.os.id)).toEqual(["2"]);
     expect(filtrarItens(itens, "hoje").map((i) => i.v.os.id).sort()).toEqual(["1", "3"]);
   });
 
@@ -87,8 +88,9 @@ describe("montarItens e colunas", () => {
     expect(itens.map((i) => i.prazoEtapa ?? "").join(" ")).not.toMatch(/\d{2}:\d{2}/);
   });
 
-  it("links antigos de filtro caem em Parados e atrasados", () => {
-    expect(lerFiltro("atrasados")).toBe("parados");
+  it("filtros Atrasados e Parados; link antigo de impedidos cai em Parados", () => {
+    expect(lerFiltro("atrasados")).toBe("atrasados");
+    expect(lerFiltro("parados")).toBe("parados");
     expect(lerFiltro("impedidos")).toBe("parados");
     expect(lerFiltro("hoje")).toBe("hoje");
     expect(lerFiltro("x")).toBe("todos");

@@ -4,7 +4,7 @@ import type { ConfigOficina, DataISO, EtapaOS, MarcoISO, Perfil, Semaforo } from
 import { dataNoFuso, diaSemana, diferencaDias, FUSO, paraMs } from "@compartilhado/dominio/fuso";
 import type { SituacaoCartao } from "@compartilhado/dominio/semaforo";
 import type { OSVisao } from "../../dados/repositorio";
-import { naOficina, paradosEAtrasados, saemHoje } from "../../dominio/contagens";
+import { atrasados, naOficina, parados, saemHoje } from "../../dominio/contagens";
 import { rotuloHaQuanto, rotuloPrazo } from "../../dominio/horarios";
 import type { Tom } from "../ui/Estado";
 import { resumoProducao } from "../ui/Carro";
@@ -12,18 +12,20 @@ import { resumoProducao } from "../ui/Carro";
 export const COLUNA_PRONTOS = "__prontos";
 export const COLUNA_SEM_ETAPA = "__sem_etapa";
 
-// Filtros da Produção e da TV. "Parados e atrasados" e "Saem hoje" são as mesmas contagens do Geral
-// (src/dominio/contagens.ts). Links antigos (?filtro=atrasados|impedidos) caem em "parados".
-export type FiltroQuadro = "todos" | "parados" | "hoje";
-export const FILTROS: readonly FiltroQuadro[] = ["todos", "parados", "hoje"];
+// Filtros da Produção e da TV. "Atrasados", "Parados" e "Saem hoje" são as mesmas contagens do Geral
+// (src/dominio/contagens.ts; revisão SH: atrasado = passou do prazo, parado = impedido). Um carro pode estar nos dois.
+// Link antigo ?filtro=impedidos cai em "parados".
+export type FiltroQuadro = "todos" | "atrasados" | "parados" | "hoje";
+export const FILTROS: readonly FiltroQuadro[] = ["todos", "atrasados", "parados", "hoje"];
 export const NOME_FILTRO: Record<FiltroQuadro, string> = {
   todos: "Todos",
-  parados: "Parados e atrasados",
+  atrasados: "Atrasados",
+  parados: "Parados",
   hoje: "Saem hoje",
 };
 
 export function lerFiltro(valor: string | null): FiltroQuadro {
-  if (valor === "atrasados" || valor === "impedidos") return "parados";
+  if (valor === "impedidos") return "parados";
   return FILTROS.includes(valor as FiltroQuadro) ? (valor as FiltroQuadro) : "todos";
 }
 
@@ -44,7 +46,11 @@ export interface ItemQuadro {
   situacao: SituacaoCartao;
   impedido: boolean;
   atrasado: boolean;
-  /** Está em "Parados e atrasados" (impedido ou atrasado). */
+  /** Está em "Atrasados" (passou do prazo; contagens.atrasados). */
+  emAtrasados: boolean;
+  /** Está em "Parados" (etapa impedida; contagens.parados). */
+  emParados: boolean;
+  /** Pede atenção: está em Atrasados ou em Parados (fundo de alerta na lista). */
   parado: boolean;
   /** Está em "Saem hoje" (entrega prometida hoje). */
   entregaHoje: boolean;
@@ -61,14 +67,15 @@ export interface ItemQuadro {
 }
 
 /**
- * Cartões do quadro = "Na oficina" (naOficina: na_oficina + pronta), com as marcas de "Saem hoje" e
- * "Parados e atrasados" tiradas das mesmas funções do Geral — os números batem em todas as telas.
+ * Cartões do quadro = "Na oficina" (naOficina: na_oficina + pronta), com as marcas de "Saem hoje", "Atrasados" e
+ * "Parados" tiradas das mesmas funções do Geral — os números batem em todas as telas.
  */
 export function montarItens(oss: readonly OSVisao[], agora: MarcoISO, config: ConfigOficina): ItemQuadro[] {
   const hoje = dataNoFuso(agora);
   const agoraMs = paraMs(agora);
   const saem = new Set(saemHoje(oss, agora, config, []).itens.map((i) => i.v.os.id));
-  const parados = new Set(paradosEAtrasados(oss, agora, config).itens.map((i) => i.v.os.id));
+  const noAtraso = new Set(atrasados(oss, agora, config).itens.map((i) => i.v.os.id));
+  const noParado = new Set(parados(oss, agora, config).itens.map((i) => i.v.os.id));
   return naOficina(oss, agora, config).itens.map(({ v, situacao }) => {
     const pronto = situacao === "pronto";
     const resumo = resumoProducao(v, agora, config);
@@ -81,7 +88,9 @@ export function montarItens(oss: readonly OSVisao[], agora: MarcoISO, config: Co
       situacao,
       impedido: situacao === "impedido",
       atrasado: situacao === "atrasado",
-      parado: parados.has(v.os.id),
+      emAtrasados: noAtraso.has(v.os.id),
+      emParados: noParado.has(v.os.id),
+      parado: noAtraso.has(v.os.id) || noParado.has(v.os.id),
       entregaHoje: saem.has(v.os.id),
       pronto,
       responsavelId: etapa?.responsavelId,
@@ -94,23 +103,26 @@ export function montarItens(oss: readonly OSVisao[], agora: MarcoISO, config: Co
   });
 }
 
-/** Números do cabeçalho e dos filtros: total = emServico + prontos; parados = atrasados + impedidos. */
+/**
+ * Números do cabeçalho e dos filtros: total = emServico + prontos; atrasados e parados = as listas do Geral
+ * (um carro impedido e vencido conta nas duas). atrasado/impedido do cartão continuam a situação única da pílula.
+ */
 export function contarItens(itens: readonly ItemQuadro[]) {
   const prontos = itens.filter((i) => i.pronto).length;
   return {
     naOficina: itens.length,
     emServico: itens.length - prontos,
     prontos,
-    atrasados: itens.filter((i) => i.atrasado).length,
-    impedidos: itens.filter((i) => i.impedido).length,
-    parados: itens.filter((i) => i.parado).length,
+    atrasados: itens.filter((i) => i.emAtrasados).length,
+    parados: itens.filter((i) => i.emParados).length,
     hoje: itens.filter((i) => i.entregaHoje).length,
   };
 }
 
 export function filtrarItens(itens: readonly ItemQuadro[], filtro: FiltroQuadro, responsavelId?: string): ItemQuadro[] {
   return itens.filter((i) => {
-    if (filtro === "parados" && !i.parado) return false;
+    if (filtro === "atrasados" && !i.emAtrasados) return false;
+    if (filtro === "parados" && !i.emParados) return false;
     if (filtro === "hoje" && !i.entregaHoje) return false;
     if (responsavelId && i.responsavelId !== responsavelId) return false;
     return true;

@@ -11,8 +11,8 @@ import { ESTADO_OS } from "../../dominio/rotulos";
  * (dá para mandar o link). Dinheiro em centavos; dias contados no fuso da oficina.
  */
 
-/** Nome da tela (decisão provisória do dono, plano SG): troque aqui e vale para a tela inteira. */
-export const TITULO_ATENDIMENTOS = "Atendimentos";
+/** Nome da tela: o dono pediu de volta "Orçamentos" (revisão SH, docs/revisao-sh/pedido-dono.md). Troque aqui e vale para a tela inteira. */
+export const TITULO_ATENDIMENTOS = "Orçamentos";
 
 // ------------------------------------------------------------------ situações (abas)
 
@@ -31,11 +31,11 @@ export const ABAS_ESTADO: AbaEstado[] = [
   { chave: "rascunho", nome: "Em orçamento", explicacao: "Orçamento sendo montado; ainda não foi enviado.", estados: ["rascunho"] },
   {
     chave: "aguardando_aprovacao",
-    nome: "Esperando aprovação",
-    explicacao: "Orçamento enviado; falta a seguradora ou o cliente aprovar.",
+    nome: "Aguardando aprovação",
+    explicacao: "Orçamento feito; falta a seguradora ou o cliente aprovar.",
     estados: ["aguardando_aprovacao"],
   },
-  { chave: "aguardando_agendamento", nome: "Falta agendar", explicacao: "Aprovado; falta marcar o dia de entrada.", estados: ["aguardando_agendamento"] },
+  { chave: "aguardando_agendamento", nome: "Aguardando agendamento", explicacao: "Aprovado; falta marcar o dia de entrada.", estados: ["aguardando_agendamento"] },
   { chave: "agendada", nome: "Agendados", explicacao: "Com dia marcado para entrar na oficina.", estados: ["agendada"] },
   // Mesmo recorte de naOficina() (dominio/contagens): em serviço + prontos, o número do Geral, da Produção e da TV.
   {

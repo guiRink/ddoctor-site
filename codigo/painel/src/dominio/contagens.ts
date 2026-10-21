@@ -1,5 +1,5 @@
 // Contagens únicas do painel (revisão SG, item 2): um número e um nome para cada coisa, em todas as telas.
-// Geral, Produção, TV e Atendimentos leem daqui; cada função devolve { total, itens } com o que a lista precisa,
+// Geral, Produção, TV e Orçamentos leem daqui; cada função devolve { total, itens } com o que a lista precisa,
 // e total === itens.length (todo número abre a própria lista). Funções puras: `agora` e config por parâmetro.
 import type { Agendamento, Centavos, ConfigOficina, DataISO, EstadoOS, EtapaOS, Id, Janela, MarcoISO, OrcamentoVersao, Pagador, Papel, PendenciaExterna, TituloReceber } from "@compartilhado/tipos";
 import { DIAS_PRONTO_NAO_BUSCOU_PADRAO, DIAS_VISTORIA_VENCENDO_PADRAO } from "@compartilhado/dominio/config";
@@ -11,7 +11,7 @@ import { etapaAtual, situacaoCartao, type SituacaoCartao } from "@compartilhado/
 import type { OSVisao } from "../dados/repositorio";
 import { rotuloHaQuanto, rotuloPrazo, rotuloHorario } from "./horarios";
 import { TIPO_PENDENCIA } from "./rotulos";
-import { ehNomeDeSeguradora, nomeSeguradora } from "./seguradora";
+import { ehNomeDeSeguradora, nomeSeguradora, seguradoraDaOS } from "./seguradora";
 
 export interface Contagem<T> {
   total: number;
@@ -56,7 +56,7 @@ export interface ItemNaOficina {
 const PESO_SITUACAO: Record<SituacaoCartao, number> = { atrasado: 0, impedido: 1, atencao: 2, no_prazo: 3, pronto: 4 };
 
 /**
- * "Na oficina" = OS em na_oficina + pronta (o mesmo número no Geral, na Produção, na TV e em Atendimentos).
+ * "Na oficina" = OS em na_oficina + pronta (o mesmo número no Geral, na Produção, na TV e em Orçamentos).
  * emServico + prontos = total. Ordem: atrasados, impedidos, atenção, no prazo, prontos (o mais antigo primeiro).
  */
 export function naOficina(
@@ -184,82 +184,151 @@ export function saemHoje(
   return { ...lista(itens), prontos, emServico: itens.length - prontos };
 }
 
-// ---------------------------------------------------------------- Parados e atrasados
+// ---------------------------------------------------------------- Atrasados e Parados
+//
+// Pedido do dono (revisão SH, docs/revisao-sh/pedido-dono.md): "atrasados é quando a gente passou do prazo e parado
+// é quando a gente tá guardando uma peça ou algo do tipo; são duas situações diferentes". São duas listas
+// independentes, só de carros em serviço (na_oficina; pronto não está atrasado nem parado). Um carro impedido cuja
+// entrega prometida (ou etapa) já passou do prazo aparece NAS DUAS — cada lista responde a uma pergunta
+// ("passou do prazo?" / "está travado?"), e o dono quer as duas zeradas. A pílula do cartão continua única
+// (situacaoCartao: impedido vence atrasado).
 
-export type TipoParado = "impedido" | "entrega_vencida" | "etapa_atrasada";
+const ehEmServico = (v: OSVisao) => v.os.estado === "na_oficina";
+/** Etapas em andamento (na fila, em execução ou bloqueada), em ordem. */
+const ativasDe = (v: OSVisao) => restantes(v).filter((e) => e.estado !== "aguardando");
 
-export interface ItemParado {
+export interface ItemAtrasado {
   v: OSVisao;
-  tipo: TipoParado; // o principal: impedido > entrega vencida > etapa atrasada
-  /** Motivo do impedimento, ou "Pintura passou do prazo", ou "Entrega prometida passou". */
+  /** "Entrega prometida passou" (a entrega vence a etapa) ou "Pintura passou do prazo". */
   motivo: string;
-  /** Desde quando: início do bloqueio, prazo da etapa ou data da entrega prometida. */
+  /** Data da entrega prometida ou prazo da etapa. */
   desde: MarcoISO | DataISO;
-  haQuanto: string; // "há 5 h", "atrasado 1 dia"
+  haQuanto: string; // "atrasado 2 dias", "atrasado 1 h"
   entregaVencida: boolean;
+  /** Etapa que passou do prazo (ou a atual, quando só a entrega venceu). */
   etapa?: EtapaOS;
   responsavelId?: Id;
-  quemResolve: Papel; // impedido → dono; atraso → produção
+  /** Também está em Parados (etapa impedida). */
+  parado: boolean;
+  quemResolve: Papel; // produção
 }
 
 /**
- * Impedidos + etapa atrasada + entrega vencida: exatamente os carros com situacaoCartao "impedido" ou "atrasado".
+ * "Atrasados" = passou do prazo: carro em serviço com a entrega prometida vencida (hoje > previsão) ou com uma etapa
+ * em andamento além do prazo (agora > prazoEm). Para carro não impedido é exatamente situacaoCartao "atrasado".
  * O mais antigo primeiro.
  */
-export function paradosEAtrasados(oss: readonly OSVisao[], agora: MarcoISO, config: ConfigOficina): Contagem<ItemParado> {
+export function atrasados(oss: readonly OSVisao[], agora: MarcoISO, config: ConfigOficina): Contagem<ItemAtrasado> {
   const hoje = dataNoFuso(agora);
   const agoraMs = paraMs(agora);
-  const itens: ItemParado[] = [];
+  const itens: ItemAtrasado[] = [];
   for (const v of oss) {
-    const situacao = situacaoCartao(v.os, v.etapas, agora, config);
-    if (situacao !== "impedido" && situacao !== "atrasado") continue;
+    if (!ehEmServico(v)) continue;
     const previsao = v.os.previsaoEntrega?.slice(0, 10);
     const entregaVencida = Boolean(previsao && hoje > previsao);
-    const ativas = restantes(v).filter((e) => e.estado !== "aguardando");
-    const bloqueada = ativas.find((e) => e.estado === "bloqueada");
-    const bloqueio = bloqueada?.bloqueios.find((b) => !b.fimEm);
+    const ativas = ativasDe(v);
     const vencida = ativas.find((e) => e.prazoEm && agoraMs > paraMs(e.prazoEm));
-    const base = { v, entregaVencida };
-    if (situacao === "impedido") {
-      const desde = bloqueio?.inicioEm ?? agora;
-      itens.push({ ...base, tipo: "impedido", motivo: bloqueio?.motivo ?? "Impedido", desde, haQuanto: rotuloHaQuanto(desde, agora), etapa: bloqueada, responsavelId: bloqueada?.responsavelId, quemResolve: "dono" });
-    } else if (entregaVencida && previsao) {
-      const etapa = vencida ?? etapaAtual(v.etapas) ?? undefined;
-      itens.push({ ...base, tipo: "entrega_vencida", motivo: "Entrega prometida passou", desde: previsao, haQuanto: rotuloPrazo(previsao, agora, config), etapa, responsavelId: etapa?.responsavelId, quemResolve: "producao" });
+    if (!entregaVencida && !vencida) continue;
+    const etapa = vencida ?? etapaAtual(v.etapas) ?? undefined;
+    const parado = ativas.some((e) => e.estado === "bloqueada");
+    const base = { v, entregaVencida, etapa, responsavelId: etapa?.responsavelId, parado, quemResolve: "producao" as const };
+    if (entregaVencida && previsao) {
+      itens.push({ ...base, motivo: "Entrega prometida passou", desde: previsao, haQuanto: rotuloPrazo(previsao, agora, config) });
     } else {
-      const etapa = vencida ?? etapaAtual(v.etapas) ?? undefined;
-      const desde = etapa?.prazoEm ?? agora;
-      itens.push({ ...base, tipo: "etapa_atrasada", motivo: etapa ? `${etapa.nome} passou do prazo` : "Atrasado", desde, haQuanto: rotuloPrazo(desde, agora, config), etapa, responsavelId: etapa?.responsavelId, quemResolve: "producao" });
+      const desde = vencida!.prazoEm!;
+      itens.push({ ...base, motivo: `${vencida!.nome} passou do prazo`, desde, haQuanto: rotuloPrazo(desde, agora, config) });
     }
   }
   itens.sort((a, b) => paraMs(a.desde) - paraMs(b.desde) || placa(a.v).localeCompare(placa(b.v)));
   return lista(itens);
 }
 
-// ---------------------------------------------------------------- Esperando seguradora
-
-export interface ItemEsperandoSeguradora {
+export interface ItemParado {
   v: OSVisao;
-  seguradora: string;
+  /** Motivo do impedimento ("Aguardando peça", "Falta de material"). */
+  motivo: string;
+  /** Início do impedimento. */
+  desde: MarcoISO;
+  haQuanto: string; // "há 5 h", "há 2 dias"
+  /** Etapa impedida. */
+  etapa?: EtapaOS;
+  responsavelId?: Id;
+  /** Também está em Atrasados (passou do prazo). */
+  atrasado: boolean;
+  quemResolve: Papel; // dono (destravar: peça, autorização, material)
+}
+
+/**
+ * "Parados" = travado: carro em serviço com etapa impedida (bloqueada — aguardando peça, material, autorização),
+ * exatamente situacaoCartao "impedido". Motivo e início do impedimento aberto. O parado há mais tempo primeiro.
+ */
+export function parados(oss: readonly OSVisao[], agora: MarcoISO, config: ConfigOficina): Contagem<ItemParado> {
+  const noAtraso = new Set(atrasados(oss, agora, config).itens.map((i) => i.v.os.id));
+  const itens: ItemParado[] = [];
+  for (const v of oss) {
+    if (!ehEmServico(v)) continue;
+    const etapa = restantes(v).find((e) => e.estado === "bloqueada");
+    if (!etapa) continue;
+    const bloqueio = etapa.bloqueios.find((b) => !b.fimEm) ?? etapa.bloqueios.at(-1);
+    const desde = bloqueio?.inicioEm ?? etapa.iniciadaEm ?? v.os.atualizadoEm;
+    itens.push({
+      v,
+      motivo: bloqueio?.motivo?.trim() || "Impedido",
+      desde,
+      haQuanto: rotuloHaQuanto(desde, agora),
+      etapa,
+      responsavelId: etapa.responsavelId,
+      atrasado: noAtraso.has(v.os.id),
+      quemResolve: "dono",
+    });
+  }
+  itens.sort((a, b) => paraMs(a.desde) - paraMs(b.desde) || placa(a.v).localeCompare(placa(b.v)));
+  return lista(itens);
+}
+
+// ---------------------------------------------------------------- Aguardando aprovação e Aguardando seguradora
+
+export interface ItemAguardandoAprovacao {
+  v: OSVisao;
+  /** Seguradora (HDI, Liberty…; nunca "Maxpar") ou "Particular" — seguradoraDaOS. */
+  pagador: string;
+  particular: boolean;
   protocolo?: string;
   desde: DataISO; // envio do orçamento (versão vigente) ou abertura do atendimento
   dias: number;
   valorOrcado: Centavos; // Σ itens não dispensados nem negados da versão vigente
 }
 
-/** OS de seguradora (não particular) aguardando aprovação. A mais antiga primeiro. */
-export function esperandoSeguradora(oss: readonly OSVisao[], agora: MarcoISO): Contagem<ItemEsperandoSeguradora> & { maisAntigoDias: number } {
+/**
+ * "Aguardando aprovação" = todo orçamento feito e ainda não aprovado (estado aguardando_aprovacao), particular ou
+ * de seguradora; cada OS conta um ("se eu fiz 10 orçamentos, aparece 10"). Decisão SH: o rascunho ("Em orçamento")
+ * NÃO entra, mesmo com itens — ainda não foi feito/enviado a ninguém (o atendimento novo já nasce aguardando
+ * aprovação) — e assim o número é o mesmo da aba "Aguardando aprovação" de Orçamentos. Aprovado, passa para
+ * "Aguardando agendamento". O mais antigo primeiro.
+ */
+export function aguardandoAprovacao(
+  oss: readonly OSVisao[],
+  agora: MarcoISO,
+): Contagem<ItemAguardandoAprovacao> & { maisAntigoDias: number; deSeguradora: number; particulares: number } {
   const hoje = dataNoFuso(agora);
-  const itens: ItemEsperandoSeguradora[] = [];
+  const itens: ItemAguardandoAprovacao[] = [];
   for (const v of oss) {
-    if (v.os.estado !== "aguardando_aprovacao" || v.os.origem === "particular") continue;
+    if (v.os.estado !== "aguardando_aprovacao") continue;
     const at = v.atendimentos[0];
     const versao = versaoAtual(v);
     const desde = versao ? dataNoFuso(versao.criadoEm) : (at?.aberturaEm ?? dataNoFuso(v.os.criadoEm));
     const valorOrcado = somaCentavos((versao?.itens ?? []).filter((i) => i.statusItem !== "dispensado" && i.statusItem !== "negado").map((i) => i.valor));
-    itens.push({ v, seguradora: at?.seguradora ?? "Seguradora", protocolo: at?.idExterno, desde, dias: Math.max(0, diferencaDias(desde, hoje)), valorOrcado });
+    const particular = v.os.origem === "particular";
+    itens.push({ v, pagador: seguradoraDaOS(v), particular, protocolo: particular ? undefined : at?.idExterno, desde, dias: Math.max(0, diferencaDias(desde, hoje)), valorOrcado });
   }
   itens.sort((a, b) => b.dias - a.dias || placa(a.v).localeCompare(placa(b.v)));
+  const particulares = itens.filter((i) => i.particular).length;
+  return { ...lista(itens), maisAntigoDias: itens[0]?.dias ?? 0, deSeguradora: itens.length - particulares, particulares };
+}
+
+/** "Aguardando seguradora" = os de "Aguardando aprovação" que dependem da seguradora (não particulares). */
+export function aguardandoSeguradora(oss: readonly OSVisao[], agora: MarcoISO): Contagem<ItemAguardandoAprovacao> & { maisAntigoDias: number } {
+  const itens = aguardandoAprovacao(oss, agora).itens.filter((i) => !i.particular);
   return { ...lista(itens), maisAntigoDias: itens[0]?.dias ?? 0 };
 }
 
@@ -327,9 +396,9 @@ export function dinheiroVencido(
   return { ...lista(itens), valor: somaCentavos(itens.map((i) => i.saldo)), porDevedor };
 }
 
-// ---------------------------------------------------------------- Para agendar
+// ---------------------------------------------------------------- Aguardando agendamento
 
-export interface ItemParaAgendar {
+export interface ItemAguardandoAgendamento {
   v: OSVisao;
   telefone?: string;
   semTelefone: boolean;
@@ -341,10 +410,17 @@ export interface ItemParaAgendar {
 const propostaDa = (osId: Id, agendamentos: readonly Agendamento[], agoraMs: number) =>
   agendamentos.filter((a) => a.osId === osId && propostaValida(a, agoraMs)).sort((a, b) => a.data.localeCompare(b.data))[0];
 
-/** OS aprovadas aguardando agendamento (fila da recepção). A aprovada há mais tempo primeiro. */
-export function paraAgendar(oss: readonly OSVisao[], agendamentos: readonly Agendamento[], agora: MarcoISO): Contagem<ItemParaAgendar> {
+/**
+ * "Aguardando agendamento" = orçamento aprovado e sem dia de entrada marcado (estado aguardando_agendamento; a fila
+ * da recepção), com telefone e há quantos dias foi aprovado. A aprovada há mais tempo primeiro.
+ */
+export function aguardandoAgendamento(
+  oss: readonly OSVisao[],
+  agendamentos: readonly Agendamento[],
+  agora: MarcoISO,
+): Contagem<ItemAguardandoAgendamento> & { maisAntigoDias: number; semTelefone: number } {
   const agoraMs = paraMs(agora);
-  const itens: ItemParaAgendar[] = oss
+  const itens: ItemAguardandoAgendamento[] = oss
     .filter((v) => v.os.estado === "aguardando_agendamento")
     .map((v) => {
       const aprovadoEm = versaoAtual(v)?.aprovacao?.aprovadoEm;
@@ -353,7 +429,7 @@ export function paraAgendar(oss: readonly OSVisao[], agendamentos: readonly Agen
       return { v, telefone, semTelefone: !telefone, proposta: propostaDa(v.os.id, agendamentos, agoraMs), aprovadoEm, dias: Math.max(0, Math.floor((agoraMs - paraMs(desde)) / MS_DIA)) };
     });
   itens.sort((a, b) => compararMarcos(a.aprovadoEm ?? a.v.os.criadoEm, b.aprovadoEm ?? b.v.os.criadoEm) || placa(a.v).localeCompare(placa(b.v)));
-  return lista(itens);
+  return { ...lista(itens), maisAntigoDias: itens[0]?.dias ?? 0, semTelefone: itens.filter((i) => i.semTelefone).length };
 }
 
 // ---------------------------------------------------------------- Para fazer hoje

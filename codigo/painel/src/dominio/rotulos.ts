@@ -26,12 +26,12 @@ import type { Modulo } from "./permissoes";
 
 // Rótulos pt-BR centralizados (CLAUDE.md). Cada estado tem texto e tom de cor (docs/painel-design.md §2).
 
-// Nomes da oficina (sprint SG), os mesmos das situações da tela Atendimentos (orcamentos/lista.ts).
+// Nomes da oficina (sprint SG; voz do dono no SH), os mesmos das situações da tela Orçamentos (orcamentos/lista.ts).
 export const ESTADO_OS: Record<EstadoOS, { texto: string; tom: Tom }> = {
   rascunho: { texto: "Em orçamento", tom: "neutro" },
   // espera de terceiro / falta da oficina: atenção suave (pílula clara com ponto); amarelo fica só para ação
-  aguardando_aprovacao: { texto: "Esperando aprovação", tom: "atencao" },
-  aguardando_agendamento: { texto: "Falta agendar", tom: "atencao" },
+  aguardando_aprovacao: { texto: "Aguardando aprovação", tom: "atencao" },
+  aguardando_agendamento: { texto: "Aguardando agendamento", tom: "atencao" },
   agendada: { texto: "Agendado", tom: "escuro" },
   na_oficina: { texto: "Na oficina", tom: "escuro" },
   pronta: { texto: "Pronto", tom: "ok" },
@@ -339,7 +339,7 @@ export const GRUPOS_MENU: { id: GrupoMenu; nome: string }[] = [
 export const MENU: { modulo: Modulo; rota: string; nome: string; nomePara?: Partial<Record<Papel, string>>; icone: NomeIcone; grupo: GrupoMenu }[] = [
   { modulo: "minhas_tarefas", rota: "/producao/eu", nome: "Minhas tarefas", icone: "celular", grupo: "operacao" },
   { modulo: "geral", rota: "/geral", nome: "Geral", icone: "geral", grupo: "operacao" },
-  { modulo: "orcamentos", rota: "/orcamentos", nome: "Atendimentos", icone: "orcamentos", grupo: "operacao" },
+  { modulo: "orcamentos", rota: "/orcamentos", nome: "Orçamentos", icone: "orcamentos", grupo: "operacao" },
   { modulo: "agenda", rota: "/agenda", nome: "Agenda", icone: "agenda", grupo: "operacao" },
   { modulo: "producao", rota: "/producao", nome: "Produção", nomePara: { producao: "Quadro" }, icone: "producao", grupo: "operacao" },
   { modulo: "vistorias", rota: "/vistorias", nome: "Vistorias", nomePara: { producao: "Fotos" }, icone: "vistorias", grupo: "operacao" },

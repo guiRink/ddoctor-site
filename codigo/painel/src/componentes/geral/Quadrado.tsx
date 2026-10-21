@@ -1,153 +1,112 @@
 import type { ReactNode } from "react";
-import { SUPERFICIE } from "../ui/Basicos";
-import { Placa } from "../ui/Placa";
+import { Icone } from "../Icone";
 
 /**
- * Quadrado do Geral (revisão SG, item 1; docs/painel-design.md §5 "Geral"): título, número grande no canto,
- * uma linha de resumo e as PRÓPRIAS placas, cada uma com uma informação curta. O quadrado inteiro abre a lista
- * completa (gaveta). Fica em `alerta` só quando é problema e o número > 0; com 0 fica cinza, "Nada aqui", e não abre.
+ * Quadrado do Geral (revisão SH, pedido do dono: "inicialmente só números, para não ficar muita informação"):
+ * rótulo, número grande e no máximo uma linha curta de detalhe. Fundo branco (`bg-cartao`, borda suave); sem placas
+ * — clicar abre a gaveta com a lista e as placas (`?lista=<chave>`), com o MESMO total.
  *
- * Quantas placas cabem depende da largura do quadrado (container query), não da tela:
- * < 18rem → 1 coluna, até 2 · 18–25rem → 2 colunas, até 4 · ≥ 25rem → 3 colunas, até 6 · ≥ 40rem (quadrado largo) → 6 colunas.
- * Quando há mais carros que espaço, a última vaga vira "+N" (N = os que não aparecem), por faixa. Na faixa estreita
- * (celular) o "+N" fica ao lado da placa, não embaixo.
+ * Tamanhos: `grande` (Na oficina · Entram hoje · Saem hoje; Atrasados · Parados) e `medio` (Aguardando…, dinheiro).
+ * `problema`: o número que o dono quer zerado. > 0 → número na cor do estado (alerta = atrasado/vencido,
+ * atencao = parado) e borda tingida; = 0 → "0" em `ok` com a frase de tudo certo (`zeroOk`). Sem problema e zerado:
+ * número `tinta-fraca`, "Nada aqui". Zerado não abre (a lista estaria vazia).
+ * Dinheiro: `valor` (R$ já formatado) é o número; a contagem vai no detalhe.
+ * `compacto`: no celular a linha 1 fica em 3 colunas estreitas — só rótulo e número (o detalhe aparece a partir de `sm`).
  */
 
-export type TomInfo = "alerta" | "atencao" | "ok" | "neutro";
+export type TomProblema = "alerta" | "atencao";
 
-export interface ItemQuadrado {
-  chave: string;
-  /** Placa do carro; sem carro (despesa, título avulso), um texto curto no lugar. */
-  placa?: string;
-  texto?: string;
-  info?: string;
-  tom?: TomInfo;
-}
-
-const LIMITES = [2, 4, 6] as const; // por faixa de largura (1, 2, 3 colunas)
-const MAX = 6;
-
-// Visibilidade por faixa [estreita, média, larga]: classes literais para o Tailwind encontrar.
-const VISIVEL: Record<string, string> = {
-  "111": "flex",
-  "011": "hidden @[18rem]:flex",
-  "001": "hidden @[25rem]:flex",
-  "010": "hidden @[18rem]:flex @[25rem]:hidden",
-  "100": "flex @[18rem]:hidden",
-  "110": "flex @[25rem]:hidden",
-  "101": "flex @[18rem]:hidden @[25rem]:flex",
-  "000": "hidden",
-};
-
-const COR_INFO: Record<TomInfo, string> = {
-  alerta: "text-alerta font-medium",
-  atencao: "text-atencao font-medium",
-  ok: "text-ok font-medium",
-  neutro: "text-tinta-suave",
-};
-
-/** Quantos itens aparecem na faixa: o limite, ou um a menos quando sobra (a vaga do "+N"). */
-const cabe = (total: number, limite: number) => (total > limite ? limite - 1 : limite);
+const COR_NUMERO: Record<TomProblema, string> = { alerta: "text-alerta", atencao: "text-atencao" };
+const COR_BORDA: Record<TomProblema, string> = { alerta: "border-alerta/40", atencao: "border-atencao/40" };
 
 export function Quadrado({
   titulo,
   total,
-  resumo,
+  detalhe,
   valor,
-  itens,
-  problema = false,
+  tamanho = "medio",
+  problema,
+  zeroOk,
+  compacto = false,
   onAbrir,
-  largo = false,
   className = "",
 }: {
   titulo: string;
   total: number;
-  /** Linha curta abaixo do título ("6 em serviço · 2 prontos"). */
-  resumo?: ReactNode;
-  /** Valor em reais já formatado (quadrados de dinheiro). */
+  /** Uma linha curta abaixo do número ("6 em serviço · 2 prontos"). */
+  detalhe?: ReactNode;
+  /** Valor em reais já formatado: vira o número do quadrado (quadros de dinheiro). */
   valor?: string;
-  itens: ItemQuadrado[];
-  /** O número é um problema (parados, vencido): fica em alerta quando > 0. */
-  problema?: boolean;
+  tamanho?: "grande" | "medio";
+  /** O número é um problema que o dono quer zerado: cor do estado quando > 0. */
+  problema?: TomProblema;
+  /** Frase de tudo certo quando o problema está zerado ("Tudo em dia"). */
+  zeroOk?: string;
+  /** Celular: 3 por linha, sem detalhe abaixo de `sm`. */
+  compacto?: boolean;
   onAbrir: () => void;
-  /** Faixa de largura total (quadrado extra, ex.: "Prontos — cobrar franquia" da recepção): no computador, tudo numa linha. */
-  largo?: boolean;
   className?: string;
 }) {
   const vazio = total === 0;
-  const alerta = problema && !vazio;
-  const mostrados = itens.slice(0, MAX);
-  const caps = LIMITES.map((l) => cabe(total, l));
+  const aceso = problema && !vazio;
+  const tudoCerto = problema && vazio;
+  const grande = tamanho === "grande";
+
+  const corNumero = aceso ? COR_NUMERO[problema] : tudoCerto ? "text-ok" : vazio ? "text-tinta-fraca" : "text-tinta";
+  const tamanhoNumero = valor
+    ? grande
+      ? "text-[24px] md:text-[32px]"
+      : "text-[20px] md:text-[28px]"
+    : grande
+      ? "text-[32px] md:text-[48px]"
+      : "text-[28px] md:text-[32px]";
+  const textoDetalhe = vazio ? (tudoCerto ? zeroOk : "Nada aqui") : detalhe;
 
   return (
     <section
       aria-label={titulo}
-      className={`@container relative flex flex-col min-w-0 ${largo ? "lg:flex-row lg:items-center lg:gap-8" : ""} ${SUPERFICIE} p-3.5 md:p-5 transition-colors duration-150 ${
-        alerta ? "border-alerta/40" : ""
-      } ${vazio ? "" : "hover:border-linha-forte hover:bg-cinza-50 has-[button:focus-visible]:border-linha-forte"} ${className}`}
+      className={`group relative flex flex-col min-w-0 bg-cartao border rounded-cartao shadow-cartao transition-colors duration-150 ${
+        aceso ? COR_BORDA[problema] : "border-linha"
+      } ${grande ? (compacto ? "p-3 sm:p-4 md:p-5 min-h-[104px] md:min-h-[148px]" : "p-4 md:p-5 min-h-[120px] md:min-h-[148px]") : "p-3.5 md:p-4 min-h-[104px] md:min-h-[120px]"} ${
+        vazio ? "" : "hover:border-linha-forte hover:bg-cinza-50 has-[button:focus-visible]:border-linha-forte"
+      } ${className}`}
     >
-      <header className={`flex items-start justify-between gap-2 md:gap-3 ${largo ? "lg:contents" : ""}`}>
-        <div className={`min-w-0 ${largo ? "lg:w-[260px] lg:shrink-0" : ""}`}>
-          <h2 className={`text-[14px] md:text-[15px] font-semibold leading-snug ${vazio ? "text-tinta-suave" : "text-tinta"}`}>
-            {vazio ? (
-              titulo
-            ) : (
-              <button
-                type="button"
-                onClick={onAbrir}
-                aria-haspopup="dialog"
-                className="text-left after:absolute after:inset-0 after:rounded-cartao focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-amarelo-escuro focus-visible:after:outline-offset-2 cursor-pointer"
-              >
-                {titulo}
-                <span className="sr-only">
-                  : {total}. Abrir a lista.
-                </span>
-              </button>
-            )}
-          </h2>
-          {resumo && !vazio && <p className="mt-0.5 text-[12px] md:text-[13px] leading-snug text-tinta-suave numero">{resumo}</p>}
-        </div>
-        <span
-          aria-hidden="true"
-          className={`shrink-0 -mt-0.5 ${largo ? "lg:order-last lg:ml-auto lg:mt-0" : ""} text-[24px] md:text-[28px] font-semibold leading-none tracking-[-0.02em] numero ${
-            alerta ? "text-alerta" : vazio ? "text-tinta-fraca" : "text-tinta"
+      <div className="flex items-start justify-between gap-2">
+        <h2 className={`min-w-0 font-semibold leading-snug ${grande ? (compacto ? "text-[13px] sm:text-[15px] md:text-[16px]" : "text-[15px] md:text-[16px]") : "text-[14px] md:text-[15px]"} ${vazio && !tudoCerto ? "text-tinta-suave" : "text-tinta"}`}>
+          {vazio ? (
+            titulo
+          ) : (
+            <button
+              type="button"
+              onClick={onAbrir}
+              aria-haspopup="dialog"
+              className="text-left after:absolute after:inset-0 after:rounded-cartao focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-amarelo-escuro focus-visible:after:outline-offset-2 cursor-pointer"
+            >
+              {titulo}
+              <span className="sr-only">
+                : {valor ?? total}. Abrir a lista.
+              </span>
+            </button>
+          )}
+        </h2>
+        {!vazio && (
+          <span aria-hidden="true" className={`shrink-0 text-tinta-fraca group-hover:text-tinta-suave ${compacto ? "max-sm:hidden" : ""}`}>
+            <Icone nome="seta" tamanho={16} />
+          </span>
+        )}
+      </div>
+
+      <p aria-hidden={vazio ? undefined : "true"} className={`mt-auto pt-2 font-semibold leading-none tracking-[-0.02em] numero truncate ${tamanhoNumero} ${corNumero}`}>
+        {valor ?? total}
+      </p>
+      {textoDetalhe && (
+        <p
+          className={`mt-1.5 md:mt-2 text-[12px] md:text-[13px] leading-snug truncate numero ${compacto ? "max-sm:hidden" : ""} ${
+            tudoCerto ? "text-ok font-medium" : vazio ? "text-tinta-fraca" : "text-tinta-suave"
           }`}
         >
-          {total}
-        </span>
-      </header>
-
-      {vazio ? (
-        <p className="mt-3 md:mt-4 text-[13px] text-tinta-fraca">Nada aqui</p>
-      ) : (
-        <>
-          {valor && <p className={`mt-2 md:mt-3 ${largo ? "lg:mt-0 lg:shrink-0" : ""} text-[16px] md:text-[18px] font-semibold leading-none numero ${alerta ? "text-alerta" : "text-tinta"}`}>{valor}</p>}
-          <ul className={`mt-3 md:mt-4 ${largo ? "lg:mt-0 lg:flex-1" : ""} flex flex-wrap items-start gap-x-1.5 gap-y-2.5 @[18rem]:grid @[18rem]:grid-cols-2 @[18rem]:gap-x-3 @[25rem]:grid-cols-3 @[40rem]:grid-cols-6 md:gap-y-3`}>
-            {mostrados.map((item, i) => (
-              <li key={item.chave} className={`${VISIVEL[caps.map((c) => (i < c ? "1" : "0")).join("")]} flex-col gap-1 min-w-0 w-24 @[18rem]:w-auto`}>
-                {item.placa ? (
-                  <Placa placa={item.placa} />
-                ) : (
-                  <span className="block h-[27px] leading-[27px] max-w-full px-2 rounded-controle bg-cinza-100 text-[12px] font-semibold truncate">
-                    {item.texto}
-                  </span>
-                )}
-                {item.info && <span className={`text-[12px] leading-tight truncate numero ${COR_INFO[item.tom ?? "neutro"]}`}>{item.info}</span>}
-              </li>
-            ))}
-            {LIMITES.map((limite, faixa) => {
-              if (total <= limite) return null;
-              const marca = LIMITES.map((_, f) => (f === faixa ? "1" : "0")).join("");
-              return (
-                <li key={`mais-${faixa}`} aria-hidden="true" className={`${VISIVEL[marca]} flex-col`}>
-                  <span className="inline-flex items-center justify-center h-[27px] w-10 @[18rem]:w-12 rounded-[3px] bg-cinza-100 text-[13px] font-semibold text-tinta-suave numero">
-                    +{total - caps[faixa]}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </>
+          {textoDetalhe}
+        </p>
       )}
     </section>
   );

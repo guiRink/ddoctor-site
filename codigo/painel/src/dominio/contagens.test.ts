@@ -10,12 +10,14 @@ import {
   clienteDeve,
   devedorDoTitulo,
   dinheiroVencido,
+  aguardandoAgendamento,
+  aguardandoAprovacao,
+  aguardandoSeguradora,
+  atrasados,
   entramHoje,
-  esperandoSeguradora,
   naOficina,
-  paraAgendar,
   paraFazerHoje,
-  paradosEAtrasados,
+  parados,
   prontosCobrarFranquia,
   saemHoje,
   textoFalta,
@@ -167,7 +169,7 @@ describe("saemHoje", () => {
   });
 });
 
-describe("paradosEAtrasados", () => {
+describe("atrasados e parados (revisão SH: duas situações diferentes)", () => {
   const oss = [
     visao("1", { previsaoEntrega: "2026-10-09" }, { etapas: [etapa({ estado: "em_execucao", nome: "Pintura", prazoEm: m("2026-10-12T09:00") })] }),
     visao("2", {}, { etapas: [etapa({ estado: "em_execucao", nome: "Pintura", prazoEm: m("2026-10-12T09:00") })] }),
@@ -176,38 +178,65 @@ describe("paradosEAtrasados", () => {
     }),
     visao("4", { previsaoEntrega: "2026-10-16" }, { etapas: [etapa({ estado: "em_execucao", prazoEm: m("2026-10-12T16:00") })] }),
     visao("5", { estado: "pronta", previsaoEntrega: "2026-10-01" }),
+    visao("6", { previsaoEntrega: "2026-10-20" }, {
+      etapas: [etapa({ estado: "bloqueada", nome: "Funilaria", prazoEm: m("2026-10-14T09:00"), bloqueios: [{ inicioEm: m("2026-10-08T10:00"), motivo: "Aguardando peça" }] })],
+    }),
+    visao("7", { estado: "aguardando_agendamento", previsaoEntrega: "2026-10-01" }),
   ];
-  it("impedidos + etapa atrasada + entrega vencida = carros impedidos ou atrasados (mesmo número da situação)", () => {
-    const r = paradosEAtrasados(oss, agora, cfg);
-    expect(r.total).toBe(3);
-    const porSituacao = oss.filter((v) => ["impedido", "atrasado"].includes(situacaoCartao(v.os, v.etapas, agora, cfg) ?? "")).length;
-    expect(r.total).toBe(porSituacao);
-  });
-  it("motivo, desde quando e quem resolve; impedido vence entrega vencida; o mais antigo primeiro", () => {
-    const r = paradosEAtrasados(oss, agora, cfg);
-    expect(r.itens.map((i) => [i.v.os.id, i.tipo, i.motivo, i.haQuanto, i.quemResolve])).toEqual([
-      ["1", "entrega_vencida", "Entrega prometida passou", "atrasado 2 dias", "producao"],
-      ["3", "impedido", "Peça não chegou", "há 2 h", "dono"],
-      ["2", "etapa_atrasada", "Pintura passou do prazo", "atrasado 1 h", "producao"],
+  it("atrasados = passou do prazo (entrega vencida ou etapa além do prazo); pronto e fora da oficina não contam", () => {
+    const r = atrasados(oss, agora, cfg);
+    expect(r.total).toBe(r.itens.length);
+    expect(r.itens.map((i) => [i.v.os.id, i.motivo, i.haQuanto, i.entregaVencida, i.parado, i.quemResolve])).toEqual([
+      ["1", "Entrega prometida passou", "atrasado 2 dias", true, false, "producao"],
+      ["3", "Entrega prometida passou", "atrasado 2 dias", true, true, "producao"],
+      ["2", "Pintura passou do prazo", "atrasado 1 h", false, false, "producao"],
     ]);
-    expect(r.itens[1]).toMatchObject({ entregaVencida: true, responsavelId: "p1" });
+  });
+  it("parados = etapa impedida, com o motivo e há quanto tempo; o parado há mais tempo primeiro", () => {
+    const r = parados(oss, agora, cfg);
+    expect(r.total).toBe(r.itens.length);
+    expect(r.itens.map((i) => [i.v.os.id, i.motivo, i.haQuanto, i.atrasado, i.quemResolve])).toEqual([
+      ["6", "Aguardando peça", "há 4 dias", false, "dono"],
+      ["3", "Peça não chegou", "há 2 h", true, "dono"],
+    ]);
+    expect(r.itens[1]).toMatchObject({ responsavelId: "p1" });
+  });
+  it("o carro impedido e vencido aparece nas duas; os demais batem com a situação do cartão", () => {
+    const at = new Set(atrasados(oss, agora, cfg).itens.map((i) => i.v.os.id));
+    const pa = new Set(parados(oss, agora, cfg).itens.map((i) => i.v.os.id));
+    expect([...at].filter((id) => pa.has(id))).toEqual(["3"]);
+    const situacao = (id: string) => {
+      const v = oss.find((x) => x.os.id === id)!;
+      return situacaoCartao(v.os, v.etapas, agora, cfg);
+    };
+    expect([...pa].every((id) => situacao(id) === "impedido")).toBe(true);
+    expect(oss.filter((v) => situacao(v.os.id) === "atrasado").every((v) => at.has(v.os.id))).toBe(true);
+    expect([...at].filter((id) => !pa.has(id)).every((id) => situacao(id) === "atrasado")).toBe(true);
   });
 });
 
-describe("esperandoSeguradora", () => {
-  it("só seguradora aguardando aprovação; há X dias desde o envio; valor orçado sem negados", () => {
-    const oss = [
-      visao("1", { estado: "aguardando_aprovacao" }, { versoes: [versao({ estado: "enviado", aprovacao: undefined, criadoEm: m("2026-10-07T09:00") })] }),
-      visao("2", { estado: "aguardando_aprovacao" }, { versoes: [versao({ estado: "enviado", aprovacao: undefined, criadoEm: m("2026-10-11T09:00") })] }),
-      visao("3", { estado: "aguardando_aprovacao", origem: "particular" }),
-      visao("4", { estado: "na_oficina" }),
-    ];
-    const r = esperandoSeguradora(oss, agora);
-    expect(r).toMatchObject({ total: 2, maisAntigoDias: 5 });
-    expect(r.itens.map((i) => [i.v.os.id, i.seguradora, i.protocolo, i.dias, i.valorOrcado])).toEqual([
+describe("aguardandoAprovacao e aguardandoSeguradora", () => {
+  const oss = [
+    visao("1", { estado: "aguardando_aprovacao" }, { versoes: [versao({ estado: "enviado", aprovacao: undefined, criadoEm: m("2026-10-07T09:00") })] }),
+    visao("2", { estado: "aguardando_aprovacao" }, { versoes: [versao({ estado: "enviado", aprovacao: undefined, criadoEm: m("2026-10-11T09:00") })] }),
+    visao("3", { estado: "aguardando_aprovacao", origem: "particular" }, { atendimentos: [], versoes: [versao({ tipo: "interno", estado: "enviado", aprovacao: undefined, criadoEm: m("2026-10-10T09:00") })] }),
+    visao("4", { estado: "na_oficina" }),
+    visao("5", { estado: "rascunho", origem: "particular" }, { atendimentos: [], versoes: [versao({ tipo: "interno", estado: "rascunho", aprovacao: undefined })] }),
+    visao("6", { estado: "aguardando_agendamento" }),
+  ];
+  it("todo orçamento feito e não aprovado conta um (particular ou seguradora); rascunho não entra", () => {
+    const r = aguardandoAprovacao(oss, agora);
+    expect(r).toMatchObject({ total: 3, maisAntigoDias: 5, deSeguradora: 2, particulares: 1 });
+    expect(r.itens.map((i) => [i.v.os.id, i.pagador, i.protocolo, i.dias, i.valorOrcado])).toEqual([
       ["1", "HDI", "P-1", 5, 40000],
+      ["3", "Particular", undefined, 2, 40000],
       ["2", "HDI", "P-2", 1, 40000],
     ]);
+  });
+  it("aguardando seguradora = os de seguradora dentro de aguardando aprovação", () => {
+    const r = aguardandoSeguradora(oss, agora);
+    expect(r).toMatchObject({ total: 2, maisAntigoDias: 5 });
+    expect(r.itens.map((i) => i.v.os.id)).toEqual(["1", "2"]);
   });
 });
 
@@ -248,7 +277,7 @@ describe("dinheiroVencido", () => {
   });
 });
 
-describe("paraAgendar, prontosCobrarFranquia e clienteDeve", () => {
+describe("aguardandoAgendamento, prontosCobrarFranquia e clienteDeve", () => {
   it("aguardando agendamento, a aprovada há mais tempo primeiro, com telefone e proposta", () => {
     const oss = [
       visao("1", { estado: "aguardando_agendamento" }),
@@ -257,8 +286,8 @@ describe("paraAgendar, prontosCobrarFranquia e clienteDeve", () => {
     ];
     oss[0].cliente.telefone = undefined;
     const proposta: Agendamento = { id: "p", osId: "2", data: "2026-10-13", janela: "manha", estado: "proposto", origem: "calia", expiraEm: m("2026-10-12T12:00") };
-    const r = paraAgendar(oss, [proposta], agora);
-    expect(r.total).toBe(2);
+    const r = aguardandoAgendamento(oss, [proposta], agora);
+    expect(r).toMatchObject({ total: 2, maisAntigoDias: 10, semTelefone: 1 });
     expect(r.itens.map((i) => [i.v.os.id, i.dias, i.semTelefone, i.proposta?.id])).toEqual([
       ["2", 10, false, "p"],
       ["1", 2, true, undefined],
@@ -338,9 +367,15 @@ function visoes(e: EstadoDemo): OSVisao[] {
   }));
 }
 
+const DEMO_SH = (at: ReturnType<typeof atrasados>, pa: ReturnType<typeof parados>) => ({
+  atrasados: at.itens.map((i) => i.v.veiculo.placa),
+  parados: pa.itens.map((i) => i.v.veiculo.placa),
+});
+const DEMO_ESPERADO = { atrasados: ["RKP1L34"], parados: ["RTB2E90"] };
+
 describe("demonstração (quarta 21/10/2026)", () => {
   for (const hora of ["08:30", "10:00", "14:00", "16:30"]) {
-    it(`às ${hora}: 8 na oficina, 1 entra, 3 saem, 2 parados, 2 com a seguradora, 2 vencidos, 7 a fazer; no máximo 2 laranja`, () => {
+    it(`às ${hora}: 8 na oficina, 1 entra, 3 saem, 1 atrasado, 1 parado, 2 com a seguradora, 2 vencidos, 7 a fazer; no máximo 2 laranja`, () => {
       const agoraDemo = `2026-10-21T${hora}:00-03:00`;
       const e = gerarDemo(paraMs(agoraDemo));
       const oss = visoes(e);
@@ -348,13 +383,21 @@ describe("demonstração (quarta 21/10/2026)", () => {
       expect([na.total, na.emServico, na.prontos]).toEqual([8, 6, 2]);
       expect(entramHoje(oss, e.agendamentos, agoraDemo).total).toBe(1);
       expect(saemHoje(oss, agoraDemo, e.config, e.pagadores).total).toBe(3);
-      expect(paradosEAtrasados(oss, agoraDemo, e.config).itens.map((i) => i.v.veiculo.placa)).toEqual(["RKP1L34", "RTB2E90"]);
-      expect(esperandoSeguradora(oss, agoraDemo).total).toBe(2);
+      const at = atrasados(oss, agoraDemo, e.config);
+      const pa = parados(oss, agoraDemo, e.config);
+      expect([at.total, pa.total]).toEqual([at.itens.length, pa.itens.length]);
+      expect(DEMO_SH(at, pa)).toEqual(DEMO_ESPERADO);
+      const ap = aguardandoAprovacao(oss, agoraDemo);
+      expect(ap.total).toBe(ap.itens.length);
+      expect(ap.total).toBe(filtrarPorEstado(oss, "aguardando_aprovacao").length); // = aba de Orçamentos
+      expect(aguardandoSeguradora(oss, agoraDemo).total).toBe(2);
+      const ag = aguardandoAgendamento(oss, e.agendamentos, agoraDemo);
+      expect(ag.total).toBe(filtrarPorEstado(oss, "aguardando_agendamento").length);
       const venc = dinheiroVencido(e.titulos, e.pagadores, oss, agoraDemo);
       expect([venc.total, venc.valor]).toEqual([2, 156000]);
       expect(venc.porDevedor.map((g) => g.nome)).not.toContain("Maxpar");
       expect(paraFazerHoje(oss, e.agendamentos, agoraDemo, e.config).total).toBe(7);
-      // aba "Na oficina" de Atendimentos = o mesmo número do Geral/Produção/TV
+      // aba "Na oficina" de Orçamentos = o mesmo número do Geral/Produção/TV
       expect(filtrarPorEstado(oss, "na_oficina")).toHaveLength(na.total);
       const contagem = (s: string) => na.itens.filter((i) => i.situacao === s).length;
       expect(contagem("atencao")).toBeLessThanOrEqual(2);
@@ -365,12 +408,12 @@ describe("demonstração (quarta 21/10/2026)", () => {
 
 describe("demonstração na sexta à tarde e no sábado (revisão SG: laranja)", () => {
   for (const agoraDemo of ["2026-10-23T14:30:00-03:00", "2026-10-23T17:30:00-03:00", "2026-10-24T10:00:00-03:00"]) {
-    it(`${agoraDemo}: no máximo 2 laranja e os mesmos 2 parados`, () => {
+    it(`${agoraDemo}: no máximo 2 laranja e os mesmos atrasados e parados`, () => {
       const e = gerarDemo(paraMs(agoraDemo));
       const oss = visoes(e);
       const na = naOficina(oss, agoraDemo, e.config);
       expect(na.itens.filter((i) => i.situacao === "atencao").length).toBeLessThanOrEqual(2);
-      expect(paradosEAtrasados(oss, agoraDemo, e.config).total).toBe(2);
+      expect(DEMO_SH(atrasados(oss, agoraDemo, e.config), parados(oss, agoraDemo, e.config))).toEqual(DEMO_ESPERADO);
     });
   }
 });

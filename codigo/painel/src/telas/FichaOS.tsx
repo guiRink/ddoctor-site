@@ -83,7 +83,7 @@ export function FichaOS() {
     <Link to="/orcamentos" className="inline-flex items-center gap-1.5 h-11 max-sm:min-w-11 text-[13px] font-medium text-tinta-suave no-underline hover:text-tinta">
       <Icone nome="voltar" tamanho={16} />
       {/* no celular a seta basta: o texto disputava a linha com Imprimir e Enviar orçamento */}
-      <span className="max-sm:sr-only">Atendimentos</span>
+      <span className="max-sm:sr-only">Orçamentos</span>
     </Link>
   );
 

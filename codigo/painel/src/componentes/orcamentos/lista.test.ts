@@ -222,7 +222,7 @@ describe("aplicar e ordenar", () => {
     expect(ids(filtrarPorEstado(lista, "pronta"))).toEqual(["medio"]);
   });
 
-  it("origem com_seguradora tira só os particulares (link do quadro Esperando seguradora)", () => {
+  it("origem com_seguradora tira só os particulares (link do quadro Aguardando seguradora)", () => {
     const f = lerFiltros(new URLSearchParams("estado=aguardando_aprovacao&origem=com_seguradora"));
     expect(f.origem).toBe("com_seguradora");
     const l = [...lista, os("misto", "aguardando_aprovacao", { origem: "misto" }), os("part", "aguardando_aprovacao", { origem: "particular" })];
