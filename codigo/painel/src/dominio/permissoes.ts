@@ -31,6 +31,7 @@ import type { Papel } from "@compartilhado/tipos";
  *   podeVerFolha          dono, financeiro — folha, salários e comissões em R$ (na Equipe, só o dono entre os
  *                         que abrem a Equipe; o financeiro vê a folha pelo módulo `folha`).
  *   podeGerenciarEquipe   dono, gestor — cadastrar funcionário, editar nome/função/telefone, ativar/desativar.
+ *   podeEditarPerfilDe    dono edita todos; gestor só recepção, produção e aparelhos (não dono/gestor/financeiro).
  *   podeEditarPapel       dono — trocar papel (permissão), criar/trocar login e senha, desligar o dono.
  *   podeEditarSalario     dono — salário mensal e ajustes da folha.
  *   podeEditarComissoes   dono — regras de comissão em Ajustes.
@@ -160,6 +161,19 @@ export function podePagarFolha(papel: Papel): boolean {
 /** Cadastrar funcionário, editar nome/função/telefone, ativar/desativar: dono e gerente. */
 export function podeGerenciarEquipe(papel: Papel): boolean {
   return acesso(papel, "equipe") === "editar";
+}
+
+/** Papéis que o gerente não edita nem desativa (o banco recusa: S1, RLS de perfil). */
+const ACIMA_DO_GERENTE: readonly Papel[] = ["dono", "gestor", "financeiro"];
+
+/**
+ * Editar ou desativar o cadastro de alguém com o papel `papelAlvo`: o dono edita todos; o gerente só quem não é
+ * dono, gerente nem financeiro (inclusive ele mesmo fica de fora — o banco recusa); os outros papéis, ninguém.
+ */
+export function podeEditarPerfilDe(papelQuemEdita: Papel, papelAlvo: Papel): boolean {
+  if (!podeGerenciarEquipe(papelQuemEdita)) return false;
+  if (papelQuemEdita === "dono") return true;
+  return !ACIMA_DO_GERENTE.includes(papelAlvo);
 }
 
 /**

@@ -329,6 +329,8 @@ export const ERRO: Record<string, string> = {
   // sprint SF: fotos reais, tipos de reparo e configuração editável
   arquivo_invalido: "Esse arquivo não é uma foto que o painel consiga abrir. Use JPG, PNG, WebP ou a câmera.",
   arquivo_grande: "Foto grande demais (acima de 25 MB). Tire de novo ou escolha outra.",
+  // = COMPRESSAO_FOTO.maxBytesSalva (limite do bucket "fotos")
+  foto_acima_limite: "A foto passou de 2 MB mesmo depois de reduzida no aparelho, e o servidor não aceita. Tire de novo ou escolha outra.",
   fotos_temporarias: "Foto salva só nesta aba: o navegador não deixou guardar no aparelho (modo privado?). Ela some ao fechar.",
   foto_nao_encontrada: "Foto não encontrada. Atualize a tela.",
   foto_externa: "Foto da vistoria da Maxpar: não pode ser removida pelo painel.",
@@ -355,7 +357,7 @@ export const ERRO: Record<string, string> = {
   usuario_invalido: "Use só letras sem acento, números, ponto, hífen ou sublinhado (começando e terminando com letra ou número).",
   usuario_em_uso: "Esse usuário já é de outra pessoa da oficina. Escolha outro.",
   senha_curta: "A senha precisa de ao menos 8 caracteres.",
-  senha_longa: "A senha pode ter no máximo 72 caracteres.",
+  senha_longa: "Senha longa demais: o limite é 72 bytes (cada letra com acento conta 2, emoji conta 4). Encurte a senha.",
   proprio_login: "Você não pode tirar o seu próprio login.",
   alvo_obrigatorio: "Escolha a etapa ou o tipo de serviço que paga a comissão.",
   regra_duplicada: "Já existe uma comissão ligada para essa etapa e esse tipo de serviço. Edite a que existe.",

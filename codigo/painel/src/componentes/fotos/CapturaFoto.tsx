@@ -20,7 +20,7 @@ import { fonteMiniatura } from "./formato";
 type Fase = Exclude<FaseVistoria, "externa">;
 
 /** Erros em que tentar de novo com o mesmo arquivo não adianta. */
-const SEM_NOVA_TENTATIVA = new Set(["arquivo_invalido", "arquivo_grande", "fase_invalida", "os_nao_encontrada", "etapa_nao_encontrada"]);
+const SEM_NOVA_TENTATIVA = new Set(["arquivo_invalido", "arquivo_grande", "foto_acima_limite", "fase_invalida", "os_nao_encontrada", "etapa_nao_encontrada"]);
 
 interface Pendente {
   chave: number;

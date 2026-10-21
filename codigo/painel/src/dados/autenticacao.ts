@@ -83,6 +83,24 @@ export async function sair(sb: ClienteSupabase = clienteSupabase()): Promise<voi
   await sb.auth.signOut({ scope: "local" });
 }
 
+/**
+ * A oficina já tem dono com login? (RPC `oficina_tem_dono`, que o anon pode chamar.) Abre sozinho o passo a passo de
+ * "Primeiro acesso da oficina" no login quando não tem. `null` = não deu para saber (sem rede, banco antigo): a
+ * tela deixa o passo a passo recolhido.
+ */
+export async function oficinaTemDono(sb?: ClienteSupabase): Promise<boolean | null> {
+  try {
+    const { data, error } = await (sb ?? clienteSupabase()).rpc("oficina_tem_dono");
+    if (error || typeof data !== "boolean") return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+export const useOficinaTemDono = () =>
+  useQuery({ queryKey: ["auth", "oficina_tem_dono"], queryFn: () => oficinaTemDono(), staleTime: 5 * 60_000, retry: false });
+
 export const useEntrar = () => useMutation({ mutationFn: ({ texto, senha }: { texto: string; senha: string }) => entrar(texto, senha) });
 export const useSair = () => useMutation({ mutationFn: () => sair() });
 

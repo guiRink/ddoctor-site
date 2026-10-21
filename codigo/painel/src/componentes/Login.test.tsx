@@ -4,6 +4,12 @@ import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { Login, SemAcesso } from "./Login";
 
+const auth = vi.hoisted(() => ({ temDono: null as boolean | null }));
+vi.mock("../dados/autenticacao", async (original) => ({
+  ...(await original<typeof import("../dados/autenticacao")>()),
+  useOficinaTemDono: () => ({ data: auth.temDono }),
+}));
+
 const comConsultas = (ui: ReactNode) => render(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
 
 describe("tela de login", () => {
@@ -24,6 +30,27 @@ describe("tela de login", () => {
     expect(screen.getByText(/Peça ao dono para redefinir em/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver demonstração" }).getAttribute("href")).toMatch(/\?demo=1$/);
     expect(screen.getByText("Primeiro acesso da oficina")).toBeInTheDocument();
+  });
+});
+
+describe("primeiro acesso da oficina", () => {
+  const passo = () => screen.getByText("Primeiro acesso da oficina").closest("details")!;
+
+  it("sem dono com login (oficina_tem_dono = falso): o passo a passo já vem aberto", () => {
+    auth.temDono = false;
+    comConsultas(<Login />);
+    expect(passo()).toHaveAttribute("open");
+    expect(screen.getByText(/ainda não tem dono com login/)).toBeInTheDocument();
+  });
+
+  it("com dono, ou sem saber: fica recolhido", () => {
+    auth.temDono = true;
+    const { unmount } = comConsultas(<Login />);
+    expect(passo()).not.toHaveAttribute("open");
+    unmount();
+    auth.temDono = null;
+    comConsultas(<Login />);
+    expect(passo()).not.toHaveAttribute("open");
   });
 });
 

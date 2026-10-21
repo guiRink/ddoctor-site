@@ -1,5 +1,5 @@
 import { useId, useState, type FormEvent, type ReactNode } from "react";
-import { useAutenticacao, useEntrar, type Acesso } from "../dados/autenticacao";
+import { useAutenticacao, useEntrar, useOficinaTemDono, type Acesso } from "../dados/autenticacao";
 import { mensagemErro } from "../dados/hooks";
 import { enderecoModo, modoDados } from "../dados/modo";
 import { Botao, Esqueleto } from "./ui/Basicos";
@@ -76,6 +76,8 @@ export function PassosPrimeiroAcesso() {
 
 export function Login() {
   const entrar = useEntrar();
+  // sem dono com login ainda: o passo a passo do primeiro acesso já vem aberto
+  const semDono = useOficinaTemDono().data === false;
   const [usuario, setUsuario] = useState("");
   const [senha, setSenha] = useState("");
   const [verSenha, setVerSenha] = useState(false);
@@ -186,12 +188,14 @@ export function Login() {
               )}
             </div>
           </form>
-          <details className="group border-t border-linha px-6 sm:px-8 py-4">
+          <details key={semDono ? "sem-dono" : "com-dono"} open={semDono} className="group border-t border-linha px-6 sm:px-8 py-4">
             <summary className="flex items-center justify-between gap-2 min-h-11 md:min-h-8 cursor-pointer list-none text-[13px] font-medium text-tinta-suave hover:text-tinta">
               Primeiro acesso da oficina
               <Icone nome="baixo" tamanho={14} className="shrink-0 transition-transform duration-150 group-open:rotate-180" />
             </summary>
-            <p className="mt-1 text-[13px] text-tinta-suave leading-relaxed">Ainda não existe dono com login? Faça uma vez:</p>
+            <p className="mt-1 text-[13px] text-tinta-suave leading-relaxed">
+              {semDono ? "Esta oficina ainda não tem dono com login. Faça uma vez:" : "Ainda não existe dono com login? Faça uma vez:"}
+            </p>
             <PassosPrimeiroAcesso />
           </details>
         </div>

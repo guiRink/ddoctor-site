@@ -76,7 +76,7 @@ import {
 } from "./mapeamento";
 import { limparChecklist, normalizarCliente, normalizarFornecedor, normalizarTelefone, normalizarVeiculo } from "./normalizar";
 import type { ClienteSupabase } from "./supabase";
-import { LIMITE_AUDITORIA, LIMITES_SENHA, type ClienteFicha, type ClienteResumo, type FolhaDoMes, type OSVisao, type Repositorio, type Resultado } from "./repositorio";
+import { LIMITE_AUDITORIA, validarSenha, type ClienteFicha, type ClienteResumo, type FolhaDoMes, type OSVisao, type Repositorio, type Resultado } from "./repositorio";
 
 /**
  * Repositório do banco real (sprint S1): a mesma interface do RepositorioMemoria, sobre o Supabase.
@@ -147,7 +147,8 @@ export function comoResultado(data: unknown): Resultado & Record<string, unknown
 function codigoDoUpload(erro: { message?: string; status?: number; statusCode?: string | number } | null): string {
   const status = Number(erro?.status ?? erro?.statusCode ?? 0);
   const msg = erro?.message ?? "";
-  if (status === 413 || /maximum allowed size|too large|payload too large/i.test(msg)) return "arquivo_grande";
+  // o bucket "fotos" aceita até 2 MB (COMPRESSAO_FOTO.maxBytesSalva)
+  if (status === 413 || /maximum allowed size|too large|payload too large/i.test(msg)) return "foto_acima_limite";
   if (status === 415 || /mime/i.test(msg)) return "arquivo_invalido";
   if (status === 401 || status === 403 || /row-level security|unauthorized|not authorized/i.test(msg)) return "sem_permissao";
   return "falha_envio_foto";
@@ -695,7 +696,7 @@ export function criarRepositorioSupabase(sb: ClienteSupabase): Repositorio {
       if (!FASES_FOTO_INTERNA.includes(nova.fase)) return { ok: false, codigo: "fase_invalida" };
       if (nova.etapaId && !FASES_FOTO_ETAPA.includes(nova.fase)) return { ok: false, codigo: "fase_invalida" };
       if (!ehImagem(nova.arquivo) || !ehImagem(nova.miniatura)) return { ok: false, codigo: "arquivo_invalido" };
-      if (nova.arquivo.size > COMPRESSAO_FOTO.maxBytesSalva || nova.miniatura.size > COMPRESSAO_FOTO.maxBytesSalva) return { ok: false, codigo: "arquivo_grande" };
+      if (nova.arquivo.size > COMPRESSAO_FOTO.maxBytesSalva || nova.miniatura.size > COMPRESSAO_FOTO.maxBytesSalva) return { ok: false, codigo: "foto_acima_limite" };
       let c: Contexto;
       try {
         c = await contexto();
@@ -806,8 +807,8 @@ export function criarRepositorioSupabase(sb: ClienteSupabase): Repositorio {
       const u = validarUsuario(dados.usuario, perfis, perfilId);
       if (!u.ok) return { ok: false, codigo: u.codigo, campo: "usuario" };
       const senha = dados.senha ?? "";
-      if (senha.length < LIMITES_SENHA.min) return { ok: false, codigo: "senha_curta", campo: "senha" };
-      if (senha.length > LIMITES_SENHA.max) return { ok: false, codigo: "senha_longa", campo: "senha" };
+      const erroSenha = validarSenha(senha);
+      if (erroSenha) return { ok: false, codigo: erroSenha, campo: "senha" };
       const r = await equipeLogin({ acao: "definir", perfilId, usuario: u.usuario, senha });
       if (!r.ok) return { ok: false, codigo: r.codigo, ...(r.codigo?.startsWith("usuario_") ? { campo: "usuario" } : r.codigo?.startsWith("senha_") ? { campo: "senha" } : {}) };
       return { ok: true, usuario: typeof r.usuario === "string" ? r.usuario : u.usuario, ...(typeof r.email === "string" ? { email: r.email } : {}) };

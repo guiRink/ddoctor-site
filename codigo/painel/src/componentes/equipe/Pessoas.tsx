@@ -23,7 +23,7 @@ export function Pessoas({
   oss,
   agora,
   desdeMes,
-  podeGerenciar,
+  podeEditarPessoa,
   podeDarLogin,
   onAbrir,
   onEditar,
@@ -36,7 +36,8 @@ export function Pessoas({
   agora: string;
   /** Início do mês (marco) para "No mês". */
   desdeMes: string;
-  podeGerenciar: boolean;
+  /** Mostra "Editar" na linha desta pessoa? (gerente não edita dono, gerente nem financeiro: podeEditarPerfilDe) */
+  podeEditarPessoa: (p: Perfil) => boolean;
   podeDarLogin: boolean;
   onAbrir: (p: Perfil) => void;
   onEditar: (p: Perfil) => void;
@@ -122,7 +123,7 @@ export function Pessoas({
                 {n.concluidas.length}
               </Td>
               <Td className="text-right whitespace-nowrap w-[1%]">
-                {podeGerenciar && (
+                {podeEditarPessoa(p) && (
                   <Botao tamanho="denso" variante="contorno" aria-label={`Editar ${p.nome}`} onClick={parar(() => onEditar(p))}>
                     Editar
                   </Botao>
@@ -167,9 +168,9 @@ export function Pessoas({
                 {n.concluidas.length} {n.concluidas.length === 1 ? "etapa concluída" : "etapas concluídas"}
               </dd>
             </dl>
-            {(podeGerenciar || podeDarLogin) && (
+            {(podeEditarPessoa(p) || podeDarLogin) && (
               <div className="flex gap-2 px-4 pb-4">
-                {podeGerenciar && (
+                {podeEditarPessoa(p) && (
                   <Botao variante="contorno" className="flex-1" aria-label={`Editar ${p.nome}`} onClick={() => onEditar(p)}>
                     Editar
                   </Botao>

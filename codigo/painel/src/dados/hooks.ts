@@ -35,20 +35,37 @@ export const repositorio: Repositorio = criarRepositorio();
 
 const CHAVE = ["oficina"] as const;
 
-export const useOSs = () => useQuery({ queryKey: [...CHAVE, "os"], queryFn: () => repositorio.listarOS() });
+/**
+ * Atualização periódica das telas que ficam abertas sem ninguém mexer (sprint S1). O tempo real do Supabase aplica a
+ * RLS e os papéis `producao` e `dispositivo` não recebem os eventos das tabelas: sem isto a TV e o quadro paravam.
+ *   - "quadro": Produção e Minhas tarefas — a cada 30 s, só com a aba visível;
+ *   - "tv": Quadro da TV — a cada 20 s, mesmo em segundo plano (a TV nunca tem foco).
+ * O tempo real continua ligado (useTempoReal) onde funciona; isto é o piso.
+ */
+export type Atualizacao = "quadro" | "tv";
+export const ATUALIZACAO_MS: Record<Atualizacao, number> = { quadro: 30_000, tv: 20_000 };
+
+export function opcoesAtualizacao(atualizacao?: Atualizacao): { refetchInterval?: number; refetchIntervalInBackground?: boolean } {
+  if (!atualizacao) return {};
+  return { refetchInterval: ATUALIZACAO_MS[atualizacao], refetchIntervalInBackground: atualizacao === "tv" };
+}
+
+export const useOSs = (atualizacao?: Atualizacao) =>
+  useQuery({ queryKey: [...CHAVE, "os"], queryFn: () => repositorio.listarOS(), ...opcoesAtualizacao(atualizacao) });
 export const useOS = (id: Id | undefined) =>
   useQuery({ queryKey: [...CHAVE, "os", id], queryFn: () => repositorio.obterOS(id!), enabled: Boolean(id) });
 export const useAgendamentos = () => useQuery({ queryKey: [...CHAVE, "agendamentos"], queryFn: () => repositorio.listarAgendamentos() });
 export const useCapacidade = (inicio: DataISO, fim: DataISO) =>
   useQuery({ queryKey: [...CHAVE, "capacidade", inicio, fim], queryFn: () => repositorio.listarCapacidade(inicio, fim) });
-export const usePerfis = (habilitado = true) =>
-  useQuery({ queryKey: [...CHAVE, "perfis"], queryFn: () => repositorio.listarPerfis(), enabled: habilitado });
+export const usePerfis = (habilitado = true, atualizacao?: Atualizacao) =>
+  useQuery({ queryKey: [...CHAVE, "perfis"], queryFn: () => repositorio.listarPerfis(), enabled: habilitado, ...opcoesAtualizacao(atualizacao) });
 export const useTiposReparo = () => useQuery({ queryKey: [...CHAVE, "tipos"], queryFn: () => repositorio.listarTiposReparo() });
 export const usePagadores = () => useQuery({ queryKey: [...CHAVE, "pagadores"], queryFn: () => repositorio.listarPagadores() });
 export const useTitulos = () => useQuery({ queryKey: [...CHAVE, "titulos"], queryFn: () => repositorio.listarTitulos() });
 export const useDespesas = () => useQuery({ queryKey: [...CHAVE, "despesas"], queryFn: () => repositorio.listarDespesas() });
 export const useMateriais = () => useQuery({ queryKey: [...CHAVE, "materiais"], queryFn: () => repositorio.listarMateriais() });
-export const useConfig = () => useQuery({ queryKey: [...CHAVE, "config"], queryFn: () => repositorio.obterConfig() });
+export const useConfig = (atualizacao?: Atualizacao) =>
+  useQuery({ queryKey: [...CHAVE, "config"], queryFn: () => repositorio.obterConfig(), ...opcoesAtualizacao(atualizacao) });
 export const useClientes = () => useQuery({ queryKey: [...CHAVE, "clientes"], queryFn: () => repositorio.listarClientes() });
 export const useCliente = (id: Id | undefined) =>
   useQuery({ queryKey: [...CHAVE, "clientes", id], queryFn: () => repositorio.obterCliente(id!), enabled: Boolean(id) });

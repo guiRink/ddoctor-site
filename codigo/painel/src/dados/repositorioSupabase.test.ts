@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { criarRepositorioSupabase, ErroDados, novoUuid } from "./repositorioSupabase";
-import { entrar } from "./autenticacao";
+import { entrar, oficinaTemDono } from "./autenticacao";
 import { supabaseFalso, type Op } from "./supabaseFalso";
 
 const ISO = "2026-10-21T12:00:00+00:00";
@@ -295,7 +295,7 @@ describe("RepositorioSupabase — escrita", () => {
     expect(balde.remove).toHaveBeenCalledTimes(1);
     expect(balde.remove.mock.calls[0][0]).toHaveLength(2);
     balde.upload.mockClear();
-    expect(await repo.adicionarFoto("os-1", { fase: "entrada", arquivo: img(2 * 1024 * 1024 + 1), miniatura: img(100) })).toEqual({ ok: false, codigo: "arquivo_grande" });
+    expect(await repo.adicionarFoto("os-1", { fase: "entrada", arquivo: img(2 * 1024 * 1024 + 1), miniatura: img(100) })).toEqual({ ok: false, codigo: "foto_acima_limite" });
     expect(await repo.adicionarFoto("os-1", { fase: "entrada", etapaId: "e-1", arquivo: img(10), miniatura: img(10) })).toEqual({ ok: false, codigo: "fase_invalida" });
     expect(balde.upload).not.toHaveBeenCalled();
   });
@@ -319,6 +319,8 @@ describe("RepositorioSupabase — escrita", () => {
     expect(invoke).toHaveBeenCalledWith("equipe-login", { body: { acao: "definir", perfilId: "p-2", usuario: "diego", senha: "segredo-123" } });
     expect(await repo.definirLogin("p-2", { usuario: "ocupado", senha: "segredo-123" })).toEqual({ ok: false, codigo: "usuario_em_uso", campo: "usuario" });
     expect(await repo.definirLogin("p-2", { usuario: "diego", senha: "curta" })).toEqual({ ok: false, codigo: "senha_curta", campo: "senha" });
+    // 40 letras com acento = 80 bytes: passa do limite de 72 bytes do Auth sem ir ao servidor
+    expect(await repo.definirLogin("p-2", { usuario: "diego", senha: "ç".repeat(40) })).toEqual({ ok: false, codigo: "senha_longa", campo: "senha" });
     expect(invoke).toHaveBeenCalledTimes(2);
 
     const gerente = supabaseFalso({ eu: { id: "p-g", oficina_id: "of-1", papel: "gestor" }, tabelas: perfis, invoke });
@@ -384,6 +386,13 @@ describe("login", () => {
     const { cliente, falso } = supabaseFalso();
     falso.auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: { code: "invalid_credentials", status: 400, message: "Invalid login credentials" } });
     expect(await entrar("diego", "errada", cliente)).toEqual({ ok: false, codigo: "login_invalido" });
+  });
+
+  it("oficinaTemDono: lê a RPC oficina_tem_dono; erro ou resposta estranha = null (não sabe)", async () => {
+    expect(await oficinaTemDono(supabaseFalso({ rpc: { oficina_tem_dono: { data: false, error: null } } }).cliente)).toBe(false);
+    expect(await oficinaTemDono(supabaseFalso({ rpc: { oficina_tem_dono: { data: true, error: null } } }).cliente)).toBe(true);
+    expect(await oficinaTemDono(supabaseFalso().cliente)).toBeNull(); // função ausente (PGRST202)
+    expect(await oficinaTemDono(supabaseFalso({ rpc: { oficina_tem_dono: { data: "sim", error: null } } }).cliente)).toBeNull();
   });
 
   it("novoUuid gera uuid v4 mesmo sem crypto.randomUUID", () => {

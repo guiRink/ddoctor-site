@@ -61,8 +61,8 @@ export interface DadosLogin {
   senha: string;
 }
 
-/** Tamanho da senha do login do funcionário (provisório — a confirmar; o Supabase Auth pede 6+). */
-export const LIMITES_SENHA = { min: 8, max: 72 } as const;
+/** Tamanho da senha do login do funcionário: mínimo em caracteres, máximo em bytes UTF-8 (dominio/senha.ts). */
+export { LIMITES_SENHA, validarSenha } from "../dominio/senha";
 
 /**
  * Visão de leitura de uma OS com tudo o que as telas precisam (montada pelo repositório).

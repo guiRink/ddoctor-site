@@ -9,6 +9,7 @@ import {
   podeEditarConfig,
   podeEditarPapel,
   podeEditarSalario,
+  podeEditarPerfilDe,
   podeGerenciarEquipe,
   podePagarFolha,
   podeRemoverFoto,
@@ -64,6 +65,13 @@ describe("matriz final (S1)", () => {
     expect(quem(podeEditarComissoes)).toEqual(["dono"]);
     // o nome antigo do módulo segue igual à Equipe
     for (const p of PAPEIS) expect(acesso(p, "funcionarios")).toBe(acesso(p, "equipe"));
+  });
+
+  it("podeEditarPerfilDe: dono edita todos; gerente não mexe em dono, gerente nem financeiro", () => {
+    for (const alvo of PAPEIS) expect(podeEditarPerfilDe("dono", alvo)).toBe(true);
+    expect(PAPEIS.filter((alvo) => podeEditarPerfilDe("gestor", alvo))).toEqual(["recepcao", "producao", "dispositivo"]);
+    for (const quemEdita of ["recepcao", "producao", "financeiro", "dispositivo"] as const)
+      for (const alvo of PAPEIS) expect(podeEditarPerfilDe(quemEdita, alvo)).toBe(false);
   });
 
   it("Folha: dono e financeiro veem e pagam; o resto não", () => {

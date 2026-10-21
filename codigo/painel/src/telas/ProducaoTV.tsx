@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import type { ConfigOficina } from "@compartilhado/tipos";
 import { dataNoFuso } from "@compartilhado/dominio/fuso";
 import { alertaCarroBase } from "@compartilhado/dominio/config";
-import { useAgora, useConfig, useOSs, usePerfis } from "../dados/hooks";
+import { ATUALIZACAO_MS, useAgora, useConfig, useOSs, usePerfis } from "../dados/hooks";
 import { Icone, type NomeIcone } from "../componentes/Icone";
 import { MarcaD } from "../componentes/ui/Marca";
 import { CartaoTV } from "../componentes/producao/CartaoTV";
@@ -27,7 +27,7 @@ import {
   paginasTV,
 } from "../componentes/producao/quadro";
 
-const ATUALIZAR_MS = 15_000;
+const ATUALIZAR_MS = ATUALIZACAO_MS.tv; // 20 s (hooks.ts); o aviso "Tentando de novo a cada…" usa o mesmo número
 const PAGINA_MS = 20_000;
 const SEM_ATUALIZAR_MS = 60_000; // acima disso o rodapé avisa que o quadro pode estar desatualizado
 const CABECALHO_PX = 104;
@@ -58,7 +58,7 @@ function useTamanhoTela() {
 
 /**
  * Quadro da TV da oficina (docs/painel-design.md §4 e §5.1): fundo preto, sem menu, sem cursor, sem foco e sem
- * rolagem; atualiza a cada 15 s. Padrão: **mosaico** de quadrados pintados pela cor do carro (pedido do dono, 2º
+ * rolagem; atualiza a cada 20 s. Padrão: **mosaico** de quadrados pintados pela cor do carro (pedido do dono, 2º
  * áudio). Alternativa: `?visao=etapas`, as colunas por etapa. Filtro fixo pela URL nas duas:
  * #/producao/tv?filtro=atrasados|vermelhos|laranjas|parados|hoje (impedidos, link antigo, cai em parados).
  */
@@ -68,18 +68,14 @@ export function ProducaoTV() {
   return visao === "etapas" ? <TVEtapas /> : <TVMosaico />;
 }
 
-/** Os dados da TV (os mesmos nas duas visões) e o refetch a cada 15 s. */
+/** Os dados da TV (os mesmos nas duas visões), recarregados a cada 20 s. */
 function useDadosTV() {
-  const consulta = useOSs();
-  const config = useConfig();
+  // atualização periódica pelo hook (também em segundo plano): o tempo real não chega ao papel `dispositivo`
+  const consulta = useOSs("tv");
+  const config = useConfig("tv");
   const agora = useAgora(ATUALIZAR_MS);
   const [params] = useSearchParams();
   const filtro = lerFiltro(params.get("filtro") ?? new URLSearchParams(window.location.search).get("filtro"));
-  const { refetch } = consulta;
-  useEffect(() => {
-    const t = setInterval(() => refetch(), ATUALIZAR_MS);
-    return () => clearInterval(t);
-  }, [refetch]);
   const itens = useMemo(
     () => (consulta.data && config.data ? montarItens(consulta.data, agora, config.data) : []),
     [consulta.data, config.data, agora],
@@ -327,7 +323,7 @@ function Paginas({ atual, total, rotulo }: { atual: number; total: number; rotul
  */
 function TVEtapas() {
   const { consulta, config, filtro, itens, atualizadoEm, desatualizado } = useDadosTV();
-  const perfisQ = usePerfis();
+  const perfisQ = usePerfis(true, "tv");
   const { l, a } = useTamanhoTela();
   const totais = contarItens(itens);
   const colunas = useMemo(() => montarColunas(filtrarItens(itens, filtro), consulta.data ?? []), [itens, filtro, consulta.data]);

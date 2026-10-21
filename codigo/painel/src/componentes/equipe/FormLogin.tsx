@@ -2,7 +2,7 @@ import { useId, useState } from "react";
 import type { Perfil } from "@compartilhado/tipos";
 import { DOMINIO_LOGIN, normalizarUsuario, sugerirUsuario } from "@compartilhado/dominio/equipe";
 import { mensagemErro, useAcoes } from "../../dados/hooks";
-import { LIMITES_SENHA } from "../../dados/repositorio";
+import { LIMITES_SENHA, validarSenha } from "../../dados/repositorio";
 import { Botao } from "../ui/Basicos";
 import { Aviso, CLASSE_CAMPO, Grupo } from "../ui/Campos";
 import { Gaveta } from "../ui/Gaveta";
@@ -27,6 +27,12 @@ export function FormLogin({ perfil, perfis, souEu, onFechar, onFeito }: { perfil
 
   async function enviar() {
     setErro(undefined);
+    const erroSenha = validarSenha(senha);
+    if (erroSenha) {
+      setErro({ campo: "senha", texto: mensagemErro(erroSenha) });
+      document.getElementById(`${id}-senha`)?.focus();
+      return;
+    }
     try {
       const r = await acoes.definirLogin.mutateAsync([perfil.id, { usuario, senha }]);
       if (!r.ok || !r.usuario) return setErro({ campo: r.campo, texto: mensagemErro(r.codigo) });
@@ -119,7 +125,7 @@ export function FormLogin({ perfil, perfis, souEu, onFechar, onFeito }: { perfil
         id={`${id}-senha`}
         rotulo={temLogin ? "Nova senha" : "Senha"}
         erro={erroDe("senha")}
-        dica={`Gerada para você; pode trocar. No mínimo ${LIMITES_SENHA.min} caracteres. Ela aparece mais uma vez depois de salvar, para copiar.`}
+        dica={`Gerada para você; pode trocar. No mínimo ${LIMITES_SENHA.min} caracteres e no máximo ${LIMITES_SENHA.maxBytes} bytes (letra com acento conta 2, emoji 4). Ela aparece mais uma vez depois de salvar, para copiar.`}
         extra={
           <button
             type="button"

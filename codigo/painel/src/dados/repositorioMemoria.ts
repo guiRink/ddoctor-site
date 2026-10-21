@@ -22,11 +22,11 @@ import { comissoesDoPeriodo, validarRegraComissao, type OSComissao } from "@comp
 import { calcularFolha, despesaDaFolha, pagarLinhaFolha, totaisFolha } from "@compartilhado/dominio/folha";
 import { historicoFuncionario, type OSHistorico } from "@compartilhado/dominio/historicoFuncionario";
 import { FASE_VISTORIA, PAPEL } from "../dominio/rotulos";
-import { podeEditarComissoes, podeEditarPapel, podeEditarSalario, podeGerenciarEquipe, podePagarFolha, podeVer, podeVerFolha } from "../dominio/permissoes";
+import { podeEditarComissoes, podeEditarPapel, podeEditarPerfilDe, podeEditarSalario, podeGerenciarEquipe, podePagarFolha, podeVer, podeVerFolha } from "../dominio/permissoes";
 import { TIPOS_REPARO_PADRAO, gerarDemo, type EstadoDemo } from "./demo";
 import { EMAIL, normalizarCliente, normalizarTelefone } from "./normalizar";
 import { apagarBlobs, apagarOrfaos, guardarBlobs, lerBlobs, limparBlobs } from "./fotosLocais";
-import { LIMITE_AUDITORIA, LIMITES_SENHA, type ClienteFicha, type ClienteResumo, type FolhaDoMes, type NovoAtendimentoRapido, type OSVisao, type Repositorio, type Resultado } from "./repositorio";
+import { LIMITE_AUDITORIA, validarSenha, type ClienteFicha, type ClienteResumo, type FolhaDoMes, type NovoAtendimentoRapido, type OSVisao, type Repositorio, type Resultado } from "./repositorio";
 
 /**
  * Repositório de demonstração: guarda tudo na memória do navegador (com cópia em localStorage para
@@ -1340,7 +1340,7 @@ export const repositorioMemoria: Repositorio = {
       if (!FASES_FOTO_ETAPA.includes(nova.fase)) return { ok: false, codigo: "fase_invalida" };
     }
     if (!ehImagem(nova.arquivo) || !ehImagem(nova.miniatura)) return { ok: false, codigo: "arquivo_invalido" };
-    if (nova.arquivo.size > COMPRESSAO_FOTO.maxBytesSalva || nova.miniatura.size > COMPRESSAO_FOTO.maxBytesSalva) return { ok: false, codigo: "arquivo_grande" };
+    if (nova.arquivo.size > COMPRESSAO_FOTO.maxBytesSalva || nova.miniatura.size > COMPRESSAO_FOTO.maxBytesSalva) return { ok: false, codigo: "foto_acima_limite" };
     const id = novoId("f");
     const { persistente } = await guardarBlobs(id, { arquivo: nova.arquivo, miniatura: nova.miniatura });
     const urls = { url: criarUrl(nova.arquivo), miniaturaUrl: criarUrl(nova.miniatura) };
@@ -1397,6 +1397,8 @@ export const repositorioMemoria: Repositorio = {
     if (!podeGerenciarEquipe(ator)) return { ok: false, codigo: "sem_permissao" };
     const existente = entrada.id ? estado.perfis.find((p) => p.id === entrada.id) : undefined;
     if (entrada.id && !existente) return { ok: false, codigo: "perfil_inexistente" };
+    // o gerente não edita nem desativa dono, gerente ou financeiro (igual à RLS do banco)
+    if (existente && !podeEditarPerfilDe(ator, existente.papel)) return { ok: false, codigo: "sem_permissao" };
     // permissão: só o dono troca (o gerente cadastra sempre como Produção)
     const papelAntes: Papel = existente?.papel ?? "producao";
     if (entrada.papel !== papelAntes && !podeEditarPapel(ator)) return { ok: false, codigo: "sem_permissao", campo: "papel" };
@@ -1454,8 +1456,8 @@ export const repositorioMemoria: Repositorio = {
     const u = validarUsuario(dados.usuario, estado.perfis, perfilId);
     if (!u.ok) return { ok: false, codigo: u.codigo, campo: "usuario" };
     const senha = dados.senha ?? "";
-    if (senha.length < LIMITES_SENHA.min) return { ok: false, codigo: "senha_curta", campo: "senha" };
-    if (senha.length > LIMITES_SENHA.max) return { ok: false, codigo: "senha_longa", campo: "senha" };
+    const erroSenha = validarSenha(senha);
+    if (erroSenha) return { ok: false, codigo: erroSenha, campo: "senha" };
     // DEMONSTRAÇÃO: só marca que a pessoa tem login. A senha não é guardada em lugar nenhum (nem aqui, nem na
     // auditoria). No Supabase isto chama a Edge Function `equipe-login` (service_role só no servidor), que cria ou
     // atualiza o usuário do Auth com o e-mail técnico emailDeLogin(usuario) e essa senha.

@@ -40,6 +40,10 @@ describe("equipe no repositório em memória", () => {
     expect((await repo.salvarFuncionario({ id: r.id, nome: "Tiago", papel: "producao", funcao: "Pintor" })).ok).toBe(true);
     expect((await repo.salvarFuncionario({ id: r.id, nome: "Tiago", papel: "gestor" })).codigo).toBe("sem_permissao");
     expect((await repo.salvarFuncionario({ id: r.id, nome: "Tiago", papel: "producao", salarioMensal: 999900 })).codigo).toBe("sem_permissao");
+    // nem edita ou desativa dono, gerente (nem ele mesmo) ou financeiro — igual à RLS do banco
+    expect((await repo.salvarFuncionario({ id: "p-paula", nome: "Paula Mendes", papel: "financeiro", ativo: false })).codigo).toBe("sem_permissao");
+    expect((await repo.salvarFuncionario({ id: "p-gerente", nome: "Renata A.", papel: "gestor" })).codigo).toBe("sem_permissao");
+    expect((await repo.salvarFuncionario({ id: "p-dono", nome: "Carlos", papel: "dono" })).codigo).toBe("sem_permissao");
     comoQuem("p-dono");
     const depois = (await repo.listarPerfis()).find((p) => p.id === r.id)!;
     expect(depois).toMatchObject({ nome: "Tiago", funcao: "Pintor", salarioMensal: 250000 });
@@ -62,6 +66,7 @@ describe("equipe no repositório em memória", () => {
     expect(JSON.stringify(await repo.listarAuditoria())).not.toContain("abcd-efgh-jk");
     expect((await repo.definirLogin("p-rafael", { usuario: "diego", senha: "12345678" })).codigo).toBe("usuario_em_uso");
     expect((await repo.definirLogin("p-rafael", { usuario: "rafael", senha: "123" })).codigo).toBe("senha_curta");
+    expect((await repo.definirLogin("p-rafael", { usuario: "rafael", senha: "ã".repeat(37) })).codigo).toBe("senha_longa");
     expect((await repo.removerLogin("p-dono")).codigo).toBe("proprio_login");
     expect((await repo.removerLogin("p-marcos")).ok).toBe(true);
     expect((await repo.listarPerfis()).find((p) => p.id === "p-marcos")?.temLogin).toBe(false);

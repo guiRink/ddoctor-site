@@ -5,7 +5,7 @@ import { dataNoFuso, formatarMarco, mesDe, msDeLocal } from "@compartilhado/domi
 import { useAgora, useOSs, usePerfis, useRegrasComissao } from "../dados/hooks";
 import type { OSVisao } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
-import { podeEditarPapel, podeEditarSalario, podeGerenciarEquipe, podePagarFolha, podeVerFolha, veDadosSensiveis } from "../dominio/permissoes";
+import { podeEditarPapel, podeEditarPerfilDe, podeEditarSalario, podeGerenciarEquipe, podePagarFolha, podeVerFolha, veDadosSensiveis } from "../dominio/permissoes";
 import { Botao, CabecalhoPagina, Esqueleto } from "../componentes/ui/Basicos";
 import { Abas, PainelAba } from "../componentes/ui/Abas";
 import { GrupoFiltros } from "../componentes/ui/Filtros";
@@ -171,7 +171,7 @@ function Conteudo({ perfis, oss, regras }: { perfis: Perfil[]; oss: OSVisao[]; r
               oss={oss}
               agora={agora}
               desdeMes={desdeMes}
-              podeGerenciar={gerenciar}
+              podeEditarPessoa={(p) => podeEditarPerfilDe(papel, p.papel)}
               podeDarLogin={dono}
               onAbrir={(p) => setGaveta({ tipo: "perfil", id: p.id })}
               onEditar={(p) => setGaveta({ tipo: "editar", id: p.id })}
@@ -210,14 +210,14 @@ function Conteudo({ perfis, oss, regras }: { perfis: Perfil[]; oss: OSVisao[]; r
           agora={agora}
           veFolha={veFolha}
           veContato={veDadosSensiveis(papel)}
-          podeGerenciar={gerenciar && aberto.papel !== "dispositivo"}
+          podeGerenciar={podeEditarPerfilDe(papel, aberto.papel) && aberto.papel !== "dispositivo"}
           podeDarLogin={dono}
           onFechar={() => setGaveta(null)}
           onEditar={() => setGaveta({ tipo: "editar", id: aberto.id })}
           onLogin={() => setGaveta({ tipo: "login", id: aberto.id })}
         />
       )}
-      {gaveta?.tipo === "editar" && gerenciar && (gaveta.id === undefined || aberto) && (
+      {gaveta?.tipo === "editar" && gerenciar && (gaveta.id === undefined || (aberto && podeEditarPerfilDe(papel, aberto.papel))) && (
         <FormFuncionario
           perfil={aberto}
           podeEditarPapel={dono}
