@@ -13,7 +13,7 @@ import { totalCusto, validarMaoDeObra } from "@compartilhado/dominio/custos";
 import { aplicarMovimento } from "@compartilhado/dominio/estoque";
 import { calcularFechamento, checarCaixaAberto } from "@compartilhado/dominio/caixa";
 import { resumoPagamentosCliente, saldoACobrarCliente } from "@compartilhado/dominio/pagamentos";
-import { aplicarConfig } from "@compartilhado/dominio/config";
+import { aplicarConfig, laranjaFracao } from "@compartilhado/dominio/config";
 import { validarTipoReparo } from "@compartilhado/dominio/tiposReparo";
 import { COMPRESSAO_FOTO, FASES_FOTO_ETAPA, FASES_FOTO_INTERNA, expiracaoFoto, fotosDaEtapa } from "@compartilhado/dominio/fotos";
 import { FASE_VISTORIA } from "../dominio/rotulos";
@@ -1211,7 +1211,7 @@ export const repositorioMemoria: Repositorio = {
       carrosSimultaneos: `carros ao mesmo tempo ${antes.capacidadePadrao.carrosSimultaneos} → ${r.config.capacidadePadrao.carrosSimultaneos}`,
       pecasDia: `peças por dia ${antes.capacidadePadrao.pecasDia ?? "—"} → ${r.config.capacidadePadrao.pecasDia}`,
       expediente: `expediente ${r.config.expediente.inicio}–${r.config.expediente.fim}`,
-      semaforo: `semáforo laranja ${r.config.semaforo.laranjaAntesHoras} h, vermelho ${r.config.semaforo.vermelhoBloqueioHoras} h`,
+      semaforo: `semáforo laranja com ${Math.round(laranjaFracao(r.config) * 100)} % do prazo, vermelho ${r.config.semaforo.vermelhoBloqueioHoras} h de impedimento`,
     };
     auditar("editar", "config_oficina", undefined, `Configuração confirmada: ${r.campos.map((c) => nomes[c]).join("; ")}`);
     salvar();

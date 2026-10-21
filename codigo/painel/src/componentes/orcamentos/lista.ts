@@ -3,6 +3,7 @@ import { dataNoFuso, diferencaDias } from "@compartilhado/dominio/fuso";
 import { normalizarPlaca } from "@compartilhado/dominio/placa";
 import type { OSVisao } from "../../dados/repositorio";
 import { valorDaLista, versaoAtual } from "./selecoes";
+import { ESTADO_OS } from "../../dominio/rotulos";
 
 /**
  * Lista de Orçamentos (sprint SG): filtros, ordenação e textos de tempo — tudo puro, sem React.
@@ -43,17 +44,9 @@ export const ABAS_ESTADO: AbaEstado[] = [
 ];
 
 /** Nome da situação na linha, igual ao da aba (palavras da oficina; tom da etiqueta vem de ESTADO_OS). */
-export const SITUACAO: Record<EstadoOS, string> = {
-  rascunho: "Em orçamento",
-  aguardando_aprovacao: "Esperando aprovação",
-  aguardando_agendamento: "Falta agendar",
-  agendada: "Agendado",
-  na_oficina: "Na oficina",
-  pronta: "Pronto",
-  entregue: "Entregue",
-  encerrada: "Fechado",
-  cancelada: "Cancelado",
-};
+export const SITUACAO = Object.fromEntries(
+  Object.entries(ESTADO_OS).map(([estado, r]) => [estado, r.texto]),
+) as Record<EstadoOS, string>;
 
 /** "1 de 2 autorizadas"; "1 de 1 autorizada"; sem peças = "sem peças". */
 export function textoPecas(autorizadas: number, total: number): string {
