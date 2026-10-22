@@ -12,10 +12,14 @@ Projetos (org D Doctor, sa-east-1, plano grátis): `ddoctor-teste` (ref `mogpmpy
 - **Fotos**: ~1.000/mês ≈ 220 MB/mês comprimidas → 1 GB grátis dura ~4 meses; começar no Storage privado do Supabase, com aviso de uso e troca para a Cloudflare R2 preparada.
 
 ## Checklist
-- [ ] Regras e tipos: equipe, papéis, folha, comissões, matriz de permissões (gerente sem financeiro)
-- [ ] Telas: Equipe (funcionários, login, função, histórico, folha) e Ajustes → Comissões, no repositório em memória
-- [ ] Banco: migrations do modelo inteiro, RLS por papel, funções atômicas, Storage de fotos, auditoria, seed padrão (produção) e seed de exemplo (teste)
-- [ ] Função (Edge Function) para o dono criar o login do funcionário
-- [ ] `RepositorioSupabase` + login por usuário/e-mail e senha + troca `VITE_DADOS`
-- [ ] Aplicar no `ddoctor-teste`, conferir RLS e telas
-- [ ] Publicação (GitHub Pages agora; domínio do dono na Cloudflare depois) e aplicar no `ddoctor` zerado
+- [x] Regras e tipos: equipe, papéis, folha, comissões, matriz de permissões (gerente sem financeiro)
+- [x] Telas: Equipe (funcionários, login, função, histórico, folha) e Ajustes → Comissões
+- [x] Banco: migrations 0001–0015 do modelo inteiro, RLS por papel, funções atômicas, views só leitura, Storage de fotos (2 MB), auditoria, tempo real, `oficina_tem_dono`, correções da revisão QA; seed padrão (`producao.sql`) e seed de exemplo (`teste.sql`); 235 checagens (`checagens.sql`); `scripts/aplicar.mjs`
+- [x] Função (Edge Function) `equipe-login` para o dono criar, tirar e sincronizar o login do funcionário
+- [x] `RepositorioSupabase` + login por usuário/e-mail e senha + modo demonstração `?demo=1`
+- [x] Aplicar no `ddoctor-teste`, conferir RLS e telas (235/235; dono definido; Edge Function publicada; cadastro aberto desligado; gravação testada)
+- [ ] Publicação no domínio do dono (ddoctorauto.com.br, Cloudflare Pages): conta Cloudflare, domínio, nameservers no Registro.br
+- [ ] Aplicar no `ddoctor` oficial zerado: `aplicar.mjs oficial` (sem dados de exemplo), Edge Function, desligar cadastro aberto, Site URL = https://ddoctorauto.com.br, usuário do dono + `definir_primeiro_dono`, chave anon do oficial no build
+
+## Registro (22/10/2026)
+Feito na branch; detalhes e decisões L64–L71 em `notas/mapa.md`. Em aberto: tudo que depende do dono (Cloudflare e nameservers) e o banco oficial, que o Guilherme aplica à mão.
