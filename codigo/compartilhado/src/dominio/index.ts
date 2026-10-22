@@ -22,3 +22,7 @@ export * from "./relatorios";
 export * from "./producao";
 export * from "./tiposReparo";
 export * from "./fotos";
+export * from "./equipe";
+export * from "./comissoes";
+export * from "./folha";
+export * from "./historicoFuncionario";

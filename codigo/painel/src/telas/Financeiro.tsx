@@ -16,7 +16,7 @@ import {
 } from "../dados/hooks";
 import type { OSVisao } from "../dados/repositorio";
 import { useSessao } from "../dados/sessao";
-import { podeEditar, podeVer, veCustosOS } from "../dominio/permissoes";
+import { podeEditar, podeEditarSalario, podePagarFolha, podeVer, podeVerFolha, veCustosOS } from "../dominio/permissoes";
 import { Botao, CabecalhoPagina, Esqueleto, FaixaIndicadores, Indicador } from "../componentes/ui/Basicos";
 import { EstadoConsultas } from "../componentes/gestao/Consultas";
 import { Retorno } from "../componentes/gestao/Comuns";
@@ -31,10 +31,12 @@ import { FormDespesa } from "../componentes/financeiro/FormDespesa";
 import { FormPagar } from "../componentes/financeiro/FormPagar";
 import { nomeCompetencia, somarMeses } from "../componentes/financeiro/formato";
 import { despesasDaCompetencia, entradasDoMes } from "../componentes/financeiro/modelo";
+import { Folha } from "../componentes/equipe/Folha";
 
 // Sprint SG: Relatórios virou aba (a rota /relatorios redireciona para cá). "Entradas" saiu: as entradas por
-// forma estão no Resumo e cada título recebido em A receber.
-const ABAS = ["resumo", "despesas", "caixa", "relatorios"] as const;
+// forma estão no Resumo e cada título recebido em A receber. Sprint S1: aba Folha (salários e comissões) para
+// quem vê a folha (dono e financeiro), a mesma da Equipe, no mês da competência.
+const ABAS = ["resumo", "despesas", "caixa", "folha", "relatorios"] as const;
 type AbaFinanceiro = (typeof ABAS)[number];
 const MES_VALIDO = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -96,7 +98,8 @@ function Conteudo({
   const podePagar = podeEditar(perfil.papel, "financeiro");
   const [aba, setAba] = useParametro<AbaFinanceiro>("aba", ABAS, "resumo");
   const veRelatorios = podeVer(perfil.papel, "relatorios");
-  const abaAtual: AbaFinanceiro = aba === "relatorios" && !veRelatorios ? "resumo" : aba;
+  const veFolha = podeVerFolha(perfil.papel);
+  const abaAtual: AbaFinanceiro = (aba === "relatorios" && !veRelatorios) || (aba === "folha" && !veFolha) ? "resumo" : aba;
   // mês na URL (?mes=2026-10): o link do relatório antigo e o voltar do navegador caem no mesmo mês
   const [params, setParams] = useSearchParams();
   const mesParam = params.get("mes");
@@ -167,12 +170,13 @@ function Conteudo({
           { valor: "resumo", texto: "Resumo" },
           { valor: "despesas", texto: "Despesas", contagem: daCompetencia.length },
           { valor: "caixa", texto: "Caixa do dia" },
+          ...(veFolha ? [{ valor: "folha" as const, texto: "Folha" }] : []),
           ...(veRelatorios ? [{ valor: "relatorios" as const, texto: "Relatórios" }] : []),
         ]}
       />
 
       <PainelAba idBase="financeiro" valor={abaAtual}>
-        {abaAtual !== "relatorios" && (
+        {abaAtual !== "relatorios" && abaAtual !== "folha" && (
         <FaixaIndicadores colunas={5} className="mb-6 max-md:[&>*:last-child:nth-child(odd)]:col-span-2 max-md:[&>*:last-child:nth-child(odd)]:border-r-0">
           <Indicador
             rotulo="Entradas"
@@ -237,6 +241,7 @@ function Conteudo({
           />
         )}
         {abaAtual === "caixa" && <AbaCaixa titulos={titulos} despesas={despesas} fechamentos={fechamentos} perfis={perfis} hoje={hoje} podeFechar={podePagar} />}
+        {abaAtual === "folha" && <Folha mes={mes} podeAjustar={podeEditarSalario(perfil.papel)} podePagar={podePagarFolha(perfil.papel)} />}
         {abaAtual === "relatorios" && <AbaRelatorios oss={oss} mes={mes} veCustos={veCustosOS(perfil.papel)} />}
       </PainelAba>
 

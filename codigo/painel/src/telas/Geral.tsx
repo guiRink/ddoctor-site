@@ -18,7 +18,7 @@ import {
   prontosCobrarFranquia,
   saemHoje,
 } from "../dominio/contagens";
-import { podeEditar, telaInicial } from "../dominio/permissoes";
+import { podeEditar, telaInicial, veFinanceiro, vePagamentosOS } from "../dominio/permissoes";
 import { Botao, BotaoLink, Erro, SUPERFICIE, Vazio } from "../componentes/ui/Basicos";
 import { Aviso } from "../componentes/ui/Campos";
 import { Gaveta } from "../componentes/ui/Gaveta";
@@ -37,7 +37,8 @@ import { Quadrado } from "../componentes/geral/Quadrado";
  * celular) com o MESMO total (`?lista=<chave>`). Três linhas:
  *   1. Na oficina · Entram hoje · Saem hoje (grandes);
  *   2. Atrasados · Parados (grandes; o dono quer zerados — "0" verde quando estão);
- *   3. Aguardando aprovação · Aguardando seguradora · Aguardando agendamento (+ Dinheiro vencido para dono/gestor).
+ *   3. Aguardando aprovação · Aguardando seguradora · Aguardando agendamento (+ Dinheiro vencido só para quem
+ *      veFinanceiro — S1: o gerente não vê dinheiro).
  * Embaixo, "Para fazer hoje" com quem faz (inclui "Pronto — cobrar franquia R$ X" para a recepção). Números de src/dominio/contagens.ts — os mesmos da Produção, da TV e de
  * Orçamentos. Recepção: mesma estrutura, sem Dinheiro vencido. Financeiro: os quadrados de dinheiro dele.
  * A produção começa em Minhas tarefas.
@@ -45,11 +46,9 @@ import { Quadrado } from "../componentes/geral/Quadrado";
 
 const LINHA_1: ChaveLista[] = ["na_oficina", "entram_hoje", "saem_hoje"];
 const LINHA_2: ChaveLista[] = ["atrasados", "parados"];
-const LINHA_3: Partial<Record<Papel, ChaveLista[]>> = {
-  dono: ["aguardando_aprovacao", "aguardando_seguradora", "aguardando_agendamento", "dinheiro_vencido"],
-  gestor: ["aguardando_aprovacao", "aguardando_seguradora", "aguardando_agendamento", "dinheiro_vencido"],
-  recepcao: ["aguardando_aprovacao", "aguardando_seguradora", "aguardando_agendamento"],
-};
+const LINHA_3: ChaveLista[] = ["aguardando_aprovacao", "aguardando_seguradora", "aguardando_agendamento"];
+/** Linha 3 por papel: o "Dinheiro vencido" só para quem vê o dinheiro da oficina (dono; S1: o gerente saiu). */
+const linha3Do = (papel: Papel): ChaveLista[] => (veFinanceiro(papel) ? [...LINHA_3, "dinheiro_vencido"] : LINHA_3);
 const FINANCEIRO: ChaveLista[] = ["dinheiro_vencido", "vence_7", "recebido_mes", "cobrar_franquia", "a_pagar_7"];
 
 /** Chaves antigas de `?lista=` (sprint SG) continuam abrindo a lista certa. */
@@ -107,19 +106,19 @@ export function Geral() {
       agendar: aguardandoAgendamento(o, ags.data, agora),
       vencido: dinheiroVencido(titulos.data, pagadores.data, o, agora),
       cobrar: prontosCobrarFranquia(o, pagadores.data),
-      // o lembrete de cobrar a franquia do carro pronto é da recepção (revisão QA do SH)
-      afazer: paraFazerHoje(o, ags.data, agora, config.data, undefined, pagadores.data),
+      // o lembrete de cobrar a franquia do carro pronto é da recepção (revisão QA do SH); o gerente não vê dinheiro (S1)
+      afazer: paraFazerHoje(o, ags.data, agora, config.data, undefined, vePagamentosOS(papel) ? pagadores.data : undefined),
       aVencer: venceEm7Dias(titulos.data, pagadores.data, o, agora),
       aPagar: aPagarEm7Dias(despesas.data ?? [], agora),
       recebido: recebidoNoMes(titulos.data, pagadores.data, o, agora),
     };
-  }, [oss.data, ags.data, titulos.data, config.data, perfis.data, pagadores.data, despesas.data, agora]);
+  }, [oss.data, ags.data, titulos.data, config.data, perfis.data, pagadores.data, despesas.data, agora, papel]);
 
   // A produção (e a TV) começam em outra tela; o Geral não é delas.
   if (papel === "producao" || papel === "dispositivo") return <Navigate to={telaInicial(papel)} replace />;
 
   const operacional = !financeiro;
-  const linha3 = LINHA_3[papel] ?? LINHA_3.dono!;
+  const linha3 = linha3Do(papel);
   const chaves = financeiro ? FINANCEIRO : [...LINHA_1, ...LINHA_2, ...linha3];
 
   if (consultas.some((c) => c.isError)) {

@@ -1,9 +1,9 @@
 # GusPainel (D doctor) — mapa
 
 ## Estado atual (sempre atualizado, sempre curto)
-- Onde está: Sprint SH (dois áudios do dono, transcritos pelo Guilherme em `docs/revisao-sh/`: Geral só com números, menu amarelo, "Orçamentos" de volta, "Parado" no lugar de "Impedido" e cor do carro pela entrega e andamento) fechado em 22/10/2026 na branch `sprint/sh-pedidos-audio`; merge, tag `sprint-SH` e publicação em 22/10/2026 (feitos pelo Guilherme logo após este registro). 488 testes, lint sem erros, build ok. Banco real ainda não existe (tudo em memória). Antes: SG (21/10), SF (20/10), SE (13/10), SD (12/10).
-- Próximo passo: Guilherme manda o link ao irmão (checkpoint); o dono salva a base das cores em Ajustes → Cores dos carros; aguardar o domínio (hospedagem Cloudflare Pages) e a conta Supabase do dono; instalar OrbStack; depois S1 (Supabase local: migrations do núcleo mais as tabelas novas do SE e os itens do SG que precisam de banco, RLS, RepositorioSupabase, login por papel, `listarProducao`, permissões de fotos/config/tipos de serviço e fotos no R2).
-- Bloqueios: dono responder o questionário (1.1 tipos de reparo e etapas, trava o S3; 5.1 planilha financeira, trava o S4; as decisões L30–L36, L39–L44 e L45–L55 ainda não estão nele); L34 (guardar CPF/CNPJ do cliente, LGPD) antes de o S1 criar a coluna; dono decidir se a produção pode "pegar" etapas livres na fila (`docs/qa-sprintSD.md` item 6); domínio do dono e conta Supabase dele; OrbStack (ou Docker Desktop) no Mac (pré-requisito do S1); endereço completo e horário da oficina para a landing; confirmar se Porto/Azul chegam via Carglass e não via Maxpar.
+- Onde está: Sprint S1 (banco Supabase real + Equipe, Folha e Comissões) feito em 21–22/10/2026 na branch `sprint/s1-supabase`: migrations 0001–0015, 235 checagens, `RepositorioSupabase`, login, Edge Function `equipe-login`. Aplicado e testado no projeto de teste `ddoctor-teste` (235/235). Em aberto: publicação no domínio do dono e o banco oficial `ddoctor` (ainda sem as migrations). Antes: SH (22/10), SG (21/10), SF (20/10), SE (13/10), SD (12/10).
+- Próximo passo: (1) dono cria conta Cloudflare, adiciona ddoctorauto.com.br e troca os nameservers no Registro.br (perguntar antes se há e-mail no domínio); (2) aplicar no `ddoctor` oficial com `aplicar.mjs oficial` (sem dados de exemplo), publicar a Edge Function lá, desligar o cadastro aberto, Site URL = https://ddoctorauto.com.br, criar o usuário do dono e rodar `definir_primeiro_dono`; (3) chave anon do oficial na configuração do build (nunca a service_role); depois checkpoint do dono e S2.
+- Bloqueios: conta Cloudflare e troca de nameservers pelo dono; dono responder o questionário (1.1 tipos de reparo e etapas, trava o S3; 5.1 planilha financeira, trava o S4; as decisões L30–L36, L39–L44, L45–L55 e L64–L70 ainda não estão nele); L34 (CPF/CNPJ do cliente, LGPD) a confirmar com o dono antes de o banco oficial receber dados reais; dono decidir se a produção pode ver fotos de entrada de carros que ainda não pegou (L66) e se pode "pegar" etapas livres; endereço completo e horário da oficina para a landing; confirmar se Porto/Azul chegam via Carglass e não via Maxpar. OrbStack deixou de ser pré-requisito do S1 (o banco foi validado no PGlite e no projeto de teste).
 - Fontes atuais: `docs/painel-execucao.md`, `docs/painel-arquitetura.md`, `docs/painel-informacoes.md`, `docs/painel-design.md`. O plano antigo (`docs/painel-plano.md`) é só histórico do Sprint 0.
 
 ---
@@ -38,8 +38,8 @@ Todas as linhas abaixo estão como provisórias, com o valor sugerido do questio
 | L22 | Quais seguradoras vêm via Maxpar, direto ou via Carglass? Teto e franquia | Lista pública, todas via Maxpar; R$ 1.000 / R$ 160 | provisória | 12/10/2026 · questionário 6.5 | SD dados fictícios |
 | L23 | Calia: horário permitido, tentativas, sem resposta, quem assume | Seg–sex 9–18, sáb 9–12; 2 tentativas a cada 24 h; depois recepção | provisória | 12/10/2026 · questionário 7.1 e 7.2 | SD Agenda (mensagem manual) |
 | L24 | Contato do fornecedor da Calia e documentação/API | Modo manual (texto pronto) | provisória | 12/10/2026 · questionário 7.3 | SD Agenda (mensagem manual) |
-| L25 | Conta Supabase de produção, plano Free ou Pro | Dev local + projeto demo do Guilherme, só dados fictícios | provisória | 12/10/2026 · questionário 8.1 | — |
-| L26 | Endereço do painel: Cloudflare Pages + domínio ou GitHub Pages | GitHub Pages + HashRouter | provisória | 12/10/2026 · questionário 8.2 | Deploy atual |
+| L25 | Conta Supabase de produção, plano Free ou Pro | Dois projetos grátis na org "D Doctor" (sa-east-1): `ddoctor-teste` (ref mogpmpypunsxxsbpeaef, dados de exemplo) e `ddoctor` oficial (ref pihmssohyyfcneeutbfq, zerado). Plano grátis (ver L37) | provisória | 12/10/2026 · questionário 8.1; atualizada em 22/10/2026 · Sprint S1 | S1 (teste aplicado; oficial pendente) |
+| L26 | Endereço do painel: Cloudflare Pages + domínio ou GitHub Pages | Dono tem o domínio ddoctorauto.com.br (L64); Cloudflare Pages planejada com site em / e painel em /painel. Até lá, GitHub Pages + HashRouter | revista (22/10/2026) | 12/10/2026 · questionário 8.2; revista em 22/10/2026 · Sprint S1 | Deploy atual (GitHub Pages) |
 | L27 | Worker no PC da oficina ou na nuvem (R$ 30–70/mês) | PC da oficina | provisória | 12/10/2026 · questionário 8.3 | — |
 | L28 | Retenção de dados | Fotos: 12 meses depois da entrega, depois apagadas (com pacote para baixar antes); textos e números para sempre (estatística de anos); 12 meses snapshots/Calia | confirmada (fotos e dados) | 20/10/2026 · Guilherme, pelo dono | SF mostra a retenção de 12 meses nas fotos; S1/S3 Storage e rotina de retenção |
 | L29 | Autorização escrita para leitura automática do portal | Sem ela o S6 não roda; só após L05/L06 favoráveis | aberta | 12/10/2026 · questionário 8.5 | — |
@@ -77,7 +77,17 @@ Todas as linhas abaixo estão como provisórias, com o valor sugerido do questio
 | L61 | O que conta em "Aguardando aprovação" | Orçamentos feitos e não aprovados, cada um conta como um; rascunho não entra | provisória | 22/10/2026 · 1º áudio do dono; rascunho fora por decisão do SH | SH Geral e Orçamentos |
 | L62 | Carro atrasado e parado ao mesmo tempo | Aparece nas duas listas (Atrasados e Parados) | provisória | 22/10/2026 · Sprint SH | SH Geral |
 | L63 | Feriados nos dias úteis da cor | Ainda não contam (a L10 prevê que feriados não contam; falta aplicar) | provisória | 22/10/2026 · Sprint SH | — |
+| L64 | Domínio do dono | ddoctorauto.com.br (registro .com.br, no Registro.br); hospedagem planejada na Cloudflare Pages (conta a criar pelo dono). Falta trocar os nameservers e saber se há e-mail no domínio | decidida (domínio); hospedagem provisória | 22/10/2026 · Guilherme, pelo dono | Edge Function (CORS inclui o domínio); publicação pendente |
+| L65 | Onde ficam as fotos no início | Supabase Storage privado (limite 2 MB por foto); ~1.000 fotos/mês ≈ 220 MB/mês, então o 1 GB grátis dura ~4 meses; depois troca para a Cloudflare R2. Complementa a L38 (que estimava 12–14 GB em regime) | provisória | 22/10/2026 · Guilherme, Sprint S1 | S1 Storage; aviso de uso e troca para R2 preparada |
+| L66 | A produção pode ver as fotos de entrada de carros que ainda não pegou? | A confirmar com o dono | aberta | 22/10/2026 · Sprint S1 | S1 RLS das fotos (regra provisória do banco) |
+| L67 | O gerente pode cadastrar funcionário? | A confirmar: só para recepção, produção e TV (nunca outro gerente, financeiro ou dono) | provisória | 22/10/2026 · Sprint S1 (revisão QA) | S1 Equipe e RLS |
+| L68 | Comissão por tipo de serviço | A comissão cadastrada para o tipo de serviço é paga a cada etapa concluída; valor editável em Ajustes → Comissões | provisória | 22/10/2026 · Sprint S1 (pedido: pintura concluída = R$ 40) | S1 Folha e Ajustes → Comissões |
+| L69 | Admissão no meio do mês na folha | Recebe o salário inteiro do mês | provisória | 22/10/2026 · Sprint S1 | S1 Folha |
+| L70 | Feriados nos dias úteis (folha e banco) | Ficam fora dos dias úteis; pode ser a mesma regra da L63, que no painel ainda não aplica feriados | provisória | 22/10/2026 · Sprint S1 | S1 (a confirmar onde entra) |
+| L71 | Quem vê o financeiro | Financeiro (A receber, Financeiro, Relatórios), folha, custos e margem só para o dono e a função financeiro; gerente vê quase tudo menos isso e menos salários; gerente só edita recepção e produção | decidida (pedido do Guilherme) | 22/10/2026 · Guilherme, Sprint S1 | S1 matriz de permissões e RLS (migrations 0001–0015) |
 | — | Produção pode "pegar" etapas livres na fila? | Sem resposta (`docs/qa-sprintSD.md` item 6) | aberta | 12/10/2026 · QA do SD | — |
+
+Nota L64–L71: IDs atribuídos pelo escrivão em 22/10/2026 (o resumo não trouxe IDs). A L34 (guardar CPF/CNPJ) segue provisória: confirmar com o dono antes de o banco oficial receber dados reais.
 
 Nota L56–L63: IDs atribuídos pelo escrivão em 22/10/2026 (o resumo não trouxe IDs). Todas são provisórias até o dono salvar a base em Ajustes → Cores dos carros. A L46 (laranja a 80 % do prazo da etapa, semáforo da etapa) segue valendo; a cor do carro é uma regra separada, pela entrega.
 
@@ -92,6 +102,32 @@ Nota L20: a ficha original sugeria "não desconta", mas o estudo da Maxpar (§2.
 ---
 
 ## Histórico (mais recente primeiro)
+
+### 21–22/10/2026 Sprint S1 — Banco Supabase real, Equipe, Folha e Comissões (feito na branch; publicação e banco oficial em aberto)
+**Decisões tomadas** (L64 a L71; L25 e L26 atualizadas):
+- Dois projetos Supabase grátis: `ddoctor-teste` com dados de exemplo e `ddoctor` oficial zerado — porquê: pedido do Guilherme; o dono começa limpo, o teste serve para ver e testar sem risco (L25).
+- Domínio do dono é ddoctorauto.com.br; hospedagem na Cloudflare Pages com site em / e painel em /painel — porquê: sem mensalidade (L37) e com o domínio próprio do dono (L64, revisa L26).
+- Fotos começam no Storage privado do Supabase (2 MB por foto) e depois migram para a R2 — porquê: ~1.000 fotos/mês ≈ 220 MB/mês, o 1 GB grátis dura ~4 meses (L65).
+- Gerente sem financeiro, custos e salários; financeiro e folha só para o dono e a função financeiro; gerente edita só recepção e produção — porquê: pedido do Guilherme sobre quem vê dinheiro (L71) e achado da revisão QA.
+- Comissão por tipo de serviço paga cada etapa; admissão no meio do mês recebe o salário inteiro; feriados fora dos dias úteis — porquê: pontos de partida provisórios para a folha (L68 a L70).
+- Cadastro aberto ("Allow new users to sign up") desligado no teste; login de funcionário só pela Edge Function `equipe-login` com a service_role dentro do próprio Supabase — porquê: ninguém entra sem o dono criar o acesso; a chave secreta nunca vai ao front.
+- Primeiro dono definido pela função `definir_primeiro_dono` (nome "Gustavo"; o e-mail do dono não é registrado aqui porque o repositório é público) — porquê: o banco não tem dono até alguém definir; `oficina_tem_dono` impede definir de novo.
+- A confirmar com o dono: produção ver fotos de entrada de carros que ainda não pegou (L66); gerente cadastrar funcionário só de recepção, produção e TV (L67).
+
+**O que foi implementado:**
+- Banco completo em `codigo/supabase/`: migrations 0001–0015 (tabelas com RLS por papel, funções atômicas, views de recorte só leitura, Storage privado de fotos 2 MB, auditoria, tempo real, `oficina_tem_dono`, correções de segurança da revisão QA — views só leitura, OS travada, gerente sem editar financeiro/gerente, despesa paga, fotos da produção, configuração validada); 235 checagens em `checagens.sql` (rodam no PGlite e no projeto); seeds `producao.sql` (padrão, sem dados de exemplo) e `teste.sql` (fictício); `scripts/aplicar.mjs` (pede a senha escondida; `--so-migrations`).
+- Edge Function `equipe-login`: dar, tirar e sincronizar login de funcionário.
+- Painel: `RepositorioSupabase`, login por usuário ou e-mail, modo demonstração `?demo=1`, fotos no Storage com URL assinada, TV e quadro atualizando a cada 20–30 s; Equipe (funcionários, função, permissão, login, histórico), Folha (salário + comissões, pagar gera despesa "Salários") e Ajustes → Comissões.
+- Aplicado no `ddoctor-teste`: 235 de 235 checagens; Edge Function publicada (verify JWT desligado, CORS inclui ddoctorauto.com.br); testes de gravação ok (cliente, iniciar etapa, foto no Storage, pagamento). `.gitignore` passou a proteger `.env*`; a chave anon do teste fica só em `codigo/painel/.env.local`.
+
+**O que ficou de fora (de propósito):**
+- Publicação no domínio ddoctorauto.com.br — porquê: depende de o dono criar a conta Cloudflare e trocar os nameservers no Registro.br.
+- Banco oficial `ddoctor` (migrations, Edge Function, dono, Site URL, cadastro aberto desligado) — porquê: só depois da publicação e do checkpoint; produção do banco é à mão, pelo Guilherme.
+- Chave anon do oficial no build da Cloudflare — porquê: o projeto oficial ainda não está aplicado; a service_role nunca entra no build.
+- Fotos na R2 — porquê: começam no Storage do Supabase; a troca vem quando o 1 GB acabar (~4 meses).
+
+**Arquivos relevantes:**
+- `codigo/supabase/migrations/` (0001–0015), `codigo/supabase/checagens.sql`, `codigo/supabase/seed/` (`producao.sql`, `teste.sql`), `codigo/supabase/scripts/aplicar.mjs`, Edge Function `equipe-login` em `codigo/supabase/functions/`, `codigo/painel/src/` (`RepositorioSupabase`, Equipe, Folha, Ajustes → Comissões), `notas/sprints/sprint-S1.md`
 
 ### 22/10/2026 Sprint SH — Pedidos do dono em dois áudios (fechado; merge, tag e publicação em 22/10/2026)
 **Decisões tomadas** (provisórias até o dono salvar a base em Ajustes → Cores dos carros — L56 a L63; L45 e L50 revistas):

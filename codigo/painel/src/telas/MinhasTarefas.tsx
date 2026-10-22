@@ -26,8 +26,9 @@ const PESO = { atrasado: 4, impedido: 3, atencao: 2, no_prazo: 1, pronto: 0 } as
 
 /** Minhas tarefas — celular da produção (docs/painel-design.md §4: um cartão por tarefa, botões de 56 px). */
 export function MinhasTarefas() {
-  const consulta = useOSs();
-  const config = useConfig();
+  // atualiza sozinho a cada 30 s: o tempo real não chega ao papel `producao`
+  const consulta = useOSs("quadro");
+  const config = useConfig("quadro");
   const agora = useAgora(30_000);
   const { perfil, perfis } = useSessao();
   const [params, setParams] = useSearchParams();

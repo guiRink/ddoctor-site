@@ -445,7 +445,7 @@ describe("repositório em memória", () => {
     const v = await osPorPlaca("SCH4A22");
     expect((await repo.adicionarFoto(v.os.id, novaFoto({ arquivo: new Blob(["x"], { type: "application/pdf" }) }))).codigo).toBe("arquivo_invalido");
     expect((await repo.adicionarFoto(v.os.id, novaFoto({ arquivo: imagem(0) }))).codigo).toBe("arquivo_invalido");
-    expect((await repo.adicionarFoto(v.os.id, novaFoto({ arquivo: imagem(6 * 1024 * 1024) }))).codigo).toBe("arquivo_grande");
+    expect((await repo.adicionarFoto(v.os.id, novaFoto({ arquivo: imagem(6 * 1024 * 1024) }))).codigo).toBe("foto_acima_limite");
     expect((await repo.adicionarFoto(v.os.id, { ...novaFoto(), fase: "externa" as never })).codigo).toBe("fase_invalida");
     expect((await repo.adicionarFoto("os-nao-existe", novaFoto())).codigo).toBe("os_nao_encontrada");
     const outra = (await repo.listarOS()).find((o) => o.os.id !== v.os.id && o.etapas.length > 0)!;

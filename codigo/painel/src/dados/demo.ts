@@ -20,10 +20,12 @@ import type {
   OrcamentoVersao,
   OS,
   Pagador,
+  PagamentoFolha,
   PendenciaExterna,
   Perfil,
   RecepcaoVeiculo,
   RegistroAuditoria,
+  RegraComissao,
   TipoReparo,
   TituloReceber,
   Veiculo,
@@ -74,6 +76,8 @@ export interface EstadoDemo {
   categorias: CategoriaFinanceira[];
   fechamentos: FechamentoCaixa[];
   auditoria: RegistroAuditoria[];
+  // sprint S1: folha de pagamento (pagos e rascunhos com ajuste)
+  pagamentosFolha: PagamentoFolha[];
 }
 
 const HORA = 3_600_000;
@@ -201,6 +205,16 @@ export const TIPOS_REPARO_PADRAO: readonly TipoReparo[] = [
   },
 ];
 
+/**
+ * Comissões por etapa concluída da DEMONSTRAÇÃO (sprint S1, exemplo do dono: "pintura feita = R$ 40"). Valores
+ * fictícios; o dono define os reais em Ajustes → Comissões.
+ */
+export const COMISSOES_DEMO: readonly RegraComissao[] = [
+  { id: "rc-pintura", etapaNome: "Pintura", valor: 4000, ativa: true, descricao: "Exemplo da demonstração — a confirmar" },
+  { id: "rc-funilaria", etapaNome: "Funilaria", valor: 3000, ativa: true, descricao: "Exemplo da demonstração — a confirmar" },
+  { id: "rc-martelinho", etapaNome: "Martelinho", valor: 2500, ativa: true, descricao: "Exemplo da demonstração — a confirmar" },
+];
+
 /** Custo-hora de mão de obra da DEMONSTRAÇÃO (fictício; o valor real vem do dono). */
 const CUSTO_HORA_DEMO = 2800;
 
@@ -234,15 +248,18 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
   const d = (dias: number) => dataISO(new Date(agoraMs + dias * DIA));
 
   // ---------------------------------------------------------------- pessoas (fictícias)
+  // sprint S1: salários, logins e telefones FICTÍCIOS (R$ 2.200–4.500); o dono sem salário fixo (pró-labore é dele).
+  // Quem usa o terminal da oficina ainda sem login próprio (o dono dá o login na Equipe).
   const perfis: Perfil[] = [
-    { id: "p-dono", nome: "Carlos Dantas", papel: "dono", funcao: "Dono", ativo: true, usaTerminal: false },
-    { id: "p-recepcao", nome: "Juliana Prado", papel: "recepcao", funcao: "Recepção e orçamento", ativo: true, usaTerminal: false },
-    { id: "p-diego", nome: "Diego Ramos", papel: "producao", funcao: "Martelinho e funilaria", ativo: true, usaTerminal: false },
-    { id: "p-marcos", nome: "Marcos Lima", papel: "producao", funcao: "Pintor", ativo: true, usaTerminal: true },
-    { id: "p-rafael", nome: "Rafael Costa", papel: "producao", funcao: "Preparação e montagem", ativo: true, usaTerminal: true },
-    { id: "p-andre", nome: "André Souza", papel: "producao", funcao: "Polimento e higienização", ativo: true, usaTerminal: true },
-    { id: "p-paula", nome: "Paula Mendes", papel: "financeiro", funcao: "Financeiro", ativo: true, usaTerminal: false },
-    { id: "p-tv", nome: "TV da oficina", papel: "dispositivo", ativo: true, usaTerminal: false },
+    { id: "p-dono", nome: "Carlos Dantas", papel: "dono", funcao: "Dono", ativo: true, usaTerminal: false, usuario: "carlos", temLogin: true, telefone: "+5541990000001" },
+    { id: "p-gerente", nome: "Renata Alves", papel: "gestor", funcao: "Gerente", ativo: true, usaTerminal: false, usuario: "renata", temLogin: true, telefone: "+5541990000002", salarioMensal: 450000, admitidoEm: "2024-03-04" },
+    { id: "p-recepcao", nome: "Juliana Prado", papel: "recepcao", funcao: "Recepção e orçamento", ativo: true, usaTerminal: false, usuario: "juliana", temLogin: true, telefone: "+5541990000003", salarioMensal: 260000, admitidoEm: "2024-08-12" },
+    { id: "p-diego", nome: "Diego Ramos", papel: "producao", funcao: "Martelinho e funilaria", ativo: true, usaTerminal: false, usuario: "diego", temLogin: true, telefone: "+5541990000004", salarioMensal: 340000, admitidoEm: "2023-05-02" },
+    { id: "p-marcos", nome: "Marcos Lima", papel: "producao", funcao: "Pintor", ativo: true, usaTerminal: true, telefone: "+5541990000005", salarioMensal: 320000, admitidoEm: "2023-11-06" },
+    { id: "p-rafael", nome: "Rafael Costa", papel: "producao", funcao: "Preparação e montagem", ativo: true, usaTerminal: true, salarioMensal: 280000, admitidoEm: "2025-02-03" },
+    { id: "p-andre", nome: "André Souza", papel: "producao", funcao: "Polimento e higienização", ativo: true, usaTerminal: true, salarioMensal: 220000, admitidoEm: "2025-09-01" },
+    { id: "p-paula", nome: "Paula Mendes", papel: "financeiro", funcao: "Financeiro", ativo: true, usaTerminal: false, usuario: "paula", temLogin: true, telefone: "+5541990000008", salarioMensal: 300000, admitidoEm: "2024-01-15" },
+    { id: "p-tv", nome: "TV da oficina", papel: "dispositivo", ativo: true, usaTerminal: false, usuario: "tv", temLogin: true },
   ];
 
   const tiposReparo: TipoReparo[] = TIPOS_REPARO_PADRAO.map((t) => ({ ...t, etapas: t.etapas.map((e) => ({ ...e })) }));
@@ -251,6 +268,7 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
     expediente: { diasSemana: [1, 2, 3, 4, 5, 6], inicio: "08:00", fim: "18:00", sabadoFim: "12:00" },
     semaforo: { laranjaAntesHoras: 8, vermelhoBloqueioHoras: 4 },
     capacidadePadrao: { vagasEntrada: 4, carrosSimultaneos: 12, pecasDia: 10 },
+    comissoes: COMISSOES_DEMO.map((r) => ({ ...r })),
     provisorio: true,
   };
 
@@ -412,6 +430,7 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
       origem: "maxpar", seguradora: "Tokio Marine", protocolo: "18386623", status: "autorizado", estado: "pronta", tipo: "tr-martelinho",
       pecas: [["Para-lama dianteiro esquerdo", "martelinho", 40000]],
       abertoHaDias: 7, previsaoDias: 0, box: "Pátio coberto",
+      responsaveis: ["p-diego", "p-diego", "p-andre", "p-rafael"],
     },
     {
       placa: "QXT4D88", modelo: "Jeep Compass", cor: "Branco", cliente: "Patrícia Konzen", telefone: "+5541991000003",
@@ -419,6 +438,7 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
       origem: "maxpar", seguradora: "Liberty", protocolo: "18377102", status: "autorizado", estado: "pronta", tipo: "tr-pintura",
       pecas: [["Para-choque traseiro", "pintura", 65000]],
       abertoHaDias: 10, previsaoDias: 1, box: "Pátio coberto",
+      responsaveis: ["p-rafael", "p-diego", "p-rafael", "p-marcos", "p-andre", "p-rafael"],
     },
     // ---- agendados
     {
@@ -484,12 +504,14 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
       origem: "maxpar", seguradora: "HDI", protocolo: "18370018", status: "servico_realizado", estado: "entregue", tipo: "tr-martelinho",
       pecas: [["Porta traseira esquerda", "martelinho", 38000], ["Teto", "martelinho", 45000]],
       abertoHaDias: 15, entregueHaDias: 3, pagamento: "aberto",
+      responsaveis: ["p-diego", "p-diego", "p-andre", "p-rafael"],
     },
     {
       placa: "SJQ7R03", modelo: "BMW X1", cor: "Branco", cliente: "Vanessa Hoffmann", telefone: "+5541991000018",
       origem: "maxpar", seguradora: "MAPFRE", protocolo: "18354477", status: "servico_realizado", estado: "entregue", tipo: "tr-martelinho",
       pecas: [["Porta dianteira direita", "martelinho", 38000], ["Para-lama dianteiro direito", "sra", 18000]],
       abertoHaDias: 22, entregueHaDias: 9, pagamento: "aberto", recusa: "Ordem dos documentos no PDF e assinatura fora do padrão",
+      responsaveis: ["p-diego", "p-diego", "p-andre", "p-rafael"],
     },
     {
       placa: "RLM2Q48", modelo: "Jeep Renegade", cor: "Cinza", cliente: "Rodrigo Nunes", telefone: "+5541991000019",
@@ -954,7 +976,6 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
     { id: "d-3", ...cat("desp_mat_pintura"), descricao: "Tinta base e verniz", fornecedor: "Distribuidora de Tintas Exemplo", valorPrevisto: 214000, vencimento: d(-2), pagoEm: d(-2), valorPago: 214000, formaPagamento: "boleto" },
     { id: "d-4", ...cat("desp_mat_polimento"), descricao: "Massa de polir e boinas", valorPrevisto: 46000, vencimento: d(-5), pagoEm: d(-5), valorPago: 46000, formaPagamento: "pix" },
     { id: "d-5", ...cat("desp_ferramentas"), descricao: "Kit de alavancas para martelinho", valorPrevisto: 98000, vencimento: d(12) },
-    { id: "d-6", ...cat("desp_salarios"), descricao: "Folha do mês (lançamento manual)", valorPrevisto: 1820000, vencimento: d(18) },
     { id: "d-7", ...cat("desp_impostos"), descricao: "Simples Nacional", valorPrevisto: 312000, vencimento: d(-1) },
     { id: "d-8", ...cat("desp_marketing"), descricao: "Impulsionamento redes sociais", valorPrevisto: 30000, vencimento: d(-10), pagoEm: d(-10), valorPago: 30000, formaPagamento: "credito" },
     { id: "d-9", ...cat("desp_outras"), descricao: "Café e material de limpeza", valorPrevisto: 8500, vencimento: d(0), pagoEm: d(0), valorPago: 8500, formaPagamento: "dinheiro" },
@@ -1132,5 +1153,6 @@ export function gerarDemo(agoraMs = Date.now()): EstadoDemo {
     categorias,
     fechamentos: fechamentos.sort((a, b) => b.data.localeCompare(a.data)),
     auditoria,
+    pagamentosFolha: [],
   };
 }

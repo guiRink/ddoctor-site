@@ -1,23 +1,26 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import type { Baixa, ChecklistItem, DataISO, FormaPagamento, Id, Janela, RecepcaoVeiculo } from "@compartilhado/tipos";
+import type { Baixa, Centavos, ChecklistItem, DataISO, FormaPagamento, Id, Janela, RecepcaoVeiculo } from "@compartilhado/tipos";
 import { ERRO } from "../dominio/rotulos";
-import { repositorioMemoria } from "./repositorioMemoria";
+import { criarRepositorio } from "./fabrica";
 import type {
   CategoriaEntrada,
   ClienteEntrada,
   ConfigParcial,
   DadosConclusaoEtapa,
+  DadosLogin,
   DespesaEntrada,
   EntradaAlertaOS,
   FechamentoEntrada,
   FornecedorEntrada,
+  FuncionarioEntrada,
   MaterialEntrada,
   MovimentoEntrada,
   NovoAtendimentoRapido,
   NovoCustoOS,
   NovaFoto,
   PagamentoOS,
+  RegraComissaoEntrada,
   Repositorio,
   Resultado,
   TipoReparoEntrada,
@@ -26,25 +29,43 @@ import type {
 
 /**
  * Hooks de dados — a ÚNICA forma de uma tela ler ou mudar dados (CLAUDE.md).
- * Hoje sobre o repositório em memória; no S1 troca para o RepositorioSupabase escolhendo por VITE_DADOS.
+ * O repositório é o do modo da aba (modo.ts): Supabase com `VITE_DADOS=supabase`, memória na demonstração (`?demo=1`).
  */
-export const repositorio: Repositorio = repositorioMemoria;
+export const repositorio: Repositorio = criarRepositorio();
 
 const CHAVE = ["oficina"] as const;
 
-export const useOSs = () => useQuery({ queryKey: [...CHAVE, "os"], queryFn: () => repositorio.listarOS() });
+/**
+ * Atualização periódica das telas que ficam abertas sem ninguém mexer (sprint S1). O tempo real do Supabase aplica a
+ * RLS e os papéis `producao` e `dispositivo` não recebem os eventos das tabelas: sem isto a TV e o quadro paravam.
+ *   - "quadro": Produção e Minhas tarefas — a cada 30 s, só com a aba visível;
+ *   - "tv": Quadro da TV — a cada 20 s, mesmo em segundo plano (a TV nunca tem foco).
+ * O tempo real continua ligado (useTempoReal) onde funciona; isto é o piso.
+ */
+export type Atualizacao = "quadro" | "tv";
+export const ATUALIZACAO_MS: Record<Atualizacao, number> = { quadro: 30_000, tv: 20_000 };
+
+export function opcoesAtualizacao(atualizacao?: Atualizacao): { refetchInterval?: number; refetchIntervalInBackground?: boolean } {
+  if (!atualizacao) return {};
+  return { refetchInterval: ATUALIZACAO_MS[atualizacao], refetchIntervalInBackground: atualizacao === "tv" };
+}
+
+export const useOSs = (atualizacao?: Atualizacao) =>
+  useQuery({ queryKey: [...CHAVE, "os"], queryFn: () => repositorio.listarOS(), ...opcoesAtualizacao(atualizacao) });
 export const useOS = (id: Id | undefined) =>
   useQuery({ queryKey: [...CHAVE, "os", id], queryFn: () => repositorio.obterOS(id!), enabled: Boolean(id) });
 export const useAgendamentos = () => useQuery({ queryKey: [...CHAVE, "agendamentos"], queryFn: () => repositorio.listarAgendamentos() });
 export const useCapacidade = (inicio: DataISO, fim: DataISO) =>
   useQuery({ queryKey: [...CHAVE, "capacidade", inicio, fim], queryFn: () => repositorio.listarCapacidade(inicio, fim) });
-export const usePerfis = () => useQuery({ queryKey: [...CHAVE, "perfis"], queryFn: () => repositorio.listarPerfis() });
+export const usePerfis = (habilitado = true, atualizacao?: Atualizacao) =>
+  useQuery({ queryKey: [...CHAVE, "perfis"], queryFn: () => repositorio.listarPerfis(), enabled: habilitado, ...opcoesAtualizacao(atualizacao) });
 export const useTiposReparo = () => useQuery({ queryKey: [...CHAVE, "tipos"], queryFn: () => repositorio.listarTiposReparo() });
 export const usePagadores = () => useQuery({ queryKey: [...CHAVE, "pagadores"], queryFn: () => repositorio.listarPagadores() });
 export const useTitulos = () => useQuery({ queryKey: [...CHAVE, "titulos"], queryFn: () => repositorio.listarTitulos() });
 export const useDespesas = () => useQuery({ queryKey: [...CHAVE, "despesas"], queryFn: () => repositorio.listarDespesas() });
 export const useMateriais = () => useQuery({ queryKey: [...CHAVE, "materiais"], queryFn: () => repositorio.listarMateriais() });
-export const useConfig = () => useQuery({ queryKey: [...CHAVE, "config"], queryFn: () => repositorio.obterConfig() });
+export const useConfig = (atualizacao?: Atualizacao) =>
+  useQuery({ queryKey: [...CHAVE, "config"], queryFn: () => repositorio.obterConfig(), ...opcoesAtualizacao(atualizacao) });
 export const useClientes = () => useQuery({ queryKey: [...CHAVE, "clientes"], queryFn: () => repositorio.listarClientes() });
 export const useCliente = (id: Id | undefined) =>
   useQuery({ queryKey: [...CHAVE, "clientes", id], queryFn: () => repositorio.obterCliente(id!), enabled: Boolean(id) });
@@ -56,6 +77,14 @@ export const useFornecedores = () => useQuery({ queryKey: [...CHAVE, "fornecedor
 export const useCategorias = () => useQuery({ queryKey: [...CHAVE, "categorias"], queryFn: () => repositorio.listarCategorias() });
 export const useFechamentos = () => useQuery({ queryKey: [...CHAVE, "fechamentos"], queryFn: () => repositorio.listarFechamentos() });
 export const useAuditoria = () => useQuery({ queryKey: [...CHAVE, "auditoria"], queryFn: () => repositorio.listarAuditoria() });
+// equipe (sprint S1)
+export const useRegrasComissao = (habilitado = true) =>
+  useQuery({ queryKey: [...CHAVE, "comissoes"], queryFn: () => repositorio.listarRegrasComissao(), enabled: habilitado });
+/** Folha do mês: só para quem podeVerFolha (passe `habilitado` para não pedir o que a RLS recusa). */
+export const useFolha = (mes: string, habilitado = true) =>
+  useQuery({ queryKey: [...CHAVE, "folha", mes], queryFn: () => repositorio.listarFolha(mes), enabled: habilitado });
+export const useHistoricoFuncionario = (perfilId: Id | undefined) =>
+  useQuery({ queryKey: [...CHAVE, "historico", perfilId], queryFn: () => repositorio.historicoFuncionario(perfilId!), enabled: Boolean(perfilId) });
 
 /** Relógio da tela: re-renderiza a cada `ms` para tempos e semáforos andarem sozinhos. */
 export function useAgora(ms = 30_000): string {
@@ -65,6 +94,26 @@ export function useAgora(ms = 30_000): string {
     return () => clearInterval(t);
   }, [ms]);
   return agora;
+}
+
+/**
+ * Tempo real: quando outra pessoa muda OS, etapas, agenda, fotos ou pagamentos, as consultas abertas recarregam
+ * (agrupado em 0,4 s). Só no Supabase; na demonstração não faz nada.
+ */
+export function useTempoReal(ligado = true) {
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!ligado || !repositorio.assinarMudancas) return;
+    let espera: ReturnType<typeof setTimeout> | undefined;
+    const parar = repositorio.assinarMudancas(() => {
+      clearTimeout(espera);
+      espera = setTimeout(() => qc.invalidateQueries({ queryKey: CHAVE }), 400);
+    });
+    return () => {
+      clearTimeout(espera);
+      parar();
+    };
+  }, [ligado, qc]);
 }
 
 /** Mensagem pt-BR para um código de erro do domínio/banco. */
@@ -133,6 +182,14 @@ export function useAcoes() {
     // fotos: comprima antes com comprimirFoto (dados/fotos.ts); ok com codigo "fotos_temporarias" = aviso
     adicionarFoto: mut((osId: Id, foto: NovaFoto) => repositorio.adicionarFoto(osId, foto)),
     removerFoto: mut((fotoId: Id) => repositorio.removerFoto(fotoId)),
+    // equipe, comissões e folha (sprint S1)
+    salvarFuncionario: mut((entrada: FuncionarioEntrada) => repositorio.salvarFuncionario(entrada)),
+    definirLogin: mut((perfilId: Id, dados: DadosLogin) => repositorio.definirLogin(perfilId, dados)),
+    removerLogin: mut((perfilId: Id) => repositorio.removerLogin(perfilId)),
+    salvarRegraComissao: mut((entrada: RegraComissaoEntrada) => repositorio.salvarRegraComissao(entrada)),
+    removerRegraComissao: mut((id: Id) => repositorio.removerRegraComissao(id)),
+    salvarAjusteFolha: mut((perfilId: Id, mes: string, ajustes: Centavos, obs?: string) => repositorio.salvarAjusteFolha(perfilId, mes, ajustes, obs)),
+    pagarFolha: mut((perfilId: Id, mes: string, pagoEm: DataISO, ajustes?: Centavos) => repositorio.pagarFolha(perfilId, mes, pagoEm, ajustes)),
     restaurarDemo: mut(async () => {
       await repositorio.restaurarDemo();
       return { ok: true };

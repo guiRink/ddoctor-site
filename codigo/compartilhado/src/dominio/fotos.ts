@@ -12,8 +12,8 @@ export const COMPRESSAO_FOTO = {
   qualidadeMiniatura: 0.6,
   /** Arquivo original aceito (antes de comprimir). */
   maxBytesOriginal: 25 * 1024 * 1024,
-  /** Foto já comprimida aceita pelo repositório (folga sobre os ~200 KB esperados). */
-  maxBytesSalva: 5 * 1024 * 1024,
+  /** Foto já comprimida aceita pelo repositório (folga sobre os ~200 KB esperados); = limite do bucket "fotos" do Supabase (2 MB). */
+  maxBytesSalva: 2 * 1024 * 1024,
 } as const;
 
 /** Fases em que a produção registra foto; só elas comprovam uma etapa (concluirEtapa). */

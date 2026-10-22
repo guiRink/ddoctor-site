@@ -3,10 +3,10 @@ import { useNavigate } from "react-router-dom";
 import type { Pagador, Perfil } from "@compartilhado/tipos";
 import { useAcoes, usePagadores } from "../dados/hooks";
 import { useSessao } from "../dados/sessao";
-import { podeCriarTipoReparo, podeEditarConfig, podeEditar as podeEditarModulo } from "../dominio/permissoes";
+import { podeCriarTipoReparo, podeEditarComissoes, podeEditarConfig, podeVer, podeVerFolha, podeEditar as podeEditarModulo } from "../dominio/permissoes";
 import { PAPEL } from "../dominio/rotulos";
-import { definirPin, sairDaSessao } from "../componentes/PinGate";
-import { Botao, CabecalhoPagina, Responsavel, Vazio } from "../componentes/ui/Basicos";
+import { definirPin } from "../componentes/PinGate";
+import { Botao, BotaoLink, CabecalhoPagina, Responsavel, Vazio } from "../componentes/ui/Basicos";
 import { Etiqueta, Provisorio } from "../componentes/ui/Estado";
 import { Retorno } from "../componentes/gestao/Comuns";
 import { CLASSE_CAMPO, TIPO_PAGADOR, descreverPrazo } from "../componentes/gestao/formato";
@@ -18,6 +18,7 @@ import { Checklist } from "../componentes/ajustes/Checklist";
 import { Auditoria } from "../componentes/ajustes/Auditoria";
 import { AConfirmar } from "../componentes/ajustes/AConfirmar";
 import { CoresCarros } from "../componentes/ajustes/CoresCarros";
+import { Comissoes } from "../componentes/ajustes/Comissoes";
 
 const SECOES: SecaoAjustes[] = [
   { id: "confirmar", nome: "A confirmar", grupo: "Oficina" },
@@ -28,6 +29,7 @@ const SECOES: SecaoAjustes[] = [
   { id: "checklist", nome: "Checklist de entrada", grupo: "Oficina" },
   { id: "pagadores", nome: "Pagadores e prazos", grupo: "Financeiro" },
   { id: "categorias", nome: "Categorias financeiras", grupo: "Financeiro" },
+  { id: "comissoes", nome: "Comissões", grupo: "Pessoas e acesso" },
   { id: "pessoas", nome: "Pessoas e papéis", grupo: "Pessoas e acesso" },
   { id: "acesso", nome: "Acesso", grupo: "Pessoas e acesso" },
   { id: "auditoria", nome: "Auditoria", grupo: "Sistema" },
@@ -36,20 +38,22 @@ const SECOES: SecaoAjustes[] = [
 
 /**
  * Ajustes (design §5): como o painel está configurado. Seções agrupadas com navegação lateral em 1366+
- * e lista no celular. Editáveis hoje: tipos de serviço, cores dos carros (pedido do dono, 2º áudio), semáforo, capacidade da agenda, checklist, categorias
+ * e lista no celular. Editáveis hoje: comissões (só o dono, S1), tipos de serviço, cores dos carros (pedido do dono, 2º áudio), semáforo, capacidade da agenda, checklist, categorias
  * financeiras, PIN e demonstração; expediente e pagadores são leitura. Todo valor provisório aparece marcado.
  * Módulo só de dono e gestor (arq. §9.1); a barreira real é a RLS.
  */
 export function Ajustes() {
-  const { perfil, perfis } = useSessao();
+  const { perfil, perfis, modo } = useSessao();
+  // banco real: sem "Demonstração" (o banco da oficina não é restaurado pelo painel)
+  const secoes = modo === "supabase" ? SECOES.filter((s) => s.id !== "demo") : SECOES;
   const editar = podeEditarModulo(perfil.papel, "ajustes");
   const editarConfig = podeEditarConfig(perfil.papel);
   return (
     <>
       <CabecalhoPagina titulo="Ajustes" />
       <div className="lg:grid lg:grid-cols-[208px_minmax(0,1fr)] lg:gap-10 items-start">
-        <NavLateral secoes={SECOES} />
-        <ListaSecoes secoes={SECOES} />
+        <NavLateral secoes={secoes} />
+        <ListaSecoes secoes={secoes} />
         <div className="flex flex-col gap-6 min-w-0 max-w-[960px]">
           <AConfirmar />
           <TiposServico podeEditar={podeCriarTipoReparo(perfil.papel)} />
@@ -59,10 +63,11 @@ export function Ajustes() {
           <Checklist podeEditar={editar} />
           <Pagadores />
           <Categorias podeEditar={editar} />
+          <Comissoes podeEditar={podeEditarComissoes(perfil.papel)} veValores={podeVerFolha(perfil.papel)} />
           <Pessoas />
           <Acesso />
           <Auditoria perfis={perfis} />
-          <Demonstracao />
+          {modo !== "supabase" && <Demonstracao />}
         </div>
       </div>
     </>
@@ -102,11 +107,23 @@ function Pagadores() {
 }
 
 function Pessoas() {
-  const { perfil, perfis, trocarPerfil } = useSessao();
+  const { perfil, perfis, trocarPerfil, podeVerComo } = useSessao();
   const navegar = useNavigate();
   const ativos = perfis.filter((p) => p.ativo);
   return (
-    <Secao id="pessoas" titulo="Pessoas e papéis" descricao="Quem usa o painel e o que cada papel enxerga." nota="Cadastro e login individual chegam em breve">
+    <Secao
+      id="pessoas"
+      titulo="Pessoas e papéis"
+      descricao="Quem usa o painel e o que cada papel enxerga. Cadastro, permissão e login de cada pessoa ficam na Equipe."
+      acao={
+        podeVer(perfil.papel, "equipe") && (
+          <BotaoLink para="/equipe" tamanho="denso" variante="contorno">
+            Abrir a Equipe
+          </BotaoLink>
+        )
+      }
+    >
+      {podeVerComo && (
       <div className="px-5 py-4 border-b border-linha bg-cinza-50">
         <label htmlFor="ajustes-ver-como" className="block text-[13px] font-medium text-tinta-suave mb-1.5">
           Ver o painel como
@@ -128,12 +145,13 @@ function Pessoas() {
             ))}
           </select>
           <span className="text-[12px] text-tinta-suave max-w-[48ch]">
-            Só na demonstração: mostra o que cada pessoa enxerga. Com o login individual, cada um entra com a própria conta.
+            Só na demonstração: mostra o que cada pessoa enxerga. Com o login de cada um (Equipe → Dar login), cada pessoa entra com a própria conta.
           </span>
         </div>
       </div>
+      )}
       {ativos.length === 0 ? (
-        <Vazio titulo="Nenhuma pessoa cadastrada" texto="O cadastro de pessoas chega com o login individual." />
+        <Vazio titulo="Nenhuma pessoa cadastrada" texto="Cadastre as pessoas na Equipe." />
       ) : (
         <ul>
           {ativos.map((p: Perfil) => (
@@ -155,7 +173,29 @@ function Pessoas() {
 }
 
 function Acesso() {
-  const { perfil } = useSessao();
+  const { modo } = useSessao();
+  return modo === "supabase" ? <AcessoLogin /> : <AcessoPin />;
+}
+
+/** Banco real: quem entrou e "Sair". Senhas: o dono dá e redefine na Equipe. */
+function AcessoLogin() {
+  const { perfil, email, sair, saindo } = useSessao();
+  return (
+    <Secao id="acesso" titulo="Acesso" descricao="Cada pessoa entra com o próprio usuário e senha.">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+        <p className="text-[13px] text-tinta-suave min-w-0">
+          Você entrou como <span className="font-medium text-tinta">{perfil.usuario ?? email ?? perfil.nome}</span>. Logins e senhas da equipe ficam na Equipe.
+        </p>
+        <Botao variante="contorno" icone="sair" onClick={sair} disabled={saindo}>
+          {saindo ? "Saindo…" : "Sair"}
+        </Botao>
+      </div>
+    </Secao>
+  );
+}
+
+function AcessoPin() {
+  const { perfil, sair } = useSessao();
   const [novo, setNovo] = useState("");
   const [confirma, setConfirma] = useState("");
   const [erro, setErro] = useState<string>();
@@ -224,14 +264,7 @@ function Acesso() {
       )}
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
         <p className="text-[13px] text-tinta-suave">Para entrar de novo, o painel pede o PIN.</p>
-        <Botao
-          variante="contorno"
-          icone="sair"
-          onClick={() => {
-            sairDaSessao();
-            window.location.reload();
-          }}
-        >
+        <Botao variante="contorno" icone="sair" onClick={sair}>
           Sair
         </Botao>
       </div>
@@ -240,6 +273,7 @@ function Acesso() {
 }
 
 function Demonstracao() {
+  const { temBanco, sair } = useSessao();
   const acoes = useAcoes();
   const [confirmando, setConfirmando] = useState(false);
   const [erro, setErro] = useState<string>();
@@ -280,6 +314,14 @@ function Demonstracao() {
           )}
           <Retorno erro={erro} ok={ok} />
         </div>
+        {temBanco && (
+          <div className="mt-4 pt-4 border-t border-linha flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[13px] text-tinta-suave">O painel da oficina, com os dados de verdade, pede usuário e senha.</p>
+            <Botao variante="contorno" icone="sair" onClick={sair}>
+              Sair da demonstração
+            </Botao>
+          </div>
+        )}
       </div>
     </Secao>
   );

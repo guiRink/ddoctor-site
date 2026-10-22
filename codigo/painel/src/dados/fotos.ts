@@ -15,10 +15,14 @@ export interface FotoComprimida {
   bytes: number; // tamanho de `arquivo`
 }
 
-/** Falha da compressão com código de ERRO (rotulos.ts): arquivo_invalido | arquivo_grande. */
+/**
+ * Falha da compressão com código de ERRO (rotulos.ts): arquivo_invalido | arquivo_grande (original acima de 25 MB) |
+ * foto_acima_limite (nem a menor tentativa coube nos 2 MB do bucket).
+ */
+export type CodigoErroFoto = "arquivo_invalido" | "arquivo_grande" | "foto_acima_limite";
 export class ErroFoto extends Error {
-  readonly codigo: "arquivo_invalido" | "arquivo_grande";
-  constructor(codigo: "arquivo_invalido" | "arquivo_grande") {
+  readonly codigo: CodigoErroFoto;
+  constructor(codigo: CodigoErroFoto) {
     super(codigo);
     this.name = "ErroFoto";
     this.codigo = codigo;
@@ -95,8 +99,47 @@ async function paraBlob(tela: Tela, qualidade: number): Promise<Blob> {
   return jpeg;
 }
 
+/** Uma tentativa de compressão: lado maior em px e qualidade (0–1). */
+export interface PassoCompressao {
+  ladoMaior: number;
+  qualidade: number;
+}
+
+/**
+ * Tentativas em ordem, da melhor para a menor (sprint S1: o bucket "fotos" recusa acima de 2 MB). A primeira é a
+ * padrão (1600 px, 0,75); se o arquivo passar do limite, a qualidade cai antes e depois o tamanho. Foto comum de
+ * celular cabe já na primeira (~200 KB); as outras só existem para foto cheia de detalhe ou navegador sem WebP.
+ */
+export const PASSOS_COMPRESSAO: readonly PassoCompressao[] = [
+  { ladoMaior: COMPRESSAO_FOTO.ladoMaior, qualidade: COMPRESSAO_FOTO.qualidade },
+  { ladoMaior: COMPRESSAO_FOTO.ladoMaior, qualidade: 0.6 },
+  { ladoMaior: COMPRESSAO_FOTO.ladoMaior, qualidade: 0.45 },
+  { ladoMaior: 1280, qualidade: 0.6 },
+  { ladoMaior: 1280, qualidade: 0.45 },
+  { ladoMaior: 1024, qualidade: 0.45 },
+  { ladoMaior: 800, qualidade: 0.4 },
+];
+
+/**
+ * Codifica passo a passo até o arquivo caber em `limite` bytes; devolve o primeiro que coube e o passo usado.
+ * Nenhum coube: ErroFoto("foto_acima_limite"). `codificar` é injetado (o teste não tem canvas).
+ */
+export async function codificarAteCaber(
+  codificar: (passo: PassoCompressao) => Promise<Blob>,
+  limite: number = COMPRESSAO_FOTO.maxBytesSalva,
+  passos: readonly PassoCompressao[] = PASSOS_COMPRESSAO,
+): Promise<{ blob: Blob; passo: PassoCompressao }> {
+  for (const passo of passos) {
+    const blob = await codificar(passo);
+    if (blob.size > 0 && blob.size <= limite) return { blob, passo };
+  }
+  throw new ErroFoto("foto_acima_limite");
+}
+
 /**
  * Comprime a foto: lado maior 1600 px em WebP ~0,75 (JPEG se não houver WebP) e miniatura de 320 px ~0,6.
+ * Nunca devolve arquivo acima de 2 MB (COMPRESSAO_FOTO.maxBytesSalva = limite do bucket): reduz em passos
+ * (PASSOS_COMPRESSAO) e, se nem o menor couber, recusa com foto_acima_limite.
  * Recusa o que não é imagem (arquivo_invalido) e originais acima de 25 MB (arquivo_grande).
  */
 export async function comprimirFoto(arquivo: File | Blob): Promise<FotoComprimida> {
@@ -113,11 +156,24 @@ export async function comprimirFoto(arquivo: File | Blob): Promise<FotoComprimid
     const pequena = medidas(grande.largura, grande.altura, COMPRESSAO_FOTO.ladoMiniatura);
     // a miniatura sai da imagem já reduzida: menos memória e redução em dois passos (mais nítida)
     const telaPequena = desenhar(telaGrande, pequena.largura, pequena.altura);
-    const [foto, miniatura] = await Promise.all([
-      paraBlob(telaGrande, COMPRESSAO_FOTO.qualidade),
+    // a foto: qualidade e tamanho caem em passos até caber no limite do bucket (2 MB); cada lado é desenhado uma vez
+    const telas = new Map<number, { tela: Tela; largura: number; altura: number }>([[COMPRESSAO_FOTO.ladoMaior, { tela: telaGrande, ...grande }]]);
+    const telaDoLado = (lado: number) => {
+      let t = telas.get(lado);
+      if (!t) {
+        const m = medidas(grande.largura, grande.altura, lado);
+        t = { tela: desenhar(telaGrande, m.largura, m.altura), ...m };
+        telas.set(lado, t);
+      }
+      return t;
+    };
+    const [{ blob: foto, passo }, miniatura] = await Promise.all([
+      codificarAteCaber((p) => paraBlob(telaDoLado(p.ladoMaior).tela, p.qualidade)),
       paraBlob(telaPequena, COMPRESSAO_FOTO.qualidadeMiniatura),
     ]);
-    return { arquivo: foto, miniatura, largura: grande.largura, altura: grande.altura, bytes: foto.size };
+    if (miniatura.size > COMPRESSAO_FOTO.maxBytesSalva) throw new ErroFoto("foto_acima_limite");
+    const final = telaDoLado(passo.ladoMaior);
+    return { arquivo: foto, miniatura, largura: final.largura, altura: final.altura, bytes: foto.size };
   } finally {
     fonte.liberar();
   }

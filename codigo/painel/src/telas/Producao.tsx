@@ -38,9 +38,10 @@ const TODAS = "__todas";
  * Celular: abas de etapa + lista de cartões grandes; o carro abre em tela cheia.
  */
 export function Producao() {
-  const consulta = useOSs();
-  const config = useConfig();
-  const perfisQ = usePerfis();
+  // atualiza sozinho a cada 30 s: o tempo real não chega a todos os papéis (a produção também abre o quadro)
+  const consulta = useOSs("quadro");
+  const config = useConfig("quadro");
+  const perfisQ = usePerfis(true, "quadro");
   const agora = useAgora(30_000);
   const { perfil } = useSessao();
   const [params, setParams] = useSearchParams();

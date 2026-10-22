@@ -8,7 +8,6 @@ import { Icone } from "./Icone";
 import { iniciais } from "./ui/Basicos";
 import { MarcaD } from "./ui/Marca";
 import { SeletorTema } from "./ui/SeletorTema";
-import { sairDaSessao } from "./PinGate";
 
 /**
  * Casca do painel: barra lateral (desktop), barra inferior (celular) e topo com a busca.
@@ -18,7 +17,7 @@ import { sairDaSessao } from "./PinGate";
  * lateral no computador, "Mais" no celular.
  */
 export function Layout() {
-  const { perfil, perfis, trocarPerfil } = useSessao();
+  const { perfil, perfis, trocarPerfil, podeVerComo, sair, saindo } = useSessao();
   const navegar = useNavigate();
   const [busca, setBusca] = useState("");
   const local = useLocation();
@@ -50,11 +49,6 @@ export function Layout() {
     if (!termo) return;
     navegar(`/orcamentos?q=${encodeURIComponent(termo)}`);
   }
-
-  const sair = () => {
-    sairDaSessao();
-    window.location.reload();
-  };
 
   return (
     <div className="min-h-svh md:grid md:grid-cols-[232px_minmax(0,1fr)]">
@@ -101,12 +95,14 @@ export function Layout() {
         </nav>
         <div className="shrink-0 border-t border-preto/15 p-3">
           <div className="flex items-center gap-1">
-            <MenuUsuario perfil={perfil} perfis={perfis} onVerComo={verComo} />
+            {/* "Ver como" só na demonstração; no banco real cada pessoa entra com o próprio login */}
+            <MenuUsuario perfil={perfil} perfis={podeVerComo ? perfis : []} onVerComo={verComo} />
             <div className="flex items-center gap-0.5 shrink-0">
               <SeletorTema sobreNavegacao />
               <button
                 type="button"
                 onClick={sair}
+                disabled={saindo}
                 title="Sair"
                 aria-label="Sair"
                 className="inline-grid place-items-center w-7 h-7 rounded-controle text-preto/75 hover:text-preto hover:bg-preto/8 transition-colors duration-150"
@@ -248,22 +244,28 @@ export function Layout() {
               </nav>
               <div className="border-t border-linha px-5 py-3 flex flex-col gap-3">
                 <SeletorTema variante="segmentos" />
-                <label className="flex flex-col gap-1.5 text-[13px] font-medium text-tinta-suave">
-                  Ver o painel como (demonstração)
-                  <select
-                    value={perfil.id}
-                    onChange={(e) => verComo(e.target.value)}
-                    className="h-11 px-3 bg-cartao border border-linha-forte text-tinta font-medium"
-                  >
-                    {perfis.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.nome} · {PAPEL[p.papel]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button type="button" onClick={sair} className="flex items-center gap-2 h-11 text-[14px] font-medium text-tinta-suave">
-                  <Icone nome="sair" /> Sair
+                {podeVerComo ? (
+                  <label className="flex flex-col gap-1.5 text-[13px] font-medium text-tinta-suave">
+                    Ver o painel como (demonstração)
+                    <select
+                      value={perfil.id}
+                      onChange={(e) => verComo(e.target.value)}
+                      className="h-11 px-3 bg-cartao border border-linha-forte text-tinta font-medium"
+                    >
+                      {perfis.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.nome} · {PAPEL[p.papel]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : (
+                  <p className="text-[13px] text-tinta-suave">
+                    <span className="font-semibold text-tinta">{perfil.nome}</span> · {PAPEL[perfil.papel]}
+                  </p>
+                )}
+                <button type="button" onClick={sair} disabled={saindo} className="flex items-center gap-2 h-11 text-[14px] font-medium text-tinta-suave disabled:opacity-40">
+                  <Icone nome="sair" /> {saindo ? "Saindo…" : "Sair"}
                 </button>
               </div>
             </div>

@@ -18,17 +18,22 @@
 ✅ SF Pedidos do dono (modo escuro, orçamento em PDF/WhatsApp, foto real ao concluir etapa, nova categoria de serviço, Agenda e capacidade editável, Produção e TV refeitas; QA com 4 importantes corrigidos; 329 testes) — branch `sprint/sf-pedidos-dono`, merge e publicação em 20/10/2026
 ✅ SG Revisão de produto (mecânico + especialista em sistemas, `docs/revisao-sg/`): Geral em 6 quadrados com gaveta, contagens únicas, semáforo a 80 % do prazo, Atendimentos com filtros, Agenda de arrastar e soltar, A receber por seguradora, menu por papel, Estoque enxuto; 12 de 12 itens, QA com 5 importantes corrigidos; 436 testes no painel e 225 no compartilhado — branch `sprint/sg-revisao-produto`, merge, tag `sprint-SG` e publicação em 21/10/2026
 ✅ SH Pedidos do dono em dois áudios (`docs/revisao-sh/`): Geral só com números, menu lateral amarelo, "Orçamentos" de volta, "Parado" no lugar de "Impedido", cor do carro pela entrega e andamento com base em Ajustes → Cores dos carros e ajuste por carro, TV em mosaico, Produção com cor e filtros, lembrete "cobrar franquia"; 488 testes — branch `sprint/sh-pedidos-audio`, merge, tag `sprint-SH` e publicação em 22/10/2026
-🔧 Checkpoint do dono sobre as telas (SD + SE + SF + SG + SH) — o Guilherme manda o link ao irmão; o dono salva a base das cores em Ajustes; decidir se a produção pode "pegar" etapas livres; decisões novas L30–L36, L39–L44, L45–L55 e L56–L63 (cores dos carros; CPF/CNPJ, capacidade, caixa, hora de mão de obra, validade do orçamento, permissões, nome Atendimentos, laranja a 80 %, travar entrega sem foto)
-❌ Domínio do dono (hospedagem Cloudflare Pages) e conta Supabase do dono — aguardando
+🔧 Checkpoint do dono sobre as telas (SD + SE + SF + SG + SH + S1) — o Guilherme manda o link ao irmão; o dono salva a base das cores em Ajustes; decidir se a produção pode "pegar" etapas livres; decisões novas L30–L36, L39–L44, L45–L55, L56–L63 e L64–L71 (cores dos carros; CPF/CNPJ, capacidade, caixa, hora de mão de obra, validade do orçamento, permissões, nome Atendimentos, laranja a 80 %, travar entrega sem foto; fotos de entrada para a produção, gerente cadastra funcionário, comissão por etapa, admissão no meio do mês)
+🔧 Domínio ddoctorauto.com.br (Registro.br) — domínio existe; falta o dono criar a conta Cloudflare, adicionar o domínio e trocar os nameservers (perguntar se há e-mail no domínio); hospedagem Cloudflare Pages com site em / e painel em /painel
+✅ Conta Supabase: org "D Doctor" com `ddoctor-teste` e `ddoctor` oficial (plano grátis, sa-east-1)
 ❌ G1 Inspeção Maxpar → `docs/maxpar-g1.md` (necessário antes do S5/S6)
-❌ G2 Supabase produção · ❌ G3 Calia · ❌ G4a endereço do painel · ❌ G4b host do worker
-❌ OrbStack (ou Docker Desktop) no Mac (pré-requisito do S1)
+🔧 G2 Supabase produção — teste aplicado e validado (235/235); falta aplicar no `ddoctor` oficial · ❌ G3 Calia · ❌ G4a endereço do painel (falta publicar no domínio) · ❌ G4b host do worker
+✅ OrbStack/Docker deixou de ser pré-requisito do S1 (banco validado no PGlite e no projeto de teste)
 
 ## Painel — Fase 1 · Pátio fora da planilha
-❌ Banco núcleo (migrations, RLS, auditoria, funções), RepositorioSupabase, login por papel, `listarProducao` sem dados pessoais e custos fora da `OSVisao` — S1 (próximo)
-❌ Permissões no banco para fotos, configuração e tipos de serviço (RLS + pgTAP) e fotos no Cloudflare R2 (telas prontas no SF, no aparelho) — S1/S3
-❌ Tabelas novas do SE no banco (`custo_os`, `fornecedor`, `categoria_financeira`, `fechamento_caixa`, recepção/avarias, `baixa.parcelas`; `movimento_estoque.tipo` mudou) — S1
-❌ Itens do SG que precisam de banco: complemento por dano oculto, peça encomendada, glosa, mudança de prazo com motivo, decisão sobre item negado, retrabalho/garantia, carro reserva, vagas por turno, "Avisar cliente" no banco, `encaixe` na função do Supabase — S1/S2
+✅ S1 Banco núcleo no Supabase (migrations 0001–0015, RLS por papel, auditoria, funções atômicas, views só leitura, tempo real, 235 checagens), `RepositorioSupabase`, login por usuário ou e-mail, `?demo=1`, Edge Function `equipe-login` — aplicado e testado no `ddoctor-teste` (21–22/10/2026), branch `sprint/s1-supabase`
+✅ S1 Equipe (funcionários, função, permissão, login, histórico), Folha (salário + comissões, pagar gera despesa) e Ajustes → Comissões; matriz com gerente sem financeiro/custos/salários
+✅ S1 Permissões no banco para fotos, configuração e tipos de serviço, Storage privado de fotos (2 MB, URL assinada) — feito; 🔧 troca para Cloudflare R2 quando o 1 GB acabar (~4 meses)
+✅ S1 Tabelas novas do SE no banco (custo, fornecedor, categoria financeira, fechamento de caixa, recepção/avarias, parcelas) — dentro das migrations 0001–0015
+🔧 Banco oficial `ddoctor` — falta aplicar com `aplicar.mjs oficial`, publicar a Edge Function, desligar cadastro aberto, Site URL = https://ddoctorauto.com.br, criar o usuário do dono e `definir_primeiro_dono`; chave anon do oficial no build da Cloudflare
+🔧 Publicação do painel com o banco real no domínio do dono — depende da Cloudflare e do banco oficial
+🔧 `listarProducao` sem dados pessoais e custos fora da `OSVisao` — views de recorte só leitura criadas no S1; conferir uso no painel com o dono
+❌ Itens do SG que precisam de banco: complemento por dano oculto, peça encomendada, glosa, mudança de prazo com motivo, decisão sobre item negado, retrabalho/garantia, carro reserva, vagas por turno, "Avisar cliente" no banco, `encaixe` na função do Supabase — S2 (conferir o que o S1 já cobriu)
 ❌ Clientes, veículos, OS e ficha; entrada rápida — S2 (telas prontas em memória no SD/SE, incluindo Clientes com CPF/CNPJ e Receber o carro em 4 passos; falta o banco real)
 ❌ Agenda com capacidade e reserva atômica; pendências externas — S2 (grade, fila e arrastar e soltar prontos em memória no SD/SG; falta reserva atômica no banco)
 ❌ Tipos de reparo, etapas e semáforo configuráveis — S3 (semáforo e etapas fixos no domínio do SD; configuração trava em L09)

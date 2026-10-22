@@ -152,7 +152,7 @@ export const TIPO_PENDENCIA: Record<TipoPendencia, string> = {
 
 export const PAPEL: Record<Papel, string> = {
   dono: "Dono",
-  gestor: "Gestor",
+  gestor: "Gerente",
   recepcao: "Recepção",
   producao: "Produção",
   financeiro: "Financeiro",
@@ -242,6 +242,21 @@ export const ACAO_AUDITORIA: Record<string, string> = {
   ajuste: "Ajuste de estoque",
   adicionar_foto: "Adicionou foto",
   remover_foto: "Removeu foto",
+  // sprint S1: equipe e folha
+  remover: "Removeu",
+  criar_login: "Deu login",
+  trocar_senha: "Redefiniu a senha",
+  tirar_login: "Tirou o login",
+  ajuste_folha: "Ajuste na folha",
+  pagar_folha: "Pagou a folha",
+  // sprint S1: nomes gravados pelas funções do banco (Supabase)
+  iniciar_etapa: "Iniciou etapa",
+  concluir_etapa: "Concluiu etapa",
+  bloquear_etapa: "Impedimento",
+  retomar_etapa: "Retomou etapa",
+  dispensar_etapa: "Dispensou etapa",
+  alerta: "Alerta do carro",
+  primeiro_dono: "Primeiro dono",
 };
 
 /** Rótulo da ação; ação desconhecida vira "Texto com espaços". */
@@ -314,6 +329,8 @@ export const ERRO: Record<string, string> = {
   // sprint SF: fotos reais, tipos de reparo e configuração editável
   arquivo_invalido: "Esse arquivo não é uma foto que o painel consiga abrir. Use JPG, PNG, WebP ou a câmera.",
   arquivo_grande: "Foto grande demais (acima de 25 MB). Tire de novo ou escolha outra.",
+  // = COMPRESSAO_FOTO.maxBytesSalva (limite do bucket "fotos")
+  foto_acima_limite: "A foto passou de 2 MB mesmo depois de reduzida no aparelho, e o servidor não aceita. Tire de novo ou escolha outra.",
   fotos_temporarias: "Foto salva só nesta aba: o navegador não deixou guardar no aparelho (modo privado?). Ela some ao fechar.",
   foto_nao_encontrada: "Foto não encontrada. Atualize a tela.",
   foto_externa: "Foto da vistoria da Maxpar: não pode ser removida pelo painel.",
@@ -328,6 +345,68 @@ export const ERRO: Record<string, string> = {
   tipo_em_uso: "Há carro em aberto com essa categoria. Arquive depois que ele for entregue.",
   expediente_invalido: "Expediente inválido: marque ao menos um dia e use início antes do fim (HH:MM).",
   nada_a_salvar: "Nada mudou para salvar.",
+  // sprint S1: equipe, login, comissões e folha
+  sem_permissao: "O seu papel não pode fazer isso. Fale com o dono da oficina.",
+  perfil_inexistente: "Funcionário não encontrado. Atualize a tela.",
+  papel_invalido: "Escolha a permissão.",
+  salario_invalido: "Salário inválido. Use o valor do mês em reais, como 2.800,00.",
+  ultimo_dono: "A oficina precisa de ao menos um dono ativo. Dê a permissão de dono a outra pessoa antes.",
+  usuario_obrigatorio: "Informe o usuário.",
+  usuario_curto: "O usuário precisa de ao menos 3 letras ou números.",
+  usuario_longo: "O usuário pode ter no máximo 30 caracteres.",
+  usuario_invalido: "Use só letras sem acento, números, ponto, hífen ou sublinhado (começando e terminando com letra ou número).",
+  usuario_em_uso: "Esse usuário já é de outra pessoa da oficina. Escolha outro.",
+  senha_curta: "A senha precisa de ao menos 8 caracteres.",
+  senha_longa: "Senha longa demais: o limite é 72 bytes (cada letra com acento conta 2, emoji conta 4). Encurte a senha.",
+  proprio_login: "Você não pode tirar o seu próprio login.",
+  alvo_obrigatorio: "Escolha a etapa ou o tipo de serviço que paga a comissão.",
+  regra_duplicada: "Já existe uma comissão ligada para essa etapa e esse tipo de serviço. Edite a que existe.",
+  regra_nao_encontrada: "Comissão não encontrada. Atualize a tela.",
+  ajuste_invalido: "Ajuste inválido. Use reais, com sinal de menos para desconto, como -150,00.",
+  total_invalido: "O desconto passa do valor a receber; o total do mês não pode ficar negativo.",
+  ja_pago: "Isso já foi pago (folha do mês ou despesa já quitada).",
+  config_invalida: "Configuração inválida: confira os dias e horários do expediente, o semáforo e a capacidade.",
+  fora_da_folha: "Essa pessoa não entra na folha desse mês.",
+  // sprint S1: banco real (Supabase), login e Edge Function equipe-login
+  origem_invalida: "Escolha a origem do atendimento (Maxpar, seguradora direta, particular ou misto).",
+  pendencia_nao_encontrada: "Pendência não encontrada. Atualize a tela.",
+  saldo_so_por_movimento: "O saldo e o custo do material só mudam por movimentação de estoque.",
+  registro_imutavel: "Esse registro não pode ser alterado depois de gravado. Faça um lançamento de correção.",
+  registro_relacionado: "Um cadastro ligado a este não existe mais. Atualize a tela.",
+  erro_desconhecido: "Não foi possível concluir a ação. Tente de novo.",
+  sem_conexao: "Sem conexão com o servidor. Confira a internet e tente de novo.",
+  sem_sessao: "A sua sessão terminou. Entre de novo.",
+  config_nao_encontrada: "A configuração da oficina não foi encontrada no banco. Fale com quem cuida do sistema.",
+  falha_auth: "O servidor de login recusou a mudança. Tente de novo em instantes.",
+  falha_banco: "O banco recusou a mudança. Tente de novo em instantes.",
+  acao_invalida: "Ação de login desconhecida. Atualize a página.",
+  pedido_invalido: "Pedido inválido. Atualize a página e tente de novo.",
+  metodo_invalido: "Pedido inválido. Atualize a página e tente de novo.",
+  login_indisponivel: "O serviço que cria os logins da equipe ainda não está ativo no servidor. Fale com quem cuida do sistema.",
+  login_nao_sincronizado: "Cadastro salvo, mas o login não foi atualizado no servidor. Abra a pessoa e salve de novo.",
+  falha_envio_foto: "Não consegui enviar a foto. Confira a internet e tente de novo.",
+  so_na_demonstracao: "Restaurar só existe na demonstração; o banco da oficina não é apagado pelo painel.",
+  // tela de entrada (login)
+  login_invalido: "Usuário ou senha incorretos.",
+  login_bloqueado: "Esse login está desativado. Fale com o dono da oficina.",
+  muitas_tentativas: "Muitas tentativas seguidas. Espere um minuto e tente de novo.",
+  usuario_ou_email_invalido: "Digite o seu usuário (como diego) ou o seu e-mail.",
+  senha_obrigatoria: "Digite a senha.",
+};
+
+/** Mensagem do valor da comissão (0 é válido: zera a regra geral para um caso). */
+export const ERRO_VALOR_COMISSAO = "Valor da comissão: de R$ 0,00 a R$ 100.000,00 por etapa.";
+
+/**
+ * O que cada permissão vê no painel (Equipe → Editar), na voz do dono. Fonte: matriz de permissoes.ts (S1).
+ * A TV ("dispositivo") não aparece: é aparelho, não pessoa.
+ */
+export const PERMISSAO_RESUMO: Record<Exclude<Papel, "dispositivo">, string> = {
+  dono: "Tudo, inclusive o dinheiro, a folha e quem tem login.",
+  gestor: "Quase tudo: carros, agenda, produção, equipe e estoque. Não vê o dinheiro (A receber, Financeiro, folha, custos).",
+  recepcao: "Orçamentos, agenda, clientes e o quadro da produção.",
+  producao: "As próprias tarefas no celular e o quadro da produção, sem valores nem telefone.",
+  financeiro: "A receber, Financeiro, caixa, folha, relatórios e custos. Não mexe na produção.",
 };
 
 /**
@@ -375,7 +454,7 @@ export const MENU: { modulo: Modulo; rota: string; nome: string; nomePara?: Part
   { modulo: "clientes", rota: "/clientes", nome: "Clientes", icone: "pessoa", grupo: "operacao" },
   { modulo: "recebiveis", rota: "/recebiveis", nome: "A receber", icone: "recebiveis", grupo: "dinheiro" },
   { modulo: "financeiro", rota: "/financeiro", nome: "Financeiro", icone: "financeiro", grupo: "dinheiro" },
-  { modulo: "funcionarios", rota: "/funcionarios", nome: "Equipe", icone: "funcionarios", grupo: "gestao" },
+  { modulo: "equipe", rota: "/equipe", nome: "Equipe", icone: "funcionarios", grupo: "gestao" },
   { modulo: "estoque", rota: "/estoque", nome: "Estoque", icone: "estoque", grupo: "gestao" },
   { modulo: "ajustes", rota: "/ajustes", nome: "Ajustes", icone: "ajustes", grupo: "gestao" },
 ];

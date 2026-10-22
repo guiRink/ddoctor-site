@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { HashRouter, Navigate, Route, Routes, useSearchParams } from "react-router-dom";
 import { Layout } from "./componentes/Layout";
-import { PinGate } from "./componentes/PinGate";
+import { PortaoAcesso } from "./componentes/Login";
 import { Vazio } from "./componentes/ui/Basicos";
 import { ProvedorSessao, useSessao } from "./dados/sessao";
 import { podeVer, telaInicial, type Modulo } from "./dominio/permissoes";
@@ -13,7 +13,7 @@ import { ImprimirOS } from "./telas/ImprimirOS";
 import { Estoque } from "./telas/Estoque";
 import { FichaOS } from "./telas/FichaOS";
 import { Financeiro } from "./telas/Financeiro";
-import { Funcionarios } from "./telas/Funcionarios";
+import { Equipe } from "./telas/Equipe";
 import { Geral } from "./telas/Geral";
 import { MinhasTarefas } from "./telas/MinhasTarefas";
 import { NovoAtendimento } from "./telas/NovoAtendimento";
@@ -38,6 +38,13 @@ function Inicio() {
   return <Navigate to={telaInicial(perfil.papel)} replace />;
 }
 
+/** Funcionários virou Equipe (sprint S1): o link antigo cai na Equipe, com os mesmos parâmetros. */
+function FuncionariosAntigo() {
+  const [params] = useSearchParams();
+  const busca = params.toString();
+  return <Navigate to={`/equipe${busca ? `?${busca}` : ""}`} replace />;
+}
+
 /** Relatórios virou aba do Financeiro (sprint SG): o link antigo cai lá, no mesmo mês. */
 function RelatoriosAntigo() {
   const [params] = useSearchParams();
@@ -49,7 +56,7 @@ function RelatoriosAntigo() {
 
 export default function App() {
   return (
-    <PinGate>
+    <PortaoAcesso>
       <ProvedorSessao>
         <HashRouter>
           <Routes>
@@ -67,7 +74,8 @@ export default function App() {
               <Route path="/producao" element={<Protegida modulo="producao"><Producao /></Protegida>} />
               <Route path="/producao/eu" element={<Protegida modulo="minhas_tarefas"><MinhasTarefas /></Protegida>} />
               <Route path="/vistorias" element={<Protegida modulo="vistorias"><Vistorias /></Protegida>} />
-              <Route path="/funcionarios" element={<Protegida modulo="funcionarios"><Funcionarios /></Protegida>} />
+              <Route path="/equipe" element={<Protegida modulo="equipe"><Equipe /></Protegida>} />
+              <Route path="/funcionarios" element={<FuncionariosAntigo />} />
               <Route path="/estoque" element={<Protegida modulo="estoque"><Estoque /></Protegida>} />
               <Route path="/recebiveis" element={<Protegida modulo="recebiveis"><Recebiveis /></Protegida>} />
               <Route path="/financeiro" element={<Protegida modulo="financeiro"><Financeiro /></Protegida>} />
@@ -78,6 +86,6 @@ export default function App() {
           </Routes>
         </HashRouter>
       </ProvedorSessao>
-    </PinGate>
+    </PortaoAcesso>
   );
 }
