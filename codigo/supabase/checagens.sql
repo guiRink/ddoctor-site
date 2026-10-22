@@ -388,7 +388,7 @@ begin
     res := pg_temp.chk(res, 'segurança', 'fotos: recepção lê o arquivo da vistoria', v_n = 1, v_n::text);
     perform pg_temp.como(null);
     delete from public.foto where id = v_foto2;
-    delete from storage.objects where bucket_id = 'fotos' and name = v_of || '/' || v_os1 || '/' || v_foto2 || '.webp';
+    -- (o arquivo de teste some no rollback do fim; o Supabase não deixa apagar de storage.objects direto)
     perform pg_temp.como(au ->> 'producao');
     r := public.concluir_etapa(e2, null, array[v_foto]);
     res := pg_temp.esp(res, 'producao', 'etapa com contagem, sem contagem', r, 'contagem_obrigatoria');
