@@ -408,7 +408,7 @@ begin
     select count(*) into v_n from storage.objects where bucket_id = 'fotos' and name like v_of || '/' || v_os1 || '/%';
     res := pg_temp.chk(res, 'fotos', 'TV não lê arquivos de foto', v_n = 0, v_n::text);
     perform pg_temp.como(au ->> 'financeiro');
-    select count(*) into v_n from storage.objects where bucket_id = 'fotos' and name like v_of || '/' || v_os1 || '/%';
+    select count(*) into v_n from storage.objects where bucket_id = 'fotos' and name = v_of || '/' || v_os1 || '/' || v_foto || '.webp';
     res := pg_temp.chk(res, 'fotos', 'financeiro lê arquivos de foto', v_n = 1, v_n::text);
     perform pg_temp.como(au ->> 'producao');
     r := public.dispensar_etapa(e3, 'não precisou');
